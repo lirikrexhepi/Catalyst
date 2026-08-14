@@ -1,8 +1,12 @@
 import React from 'react';
-import { OnboardingScreen } from './components/Onboarding/OnboardingScreen';
+import { Scene } from './components/scene/Scene';
 
-export const App: React.FC = () => {
-  return <OnboardingScreen />;
-};
+function App() {
+  return (
+    <main className="w-screen h-screen overflow-hidden">
+      <Scene />
+    </main>
+  );
+}
 
 export default App;

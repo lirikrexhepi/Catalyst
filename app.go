@@ -2,36 +2,26 @@ package main
 
 import (
 	"context"
-	"catalyst/pkg/auth"
+	"fmt"
 )
 
+// App struct
 type App struct {
-	applicationContext context.Context
-	authManager        *auth.Manager
+	ctx context.Context
 }
 
+// NewApp creates a new App application struct
 func NewApp() *App {
-	return &App{
-		authManager: auth.NewManager(),
-	}
+	return &App{}
 }
 
-func (app *App) startup(applicationContext context.Context) {
-	app.applicationContext = applicationContext
+// startup is called when the app starts. The context is saved
+// so we can call the runtime methods
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
 }
 
-func (app *App) GetDetectedAgents() ([]auth.DetectedAgent, error) {
-	return app.authManager.ScanDetectedAgents()
-}
-
-func (app *App) InitiateOAuth(providerID string) (*auth.Credential, error) {
-	return app.authManager.StartOAuthFlow(app.applicationContext, auth.ProviderID(providerID))
-}
-
-func (app *App) LinkDetectedAgent(agentID string, providerID string) (*auth.Credential, error) {
-	return app.authManager.LinkAgent(agentID, auth.ProviderID(providerID))
-}
-
-func (app *App) GetLinkedProviders() ([]auth.ProviderID, error) {
-	return app.authManager.GetLinkedProviders(), nil
+// Greet returns a greeting for the given name
+func (a *App) Greet(name string) string {
+	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
