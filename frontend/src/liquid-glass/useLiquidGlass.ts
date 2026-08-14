@@ -181,11 +181,12 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
       boxShadow: resolvedShadow,
       border: resolvedBorder,
       overflow: 'hidden',
-      // Promote to a dedicated compositor layer and isolate the backdrop root so the
-      // filter samples this subtree instead of re-resolving the whole page behind it.
+      // Promote to a dedicated compositor layer so the blurred backdrop can be cached
+      // between frames. Deliberately NOT using `contain: paint` or `isolation: isolate`
+      // here: both make this element its own backdrop root, which forces the filter to
+      // be re-resolved from scratch every frame instead of reusing the cached surface.
       transform: 'translateZ(0)',
-      isolation: 'isolate',
-      contain: 'paint',
+      backfaceVisibility: 'hidden',
     };
   }, [
     resolvedRadius,

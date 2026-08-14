@@ -33,10 +33,11 @@ const PANEL_STYLE: React.CSSProperties = {
     '0 24px 60px rgba(0, 0, 0, 0.55), 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25)',
 };
 
+// `contain: paint` is intentionally absent: inside a backdrop-filtered panel it makes the
+// scroller its own backdrop root, so every scroll frame re-resolves the panel's blur.
 const FEED_SCROLL_STYLE: React.CSSProperties = {
   overscrollBehavior: 'contain',
   transform: 'translateZ(0)',
-  contain: 'paint',
 };
 
 /**
@@ -79,6 +80,9 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
   // Live geometry during a drag/resize gesture. Mouse moves write here and paint via
   // rAF-batched direct style writes, so the React tree is not re-rendered per frame.
   const liveGeomRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  // Origin the live transform is measured against, so the gesture can move the window
+  // with a compositor-only translate instead of writing left/top each frame.
+  const basePosRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
 
   // Derive status from streamBlocks if not explicitly set
@@ -117,6 +121,7 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
       width: size.width,
       height: size.height,
     };
+    basePosRef.current = { x: position.x, y: position.y };
     e.preventDefault();
   };
 
@@ -141,6 +146,7 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
       width: size.width,
       height: size.height,
     };
+    basePosRef.current = { x: position.x, y: position.y };
   };
 
   // Paint the live gesture geometry straight to the DOM, batched to one write per frame.
@@ -149,8 +155,10 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
     const el = windowRef.current;
     if (!el) return;
     const { x, y, width, height } = liveGeomRef.current;
-    el.style.left = `${x}px`;
-    el.style.top = `${y}px`;
+    // Translating is composited; animating left/top would relayout every frame.
+    el.style.transform = `translate3d(${x - basePosRef.current.x}px, ${
+      y - basePosRef.current.y
+    }px, 0)`;
     el.style.width = `${width}px`;
     el.style.height = `${height}px`;
   }, []);
@@ -227,6 +235,10 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    // Hand the final geometry back to React as left/top and drop the live transform in
+    // the same commit, so the window never jumps between the two representations.
+    const el = windowRef.current;
+    if (el) el.style.transform = '';
     const { x, y, width, height } = liveGeomRef.current;
     if (width > 0 && height > 0) {
       setPosition({ x, y });
@@ -264,8 +276,9 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
         width: `${size.width}px`,
         height: `${size.height}px`,
         zIndex: 25,
-        willChange: isDragging || resizingDir ? 'left, top, width, height' : undefined,
+        willChange: isDragging || resizingDir ? 'transform' : undefined,
       }}
+      data-gesture={isDragging || resizingDir ? 'active' : undefined}
     >
       <LiquidGlass
         variant="panel"

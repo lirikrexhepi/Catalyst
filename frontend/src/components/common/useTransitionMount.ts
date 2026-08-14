@@ -11,27 +11,26 @@ export function useTransitionMount(isOpen: boolean, durationMs: number = 200) {
   const [isVisible, setIsVisible] = useState(isOpen);
 
   useEffect(() => {
-    let mountTimer: ReturnType<typeof setTimeout> | undefined;
-    let unmountTimer: ReturnType<typeof setTimeout> | undefined;
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
     if (isOpen) {
       setShouldRender(true);
       // Ensure initial frame (opacity 0, scale 0.96) is painted before triggering transition to 1
-      mountTimer = setTimeout(() => {
-        setIsVisible(true);
-      }, 20);
-      return () => {
-        if (mountTimer) clearTimeout(mountTimer);
-      };
+      timers.push(
+        setTimeout(() => {
+          setIsVisible(true);
+        }, 20)
+      );
     } else {
       setIsVisible(false);
-      unmountTimer = setTimeout(() => {
-        setShouldRender(false);
-      }, durationMs);
-      return () => {
-        if (unmountTimer) clearTimeout(unmountTimer);
-      };
+      timers.push(
+        setTimeout(() => {
+          setShouldRender(false);
+        }, durationMs)
+      );
     }
+
+    return () => timers.forEach(clearTimeout);
   }, [isOpen, durationMs]);
 
   return { shouldRender, isVisible };

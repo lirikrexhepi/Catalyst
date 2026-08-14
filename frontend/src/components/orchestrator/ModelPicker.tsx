@@ -67,8 +67,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       border="1px solid rgba(255, 255, 255, 0.18)"
       disableRefraction={isFloatingPopup}
       className="w-[225px] p-2.5 text-white shadow-2xl"
-      frost={isFloatingPopup ? 13 : 6}
-      frostSaturation={160}
+      frost={isFloatingPopup ? 28 : 12}
+      frostSaturation={185}
       style={{
         boxShadow:
           '0 20px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25)',

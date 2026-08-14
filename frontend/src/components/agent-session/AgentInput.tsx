@@ -239,12 +239,12 @@ export const AgentInput: React.FC<AgentInputProps> = ({
         >
           {modelPickerMount.shouldRender && (
             <div
-              className="origin-bottom-left transition-all duration-180 ease-[cubic-bezier(0.16,1,0.3,1)]"
+              className="glass-popup-anim origin-bottom-left"
               style={{
                 opacity: modelPickerMount.isVisible ? 1 : 0,
                 transform: modelPickerMount.isVisible
-                  ? 'translateY(0) scale(1)'
-                  : 'translateY(8px) scale(0.96)',
+                  ? 'translate3d(0, 0, 0) scale(1)'
+                  : 'translate3d(0, 8px, 0) scale(0.96)',
                 pointerEvents: modelPickerMount.isVisible ? 'auto' : 'none',
               }}
             >
@@ -260,12 +260,12 @@ export const AgentInput: React.FC<AgentInputProps> = ({
 
           {effortPickerMount.shouldRender && (
             <div
-              className="origin-bottom-left transition-all duration-180 ease-[cubic-bezier(0.16,1,0.3,1)]"
+              className="glass-popup-anim origin-bottom-left"
               style={{
                 opacity: effortPickerMount.isVisible ? 1 : 0,
                 transform: effortPickerMount.isVisible
-                  ? 'translateX(0) scale(1)'
-                  : 'translateX(-10px) scale(0.96)',
+                  ? 'translate3d(0, 0, 0) scale(1)'
+                  : 'translate3d(-10px, 0, 0) scale(0.96)',
                 pointerEvents: effortPickerMount.isVisible ? 'auto' : 'none',
               }}
             >
