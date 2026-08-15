@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { AIModel, CLIProvider, ModelSettings, ThinkingEffort, ThinkingMode } from './types';
-import { DEFAULT_MODELS, DEFAULT_PROVIDERS } from './orchestratorData';
+import { DEFAULT_MODELS, DEFAULT_PROVIDERS, toModel, toProvider } from './orchestratorData';
+import { ListProviders } from '../../../wailsjs/go/main/App';
 
 interface OrchestratorStore {
   providers: CLIProvider[];
@@ -12,8 +13,11 @@ interface OrchestratorStore {
   isModelPickerOpen: boolean;
   isEffortPickerOpen: boolean;
   activeConfiguringModelId: string | null;
+  isLoadingProviders: boolean;
+  providersError: string | null;
 
   // Actions
+  loadProviders: (force?: boolean) => Promise<void>;
   setProviders: (providers: CLIProvider[]) => void;
   setModels: (models: AIModel[]) => void;
   addProvider: (provider: CLIProvider) => void;
@@ -37,23 +41,65 @@ interface OrchestratorStore {
 }
 
 const initialSettings: Record<string, ModelSettings> = {};
-DEFAULT_MODELS.forEach((m) => {
-  initialSettings[m.id] = {
-    effort: m.defaultEffort || 'Medium',
-    mode: m.defaultMode || (m.supportsThinking ? 'thinking' : 'normal'),
-  };
-});
 
 export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
   providers: DEFAULT_PROVIDERS,
   models: DEFAULT_MODELS,
-  selectedProviderId: 'anthropic',
-  selectedModelId: 'claude-opus-5',
+  selectedProviderId: '',
+  selectedModelId: '',
   modelSettings: initialSettings,
   messageText: '',
   isModelPickerOpen: false,
   isEffortPickerOpen: false,
   activeConfiguringModelId: null,
+  isLoadingProviders: false,
+  providersError: null,
+
+  // Discovers installed CLIs and their models. Only ready providers are
+  // selectable; the current selection is preserved across refreshes when it
+  // still exists.
+  loadProviders: async (force = false) => {
+    set({ isLoadingProviders: true });
+    try {
+      const snapshots = await ListProviders(force);
+      const ready = snapshots.filter((snapshot) => snapshot.availability === 'ready');
+
+      const providers = ready.map(toProvider);
+      const models = ready.flatMap((snapshot) =>
+        (snapshot.models ?? []).map((model) => toModel(snapshot, model)),
+      );
+
+      const settings = { ...get().modelSettings };
+      for (const model of models) {
+        if (!settings[model.id]) {
+          settings[model.id] = {
+            effort: model.defaultEffort || model.effortLevels?.[0] || 'Medium',
+            mode: model.defaultMode || 'normal',
+          };
+        }
+      }
+
+      const previous = get().selectedModelId;
+      const keep = models.find((model) => model.id === previous);
+      const fallback = models.find((model) => model.providerId === 'claude') || models[0];
+      const selected = keep || fallback;
+
+      set({
+        providers,
+        models,
+        modelSettings: settings,
+        selectedModelId: selected?.id || '',
+        selectedProviderId: selected?.providerId || providers[0]?.id || '',
+        isLoadingProviders: false,
+        providersError: snapshots.length === 0 ? 'No agent CLIs detected' : null,
+      });
+    } catch (cause) {
+      set({
+        isLoadingProviders: false,
+        providersError: cause instanceof Error ? cause.message : String(cause),
+      });
+    }
+  },
 
   setProviders: (providers) => set({ providers }),
   setModels: (models) => set({ models }),

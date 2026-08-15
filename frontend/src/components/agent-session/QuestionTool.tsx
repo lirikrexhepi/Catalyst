@@ -27,7 +27,7 @@ export interface QuestionToolProps {
 const QuestionToolImpl: React.FC<QuestionToolProps> = ({
   questionNumber = 1,
   totalQuestions = 2,
-  question = 'How should we apply this change?',
+  question,
   options = [
     { key: 'A', label: 'Small scoped patch' },
     { key: 'B', label: 'Full refactor' },

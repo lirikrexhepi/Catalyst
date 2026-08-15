@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { AgentSessionFeed } from './AgentSessionFeed';
 import { AgentInput } from './AgentInput';
+import { SpiralLoader } from './SpiralLoader';
+import { TextShimmer } from './TextShimmer';
 import { AgentStreamBlock } from './types';
 
 export type AgentSessionStatus = 'working' | 'finished' | 'idle' | 'error';
@@ -14,7 +16,10 @@ export interface AgentWindowProps {
   initialSize?: { width: number; height: number };
   minSize?: { width: number; height: number };
   maxSize?: { width: number; height: number };
+  modelId?: string;
   streamBlocks: AgentStreamBlock[];
+  isFocused?: boolean;
+  onFocus?: () => void;
   onSendMessage?: (msg: string, modelId: string) => void;
   onInterrupt?: () => void;
   onApprovePlan?: (blockId: string) => void;
@@ -45,13 +50,16 @@ const FEED_SCROLL_STYLE: React.CSSProperties = {
  * Full desktop-grade window with full 8-directional invisible perimeter resizing, draggable titlebar, and stateful status indicator.
  */
 export const AgentWindow: React.FC<AgentWindowProps> = ({
-  title = 'Task 2 name here',
-  status = 'finished',
+  title = 'Agent',
+  status,
   initialPosition,
   initialSize = { width: 520, height: 660 },
   minSize = { width: 400, height: 420 },
   maxSize = { width: 1200, height: 1200 },
+  modelId,
   streamBlocks,
+  isFocused = false,
+  onFocus,
   onSendMessage,
   onInterrupt,
   onApprovePlan,
@@ -85,22 +93,31 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
   const basePosRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef<number | null>(null);
 
-  // Derive status from streamBlocks if not explicitly set
+  // An explicit status is authoritative: the owner knows whether the turn is
+  // still running, which the blocks alone cannot tell (a tool group carries no
+  // running flag). Only fall back to inspecting blocks when none is given.
   const isWorking =
     status === 'working' ||
-    streamBlocks.some(
-      (b) =>
-        (b.type === 'thinking' && b.isThinking) ||
-        (b.type === 'tool_bash' && b.status === 'running') ||
-        (b.type === 'tool_search' && b.isSearching)
-    );
+    (status === undefined &&
+      streamBlocks.some(
+        (b) =>
+          (b.type === 'thinking' && b.isThinking) ||
+          (b.type === 'tool_bash' && b.status === 'running') ||
+          (b.type === 'tool_search' && b.isSearching)
+      ));
+
+  // A streaming thinking block renders its own spinner and label, so the
+  // waiting indicator below the feed would double up with it.
+  const hasLiveIndicator = streamBlocks.some(
+    (block) => block.type === 'thinking' && block.isThinking,
+  );
 
   // Auto-scroll to bottom when new stream blocks arrive
   useEffect(() => {
     if (feedScrollRef.current) {
       feedScrollRef.current.scrollTop = feedScrollRef.current.scrollHeight;
     }
-  }, [streamBlocks.length]);
+  }, [streamBlocks, isWorking]);
 
   // Window drag handler
   const handleTitleMouseDown = (e: React.MouseEvent) => {
@@ -269,13 +286,14 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
   return (
     <div
       ref={windowRef}
+      onMouseDown={onFocus}
       className={`absolute select-none pointer-events-auto ${className}`}
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: `${size.width}px`,
         height: `${size.height}px`,
-        zIndex: 25,
+        zIndex: isDragging || resizingDir ? 38 : isFocused ? 35 : 25,
         willChange: isDragging || resizingDir ? 'transform' : undefined,
       }}
       data-gesture={isDragging || resizingDir ? 'active' : undefined}
@@ -343,11 +361,24 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
               onAnswerQuestion={onAnswerQuestion}
               onSkipQuestion={onSkipQuestion}
             />
+
+            {isWorking && !hasLiveIndicator && (
+              <div className="flex items-center gap-2 pt-3 pl-0.5">
+                <SpiralLoader size={13} />
+                <TextShimmer
+                  duration={1.5}
+                  className="text-[12px] font-medium font-['Geist'] tracking-tight"
+                >
+                  Thinking
+                </TextShimmer>
+              </div>
+            )}
           </div>
 
           {/* Fixed Bottom Standalone AgentInput Component */}
           <div className="shrink-0 pt-2 border-t border-white/10">
             <AgentInput
+              defaultModelId={modelId}
               onSubmit={onSendMessage}
               onInterrupt={onInterrupt}
               isStreaming={isWorking}

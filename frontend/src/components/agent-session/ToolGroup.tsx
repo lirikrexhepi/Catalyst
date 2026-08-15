@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 
 export interface ToolGroupItem {
   id?: string;
-  type: 'read' | 'bash' | 'search' | 'edit' | 'write' | 'generic';
-  action: string; // e.g. 'Read', 'Ran command', 'Searched', 'Edited'
-  target: string; // e.g. 'composable/Test.tsx', 'npm run build'
+  type: 'read' | 'bash' | 'search' | 'edit' | 'write' | 'git' | 'generic';
+  action: string; // e.g. 'Read', 'Ran command', 'Searched', 'Edited', 'Git'
+  target: string; // e.g. 'composable/Test.tsx', 'git status', 'npm run build'
   details?: string;
 }
 
@@ -23,16 +23,18 @@ export interface ToolGroupProps {
  * - Sub-items with Material Symbols icons
  */
 const ToolGroupImpl: React.FC<ToolGroupProps> = ({
-  title = 'Task completed',
-  summary = '10 files, 12 searches, 20 commands',
+  title = 'Tools',
+  summary,
   items = [],
-  defaultExpanded = true,
+  defaultExpanded = false,
   className = '',
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const getIcon = (type: ToolGroupItem['type']) => {
     switch (type) {
+      case 'git':
+        return 'account_tree';
       case 'read':
         return 'visibility';
       case 'bash':

@@ -23,9 +23,9 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
   defaultExpanded,
   className = '',
 }) => {
-  const [isExpanded, setIsExpanded] = useState<boolean>(
-    defaultExpanded !== undefined ? defaultExpanded : isThinking
-  );
+  // Collapsed unless explicitly opened: reasoning is supporting detail, so it
+  // should not push the answer off screen while it streams.
+  const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? false);
 
   const toggleExpand = () => {
     setIsExpanded((prev) => !prev);
@@ -84,7 +84,7 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
                 '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
             }}
           >
-            {thoughtText || 'The user has requested me to finish the given task, analyzing requirements...'}
+            {thoughtText}
           </div>
         </div>
       </div>

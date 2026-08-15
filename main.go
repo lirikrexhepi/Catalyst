@@ -18,14 +18,18 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "catalyst",
-		Width:  1024,
-		Height: 768,
+		Title:            "catalyst",
+		WindowStartState: options.Normal,
+		Width:            1280,
+		Height:           860,
+		MinWidth:         900,
+		MinHeight:        600,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
 		Debug: options.Debug{
 			OpenInspectorOnStartup: false,
 		},

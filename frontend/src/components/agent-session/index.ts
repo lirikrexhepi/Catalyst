@@ -11,5 +11,7 @@ export * from './PlanTool';
 export * from './QuestionTool';
 export * from './UserChatBubble';
 export * from './AgentInput';
+export * from './MarkdownText';
+export * from './NoticeDivider';
 export * from './AgentSessionFeed';
 export * from './AgentWindow';

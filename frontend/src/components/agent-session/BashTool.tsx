@@ -23,7 +23,7 @@ const BashToolImpl: React.FC<BashToolProps> = ({
   status = 'completed',
   exitCode,
   className = '',
-  defaultExpanded = true,
+  defaultExpanded = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isCopied, setIsCopied] = useState(false);

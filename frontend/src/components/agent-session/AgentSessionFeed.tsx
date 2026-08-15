@@ -9,6 +9,8 @@ import { EditTool } from './EditTool';
 import { TodoTool } from './TodoTool';
 import { PlanTool } from './PlanTool';
 import { QuestionTool } from './QuestionTool';
+import { MarkdownText } from './MarkdownText';
+import { NoticeDivider } from './NoticeDivider';
 
 export interface AgentSessionFeedProps {
   blocks: AgentStreamBlock[];
@@ -43,15 +45,18 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
               />
             );
 
+          case 'notice':
+            return <NoticeDivider key={block.id} label={block.label} icon={block.icon} />;
+
           case 'text':
             return (
               <div
                 key={block.id}
                 className="text-[12px] font-medium font-['Geist'] text-white/90 leading-relaxed pl-0.5 select-text"
               >
-                {block.content}
+                <MarkdownText content={block.content} />
                 {block.isStreaming && (
-                  <span className="inline-block w-1.5 h-3 bg-white/70 ml-1 animate-pulse" />
+                  <span className="inline-block w-1.5 h-3 bg-white/70 ml-1 animate-pulse align-middle" />
                 )}
               </div>
             );

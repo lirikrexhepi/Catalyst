@@ -38,7 +38,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
     { type: 'context', lineNum: 10, content: '}' },
   ],
   className = '',
-  defaultExpanded = true,
+  defaultExpanded = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isCopied, setIsCopied] = useState(false);

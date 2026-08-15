@@ -28,13 +28,17 @@ export const AgentInput: React.FC<AgentInputProps> = ({
   isStreaming = false,
   placeholder = 'Send a message',
   className = '',
-  defaultModelId = 'claude-opus-5',
+  defaultModelId,
 }) => {
   const { providers, models } = useOrchestratorStore();
 
   const [message, setMessage] = useState('');
   const [textareaHeight, setTextareaHeight] = useState(22);
-  const [localModelId, setLocalModelId] = useState(defaultModelId);
+  // Falls back to the store's selection so a window never displays a model the
+  // session is not actually running.
+  const [localModelId, setLocalModelId] = useState(
+    () => defaultModelId || useOrchestratorStore.getState().selectedModelId,
+  );
   const [localProviderId, setLocalProviderId] = useState(() => {
     const m = models.find((item) => item.id === defaultModelId);
     return m?.providerId || 'anthropic';
@@ -169,7 +173,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             caretColor="rgba(255, 255, 255, 0.95)"
-            textClassName="w-full text-[12px] font-medium font-['Geist'] text-white tracking-tight leading-[20px] block"
+            textClassName="w-full text-[11.5px] font-medium font-['Geist'] text-white tracking-tight leading-[20px] block"
             className={isScrollable ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden'}
             placeholderClassName="text-white/40"
             style={{
@@ -199,7 +203,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
                 draggable={false}
               />
             )}
-            <span className="text-[12px] font-medium font-['Geist'] text-white tracking-tight leading-none">
+            <span className="text-[11.5px] font-medium font-['Geist'] text-white tracking-tight leading-none">
               {currentModel?.name || 'Select Model'}
             </span>
             <span

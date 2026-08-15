@@ -15,6 +15,14 @@ export interface UserMessageBlock {
   timestamp?: number;
 }
 
+/** Inline rule marking a provider/model switch mid-conversation. */
+export interface NoticeBlock {
+  type: 'notice';
+  id: string;
+  label: string;
+  icon?: string;
+}
+
 export interface AssistantTextBlock {
   type: 'text';
   id: string;
@@ -36,6 +44,8 @@ export interface ToolGroupBlockData {
   title: string;
   summary?: string;
   items: ToolGroupItem[];
+  /** Tool call ids folded into this group, so results can find their row. */
+  memberIds?: string[];
 }
 
 export interface BashToolBlockData {
@@ -93,6 +103,7 @@ export interface QuestionToolBlockData {
 
 export type AgentStreamBlock =
   | UserMessageBlock
+  | NoticeBlock
   | AssistantTextBlock
   | ThinkingBlockData
   | ToolGroupBlockData

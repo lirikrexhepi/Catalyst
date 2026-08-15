@@ -8,11 +8,15 @@ import { SmoothTextarea } from '../common/SmoothTextarea';
 
 export interface OrchestratorInputProps {
   onSubmit?: (message: string, modelId: string) => void;
+  onInterrupt?: () => void;
+  isBusy?: boolean;
   className?: string;
 }
 
 export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   onSubmit,
+  onInterrupt,
+  isBusy = false,
   className = '',
 }) => {
   const {
@@ -20,12 +24,18 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     messageText,
     isModelPickerOpen,
     isEffortPickerOpen,
+    isLoadingProviders,
     setMessageText,
     toggleModelPicker,
     closeAllPickers,
     getSelectedModel,
     getSelectedProvider,
+    loadProviders,
   } = useOrchestratorStore();
+
+  useEffect(() => {
+    void loadProviders();
+  }, [loadProviders]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -74,17 +84,20 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     };
   }, [isModelPickerOpen, isEffortPickerOpen, closeAllPickers]);
 
+  const submitMessage = () => {
+    if (!messageText.trim()) return;
+    onSubmit?.(messageText, selectedModelId);
+    setMessageText('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '22px';
+    }
+    setTextareaHeight(22);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (messageText.trim()) {
-        onSubmit?.(messageText, selectedModelId);
-        setMessageText('');
-        if (textareaRef.current) {
-          textareaRef.current.style.height = '22px';
-        }
-        setTextareaHeight(22);
-      }
+      submitMessage();
     }
     if (e.key === 'Escape') {
       closeAllPickers();
@@ -144,8 +157,8 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 draggable={false}
               />
             )}
-            <span className="text-[14px] font-medium text-white font-['Geist'] tracking-tight select-none leading-none flex items-center">
-              {currentModel?.name || 'Select Model'}
+            <span className="text-[12.5px] font-medium text-white font-['Geist'] tracking-tight select-none leading-none flex items-center whitespace-nowrap">
+              {currentModel?.name || (isLoadingProviders ? 'Detecting CLIs…' : 'No CLI found')}
             </span>
             <span
               className={`material-symbols-outlined text-[18px] text-white/70 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${
@@ -159,8 +172,14 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
           {/* Vertical Divider (Stationary top alignment) */}
           <div className="h-[20px] w-[1px] bg-white/20 mx-1.5 shrink-0 self-start mt-[7px]" />
 
-          {/* Center: Multi-line Textarea with exactly ONE sleek custom scrollbar */}
-          <div className="flex-1 min-w-0 pr-1 flex items-start pt-[6px] overflow-hidden">
+          {/* Center: Multi-line textarea. While collapsed the 22px line is
+              centered against the 34px control row; once it grows it pins to
+              the top so expansion runs downward. */}
+          <div
+            className={`flex-1 min-w-0 pr-1 flex overflow-hidden ${
+              isExpanded ? 'items-start pt-[6px]' : 'items-center h-[34px]'
+            }`}
+          >
             <SmoothTextarea
               ref={textareaRef}
               rows={1}
@@ -169,7 +188,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               onKeyDown={handleKeyDown}
               placeholder="Send a message"
               caretColor="rgba(255, 255, 255, 0.95)"
-              textClassName="w-full text-[14px] font-medium font-['Geist'] text-white/75 tracking-tight leading-[22px] block"
+              textClassName="w-full text-[12.5px] font-medium font-['Geist'] text-white/75 tracking-tight leading-[22px] block"
               className={isScrollable ? 'overflow-y-auto' : 'overflow-hidden'}
               placeholderClassName="text-white/75"
               style={{
@@ -179,14 +198,39 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
             />
           </div>
 
-          {/* Right: Audio Waveform Action Button (Stationary top alignment) */}
+          {/* Right: stop while a turn runs, send otherwise. Disabled only when
+              there is nothing to do, so the control never looks dead mid-turn. */}
           <button
             type="button"
-            title="Voice input"
-            className="w-[34px] h-[34px] rounded-[9px] bg-white/10 hover:bg-white/15 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer border border-white/10 shrink-0 ml-1.5 self-start group"
+            title={isBusy ? 'Stop' : 'Send'}
+            disabled={!isBusy && !messageText.trim()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isBusy) {
+                onInterrupt?.();
+                return;
+              }
+              submitMessage();
+            }}
+            className={`w-[34px] h-[34px] rounded-[9px] flex items-center justify-center transition-all duration-150 border shrink-0 ml-1.5 self-start group ${
+              isBusy
+                ? 'bg-white/90 hover:bg-white border-white/40 active:scale-90 cursor-pointer'
+                : messageText.trim()
+                  ? 'bg-white/15 hover:bg-white/25 border-white/15 active:scale-90 cursor-pointer'
+                  : 'bg-white/5 border-white/10 cursor-default'
+            }`}
           >
-            <span className="material-symbols-outlined text-[20px] text-white/80 group-hover:text-white transition-colors">
-              graphic_eq
+            <span
+              className={`material-symbols-outlined text-[20px] transition-colors ${
+                isBusy
+                  ? 'text-black/80'
+                  : messageText.trim()
+                    ? 'text-white group-hover:text-white'
+                    : 'text-white/30'
+              }`}
+              style={isBusy ? { fontVariationSettings: "'FILL' 1" } : undefined}
+            >
+              {isBusy ? 'stop' : 'arrow_upward'}
             </span>
           </button>
         </div>

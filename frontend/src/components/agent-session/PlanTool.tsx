@@ -10,6 +10,7 @@ export interface PlanToolProps {
   blockId?: string;
   onApproveBlock?: (blockId: string) => void;
   onReadDetailedPlan?: () => void;
+  defaultExpanded?: boolean;
   className?: string;
 }
 
@@ -18,18 +19,19 @@ export interface PlanToolProps {
  * Displays agent plan overview with approval workflow and frosted white glass styling.
  */
 const PlanToolImpl: React.FC<PlanToolProps> = ({
-  planFile = 'plan-plan-1.md',
-  title = 'Refresh UI previews',
-  summary = 'Unify tool card spacing and interaction patterns so docs previews feel cohesive across all tool components. Also update the plan tool to support inline editing of the plan title.',
+  planFile,
+  title,
+  summary,
   approved = false,
   onApprove,
   blockId,
   onApproveBlock,
   onReadDetailedPlan,
+  defaultExpanded = false,
   className = '',
 }) => {
   const [isApproved, setIsApproved] = useState(approved);
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const handleApprove = () => {
     setIsApproved(true);

@@ -22,7 +22,7 @@ const SearchToolImpl: React.FC<SearchToolProps> = ({
   summary,
   isSearching = false,
   className = '',
-  defaultExpanded = true,
+  defaultExpanded = false,
   onFileClick,
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);

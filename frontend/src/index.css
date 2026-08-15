@@ -135,10 +135,9 @@ body,
 }
 
 /* Smooth typing.
-   The mirror and the real textarea must resolve to identical box and text metrics or the
-   caret drifts, so both take the same typography classes and share these rules. The
-   textarea stays interactive but invisible; the mirror paints what the user sees. */
-.smooth-textarea-mirror,
+   The native textarea renders its own text and caret, so caret position, selection,
+   IME and wrapping are always correct. The polish is limited to what CSS can do to
+   the real element: a soft caret colour and an eased placeholder. */
 .smooth-textarea-input {
   margin: 0;
   padding: 0;
@@ -149,41 +148,14 @@ body,
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
-}
-
-.smooth-textarea-mirror {
-  position: relative;
-  pointer-events: none;
-}
-
-.smooth-textarea-input {
-  position: absolute;
-  inset: 0;
   width: 100%;
-  height: 100%;
   resize: none;
   background: transparent;
   outline: none;
-  color: transparent;
-  caret-color: transparent;
-  -webkit-text-fill-color: transparent;
 }
 
 .smooth-textarea-input::selection {
   background: rgba(120, 170, 255, 0.35);
-  -webkit-text-fill-color: transparent;
-}
-
-/* Measuring span: contributes no layout, used only to read caret coordinates. */
-.smooth-textarea-measure {
-  position: absolute;
-  left: 0;
-  top: 0;
-  visibility: hidden;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  pointer-events: none;
 }
 
 .smooth-textarea-placeholder {
@@ -192,64 +164,20 @@ body,
   top: 0;
   pointer-events: none;
   white-space: pre;
+  animation: smooth-placeholder-in 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Each character animates in once, on mount. Using an animation rather than a
-   transition avoids a second render pass per keystroke, which is what caused the
-   glyph to flicker as it was first painted hidden and then revealed. */
-.smooth-char {
-  display: inline;
-  animation: smooth-char-in 90ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-
-@keyframes smooth-char-in {
+@keyframes smooth-placeholder-in {
   from {
-    opacity: 0.45;
+    opacity: 0;
   }
   to {
     opacity: 1;
   }
 }
 
-/* The caret glides to its measured position instead of jumping, which produces the
-   trailing motion seen while typing quickly. */
-.smooth-caret {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 1.5px;
-  border-radius: 1px;
-  pointer-events: none;
-  opacity: 0;
-  transition:
-    transform 110ms cubic-bezier(0.16, 1, 0.3, 1),
-    height 110ms ease-out,
-    opacity 140ms ease-out;
-  will-change: transform;
-}
-
-.smooth-caret.is-focused {
-  opacity: 1;
-  animation: smooth-caret-blink 1.1s steps(1, end) infinite;
-}
-
-@keyframes smooth-caret-blink {
-  0%,
-  45% {
-    opacity: 1;
-  }
-  55%,
-  100% {
-    opacity: 0.15;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .smooth-char,
-  .smooth-caret {
-    transition: none;
-  }
-  .smooth-caret.is-focused {
+  .smooth-textarea-placeholder {
     animation: none;
   }
 }
@@ -371,4 +299,19 @@ body,
     animation-duration: 1ms;
     will-change: auto;
   }
+}
+
+/* Agent markdown: block spacing comes from the element renderers, so the
+   wrapper only needs to suppress the leading and trailing gaps that would
+   otherwise offset each message from its neighbours. */
+.markdown-body > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body p + p {
+  margin-top: 0.5rem;
 }
