@@ -47,10 +47,31 @@ type Spawner struct {
 
 	seq atomic.Uint64
 	mu  sync.Mutex
+
+	// tracker persists the workspace and its tasks as they are created, so a
+	// session is reopenable even if the app dies mid-run.
+	tracker SpawnTracker
+}
+
+// SpawnTracker is notified as a plan becomes real, so history can record the
+// workspace, its orchestrator transcript, and each task.
+type SpawnTracker interface {
+	// BindCoordinator attributes the orchestrator conversation to the new
+	// workspace and returns the thread id it was stored under.
+	BindCoordinator(workspaceID string) string
+	OpenWorkspace(workspace domain.Workspace, coordinatorThreadID string)
+	TrackTask(task domain.Task)
 }
 
 func NewSpawner(manager *Manager, workspaces *Workspaces) *Spawner {
 	return &Spawner{manager: manager, workspaces: workspaces}
+}
+
+// SetTracker attaches history recording.
+func (s *Spawner) SetTracker(tracker SpawnTracker) {
+	s.mu.Lock()
+	s.tracker = tracker
+	s.mu.Unlock()
 }
 
 // SpawnResult reports what was created, including per-task failures so a
@@ -80,6 +101,13 @@ func (s *Spawner) Spawn(ctx context.Context, requests []SpawnRequest, opts Spawn
 
 	workspace := s.workspaces.Create(firstNonEmpty(opts.Title, requests[0].Title), opts.Prompt, cwd)
 
+	// Recorded before any agent starts: a crash mid-spawn should still leave a
+	// reopenable session containing the plan that caused it.
+	if s.tracker != nil {
+		coordinatorThreadID := s.tracker.BindCoordinator(workspace.ID)
+		s.tracker.OpenWorkspace(*workspace, coordinatorThreadID)
+	}
+
 	var repo *git.Repo
 	if opts.UseWorktree {
 		if found, ok := git.Open(ctx, cwd); ok {
@@ -106,6 +134,9 @@ func (s *Spawner) Spawn(ctx context.Context, requests []SpawnRequest, opts Spawn
 		if err != nil {
 			result.Errors = append(result.Errors, request.Title+": "+err.Error())
 			continue
+		}
+		if s.tracker != nil {
+			s.tracker.TrackTask(*task)
 		}
 		result.Tasks = append(result.Tasks, *task)
 	}

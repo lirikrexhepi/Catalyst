@@ -327,9 +327,9 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
             <div className="flex items-center gap-2 pointer-events-none">
               {/* Stateful Status Indicator: Yellow when working/thinking, Green when finished */}
               {isWorking ? (
-                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 shadow-[0_0_8px_rgba(251,191,36,0.7)] animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-white shrink-0 shadow-[0_0_7px_rgba(255,255,255,0.55)] status-dot-working" />
               ) : (
-                <span className="w-2 h-2 rounded-full bg-lime-400 shrink-0 shadow-[0_0_8px_rgba(163,230,53,0.7)]" />
+                <span className="w-2 h-2 rounded-full bg-white/35 shrink-0" />
               )}
 
               <span className="text-[13px] font-medium font-['Geist'] text-white tracking-tight">
@@ -375,15 +375,29 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
             )}
           </div>
 
-          {/* Fixed Bottom Standalone AgentInput Component */}
+          {/* Fixed Bottom Standalone AgentInput Component.
+              A replayed transcript has no CLI behind it, so the composer is
+              replaced rather than left looking usable: an input that silently
+              swallows a message is worse than one that is plainly absent. */}
           <div className="shrink-0 pt-2 border-t border-white/10">
-            <AgentInput
-              defaultModelId={modelId}
-              onSubmit={onSendMessage}
-              onInterrupt={onInterrupt}
-              isStreaming={isWorking}
-              placeholder="Send a message"
-            />
+            {onSendMessage ? (
+              <AgentInput
+                defaultModelId={modelId}
+                onSubmit={onSendMessage}
+                onInterrupt={onInterrupt}
+                isStreaming={isWorking}
+                placeholder="Send a message"
+              />
+            ) : (
+              <div className="flex items-center gap-1.5 px-1 py-1.5">
+                <span className="material-symbols-rounded text-[14px] text-white/30 leading-none">
+                  history
+                </span>
+                <span className="text-[11px] font-['Geist'] text-white/35 tracking-tight">
+                  Replay — resume the session to continue
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </LiquidGlass>

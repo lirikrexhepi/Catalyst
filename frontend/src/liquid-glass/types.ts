@@ -48,7 +48,6 @@ export interface RefractionEngineOptions {
 }
 
 export interface DisplacementMapResult {
-  displacementMapUrl: string;
   specularMapUrl: string;
   maxDisplacement: number;
   width: number;
@@ -91,10 +90,9 @@ export interface LiquidGlassProps extends React.HTMLAttributes<HTMLDivElement> {
   interactive?: boolean;
   chromaticAberration?: boolean;
   /**
-   * Skips displacement/specular map generation and the SVG refraction filter entirely.
-   * Use when the surface is opaque enough that refraction is not visible, or when the
-   * consumer overrides backdropFilter itself — generating maps that are then discarded
-   * costs a full canvas rasterization plus two PNG encodes for no visual result.
+   * Skips specular map generation and the bezel highlight overlay. Only worth setting
+   * for a surface opaque enough that the lit edge cannot be seen: generating a map that
+   * is never composited costs a canvas rasterization and a PNG encode for nothing.
    */
   disableRefraction?: boolean;
   children?: React.ReactNode;

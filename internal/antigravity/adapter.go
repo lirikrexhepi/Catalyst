@@ -48,6 +48,10 @@ type session struct {
 	turnID         string
 	cancelTurn     context.CancelFunc
 	tools          map[int]string
+	// proc is the process running the current turn. Unlike a session-scoped CLI
+	// this adapter spawns one per prompt, so it is only set while a turn is in
+	// flight — long enough for a dev server the turn starts to be attributed.
+	proc *process.Process
 }
 
 func (a *Adapter) binary() string {
@@ -173,6 +177,10 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 		return fmt.Errorf("start %s: %w", a.binary(), err)
 	}
 
+	s.mu.Lock()
+	s.proc = proc
+	s.mu.Unlock()
+
 	a.emit.Emit(domain.RuntimeEvent{
 		Kind: domain.EventTurnStarted, ThreadID: in.ThreadID, TurnID: in.TurnID,
 		Driver: domain.DriverAntigravity,
@@ -188,7 +196,49 @@ func (s *session) finishTurn() string {
 	turnID := s.turnID
 	s.turnID = ""
 	s.cancelTurn = nil
+	s.proc = nil
 	return turnID
+}
+
+// Session reports the thread's current session. The conversation id accumulates
+// across turns and is what resumes this thread in a later run.
+func (a *Adapter) Session(threadID string) (domain.Session, bool) {
+	a.mu.RLock()
+	s, ok := a.sessions[threadID]
+	a.mu.RUnlock()
+	if !ok {
+		return domain.Session{}, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return domain.Session{
+		ThreadID:          threadID,
+		Driver:            domain.DriverAntigravity,
+		ProviderSessionID: s.conversationID,
+		Cwd:               s.cwd,
+		Model:             s.model,
+	}, true
+}
+
+// SessionPID reports the process running the current turn, so servers it starts
+// can be traced back to this agent.
+//
+// A turn-scoped process means attribution only holds while the agent is working.
+// That still covers the case that matters: a dev server is started by a running
+// turn, and once attributed the browser keeps the lane it was given.
+func (a *Adapter) SessionPID(threadID string) (int, bool) {
+	a.mu.RLock()
+	s, ok := a.sessions[threadID]
+	a.mu.RUnlock()
+	if !ok {
+		return 0, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.proc == nil {
+		return 0, false
+	}
+	return s.proc.PID(), true
 }
 
 func (a *Adapter) runTurn(ctx context.Context, s *session, turnID string, proc *process.Process, cancel context.CancelFunc) {

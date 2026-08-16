@@ -47,6 +47,19 @@ type Envelope struct {
 	TotalCost  float64 `json:"total_cost_usd,omitempty"`
 	NumTurns   int     `json:"num_turns,omitempty"`
 	Usage      *Usage  `json:"usage,omitempty"`
+
+	RateLimitInfo *RateLimitInfo `json:"rate_limit_info,omitempty"`
+}
+
+// RateLimitInfo rides on `type: "rate_limit_event"` frames and is the only place
+// the CLI reports subscription quota. Fields beyond the window type and reset are
+// optional: an unconstrained account reports status and reset with no percentage.
+type RateLimitInfo struct {
+	Status        string `json:"status,omitempty"`
+	RateLimitType string `json:"rateLimitType,omitempty"`
+	ResetsAt      int64  `json:"resetsAt,omitempty"`
+	UsedPercent   *int   `json:"usedPercent,omitempty"`
+	RemainingPct  *int   `json:"remainingPercent,omitempty"`
 }
 
 type InputMessage struct {

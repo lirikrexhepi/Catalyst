@@ -16,13 +16,28 @@ export interface PlanPromptProps {
  * Confirmation shown when the orchestrator proposes delegating work. Spawning
  * starts real CLI processes and can create branches, so it is never automatic.
  */
+// Words that suggest a task will actually change files in the repo. Isolation
+// only earns its cost — a branch, a checkout, a merge decision later — when
+// something is being modified, so anything else keeps the option out of the way
+// rather than offering it by default.
+const MUTATING_HINT =
+  /\b(refactor|implement|fix|bug|migrat|rewrite|rename|delete|remove|add|build|creat|updat|chang|edit|modif|patch|install|upgrade|revert|merge|commit|scaffold|generat|convert|optimi[sz]|clean\s?up|deprecat)/i;
+
+/** True when at least one task reads like it will edit the working tree. */
+function looksMutating(tasks: { title: string; prompt: string }[]): boolean {
+  return tasks.some((task) => MUTATING_HINT.test(`${task.title} ${task.prompt}`));
+}
+
 export const PlanPrompt: React.FC<PlanPromptProps> = ({
   plan,
   onConfirm,
   onDismiss,
   className = '',
 }) => {
-  const [useWorktree, setUseWorktree] = useState(plan.canUseWorktree);
+  // Suggested rather than assumed: a plan that plainly edits the repo starts
+  // with isolation on, everything else starts off and stays one click away.
+  const isMutating = looksMutating(plan.tasks);
+  const [useWorktree, setUseWorktree] = useState(plan.canUseWorktree && isMutating);
   const [openPickerIndex, setOpenPickerIndex] = useState<number | null>(null);
 
   const selectedModelId = useOrchestratorStore((state) => state.selectedModelId);
@@ -102,11 +117,16 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
         ))}
       </div>
 
-      {plan.canUseWorktree ? (
+      {/* Only offered where it is actionable. Outside a repo there is nothing to
+          isolate, and saying so on every plan is noise about a choice the user
+          never had. */}
+      {plan.canUseWorktree && (
         <button
           type="button"
           onClick={() => setUseWorktree((prev) => !prev)}
-          className="flex items-center gap-2 py-1.5 group cursor-pointer select-none"
+          className={`flex items-center gap-2 py-1.5 group cursor-pointer select-none transition-opacity duration-150 ${
+            isMutating ? '' : 'opacity-45 hover:opacity-100'
+          }`}
         >
           <span
             className={`w-[15px] h-[15px] rounded-[4px] border flex items-center justify-center transition-colors ${
@@ -123,10 +143,6 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
             Isolate each task in its own git worktree
           </span>
         </button>
-      ) : (
-        <div className="text-[11px] font-['Geist'] text-white/40 py-1.5">
-          Not a git repository — agents will share the working directory.
-        </div>
       )}
 
       <div className="flex items-center gap-2 pt-3">

@@ -18,6 +18,10 @@ export function CoordinatorSend(arg1, arg2) {
   return window['go']['main']['App']['CoordinatorSend'](arg1, arg2);
 }
 
+export function DeleteHistory(arg1) {
+  return window['go']['main']['App']['DeleteHistory'](arg1);
+}
+
 export function GetProviderSettings(arg1) {
   return window['go']['main']['App']['GetProviderSettings'](arg1);
 }
@@ -30,8 +34,16 @@ export function IsGitRepo(arg1) {
   return window['go']['main']['App']['IsGitRepo'](arg1);
 }
 
+export function ListHistory() {
+  return window['go']['main']['App']['ListHistory']();
+}
+
 export function ListProviders(arg1) {
   return window['go']['main']['App']['ListProviders'](arg1);
+}
+
+export function ListServers() {
+  return window['go']['main']['App']['ListServers']();
 }
 
 export function ListSessions() {
@@ -42,12 +54,28 @@ export function ListWorkspaces() {
   return window['go']['main']['App']['ListWorkspaces']();
 }
 
+export function LoadHistory(arg1) {
+  return window['go']['main']['App']['LoadHistory'](arg1);
+}
+
+export function NewChat() {
+  return window['go']['main']['App']['NewChat']();
+}
+
 export function ParseTasks(arg1) {
   return window['go']['main']['App']['ParseTasks'](arg1);
 }
 
+export function ResetUsage() {
+  return window['go']['main']['App']['ResetUsage']();
+}
+
 export function RespondToApproval(arg1, arg2, arg3) {
   return window['go']['main']['App']['RespondToApproval'](arg1, arg2, arg3);
+}
+
+export function ResumeHistory(arg1) {
+  return window['go']['main']['App']['ResumeHistory'](arg1);
 }
 
 export function SendTurn(arg1) {
@@ -60,6 +88,10 @@ export function SpawnTasks(arg1, arg2) {
 
 export function StartSession(arg1, arg2) {
   return window['go']['main']['App']['StartSession'](arg1, arg2);
+}
+
+export function StopServer(arg1) {
+  return window['go']['main']['App']['StopServer'](arg1);
 }
 
 export function StopSession(arg1) {
@@ -76,6 +108,10 @@ export function ThreadHistory(arg1) {
 
 export function UpdateProviderSettings(arg1, arg2) {
   return window['go']['main']['App']['UpdateProviderSettings'](arg1, arg2);
+}
+
+export function UsageReport() {
+  return window['go']['main']['App']['UsageReport']();
 }
 
 export function WorkspaceTasks(arg1) {

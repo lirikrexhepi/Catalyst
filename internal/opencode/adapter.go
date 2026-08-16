@@ -280,3 +280,19 @@ func (a *Adapter) HasSession(threadID string) bool {
 	_, ok := a.threads[threadID]
 	return ok
 }
+
+// Session reports the thread's current session, including the OpenCode session
+// id used to resume it in a later run.
+func (a *Adapter) Session(threadID string) (domain.Session, bool) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	t, ok := a.threads[threadID]
+	if !ok {
+		return domain.Session{}, false
+	}
+	return domain.Session{
+		ThreadID:          threadID,
+		Driver:            domain.DriverOpenCode,
+		ProviderSessionID: t.sessionID,
+	}, true
+}

@@ -13,6 +13,12 @@ export interface OrchestratorInputProps {
   className?: string;
 }
 
+// One rendered line of the message field. The measuring effect, the collapsed
+// height and the capsule maths all derive from this, so the line-height in
+// textClassName is the only place it may change.
+const LINE_HEIGHT = 18;
+const MAX_FIELD_HEIGHT = 160;
+
 export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   onSubmit,
   onInterrupt,
@@ -39,7 +45,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [textareaHeight, setTextareaHeight] = useState(22);
+  const [textareaHeight, setTextareaHeight] = useState(LINE_HEIGHT);
 
   // Transition mount coordination for guaranteed entrance AND exit
   const modelPickerMount = useTransitionMount(isModelPickerOpen, 200);
@@ -55,15 +61,15 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     if (!el) return;
 
     if (!messageText || messageText.length === 0) {
-      el.style.height = '22px';
-      setTextareaHeight(22);
+      el.style.height = `${LINE_HEIGHT}px`;
+      setTextareaHeight(LINE_HEIGHT);
       return;
     }
 
     // Set to 0px synchronously to read exact natural scrollHeight
     el.style.height = '0px';
     const scrollH = el.scrollHeight;
-    const targetHeight = Math.min(Math.max(scrollH, 22), 160);
+    const targetHeight = Math.min(Math.max(scrollH, LINE_HEIGHT), MAX_FIELD_HEIGHT);
     el.style.height = `${targetHeight}px`;
     setTextareaHeight(targetHeight);
   }, [messageText]);
@@ -89,9 +95,9 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     onSubmit?.(messageText, selectedModelId);
     setMessageText('');
     if (textareaRef.current) {
-      textareaRef.current.style.height = '22px';
+      textareaRef.current.style.height = `${LINE_HEIGHT}px`;
     }
-    setTextareaHeight(22);
+    setTextareaHeight(LINE_HEIGHT);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -104,10 +110,11 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     }
   };
 
-  const isExpanded = textareaHeight > 28;
-  const isScrollable = textareaHeight >= 160;
+  // Expanded means the field has wrapped past its first line.
+  const isExpanded = textareaHeight > LINE_HEIGHT + 4;
+  const isScrollable = textareaHeight >= MAX_FIELD_HEIGHT;
   // Base height is strictly 48px; expands downward smoothly up to 192px
-  const capsuleHeight = isExpanded ? Math.min(textareaHeight + 26, 192) : 48;
+  const capsuleHeight = isExpanded ? Math.min(textareaHeight + 28, 192) : 48;
 
   return (
     <div
@@ -172,12 +179,12 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
           {/* Vertical Divider (Stationary top alignment) */}
           <div className="h-[20px] w-[1px] bg-white/20 mx-1.5 shrink-0 self-start mt-[7px]" />
 
-          {/* Center: Multi-line textarea. While collapsed the 22px line is
+          {/* Center: Multi-line textarea. While collapsed the single line is
               centered against the 34px control row; once it grows it pins to
               the top so expansion runs downward. */}
           <div
             className={`flex-1 min-w-0 pr-1 flex overflow-hidden ${
-              isExpanded ? 'items-start pt-[6px]' : 'items-center h-[34px]'
+              isExpanded ? 'items-start pt-[7px]' : 'items-center h-[34px]'
             }`}
           >
             <SmoothTextarea
@@ -188,12 +195,12 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               onKeyDown={handleKeyDown}
               placeholder="Send a message"
               caretColor="rgba(255, 255, 255, 0.95)"
-              textClassName="w-full text-[12.5px] font-medium font-['Geist'] text-white/75 tracking-tight leading-[22px] block"
+              textClassName="w-full text-[12.5px] font-medium font-['Geist'] text-white/75 tracking-tight leading-[18px] block"
               className={isScrollable ? 'overflow-y-auto' : 'overflow-hidden'}
               placeholderClassName="text-white/75"
               style={{
-                minHeight: '22px',
-                maxHeight: '160px',
+                minHeight: `${LINE_HEIGHT}px`,
+                maxHeight: `${MAX_FIELD_HEIGHT}px`,
               }}
             />
           </div>
@@ -212,7 +219,12 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               }
               submitMessage();
             }}
-            className={`w-[34px] h-[34px] rounded-[9px] flex items-center justify-center transition-all duration-150 border shrink-0 ml-1.5 self-start group ${
+            className={`w-[34px] h-[34px] rounded-[9px] flex items-center justify-center transition-all duration-150 border shrink-0 ml-1.5 group ${
+              // Sits with the control row while collapsed, then rides the bottom
+              // edge as the field grows, so it stays beside the line being typed
+              // rather than drifting away from the caret.
+              isExpanded ? 'self-end' : 'self-start'
+            } ${
               isBusy
                 ? 'bg-white/90 hover:bg-white border-white/40 active:scale-90 cursor-pointer'
                 : messageText.trim()
@@ -248,8 +260,8 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               style={{
                 opacity: modelPickerMount.isVisible ? 1 : 0,
                 transform: modelPickerMount.isVisible
-                  ? 'translate3d(0, 0, 0) scale(1)'
-                  : 'translate3d(0, -8px, 0) scale(0.96)',
+                  ? 'none'
+                  : 'translateY(-8px) scale(0.96)',
                 pointerEvents: modelPickerMount.isVisible ? 'auto' : 'none',
               }}
             >
@@ -263,8 +275,8 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               style={{
                 opacity: effortPickerMount.isVisible ? 1 : 0,
                 transform: effortPickerMount.isVisible
-                  ? 'translate3d(0, 0, 0) scale(1)'
-                  : 'translate3d(-10px, 0, 0) scale(0.96)',
+                  ? 'none'
+                  : 'translateX(-10px) scale(0.96)',
                 pointerEvents: effortPickerMount.isVisible ? 'auto' : 'none',
               }}
             >

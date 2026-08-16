@@ -39,6 +39,8 @@ export interface Spawner {
   send: (threadId: string, text: string) => Promise<void>;
   interrupt: (threadId: string) => Promise<void>;
   close: (threadId: string) => Promise<void>;
+  /** Drops every window after the backend has stopped their sessions. */
+  clear: () => void;
 }
 
 const RUNTIME_CHANNEL = 'agent:event';
@@ -204,5 +206,12 @@ export function useSpawner(): Spawner {
     }
   }, []);
 
-  return { plan, tasks, error, inspect, confirm, dismiss, send, interrupt, close };
+  const clear = useCallback(() => {
+    threads.current = new Set();
+    setTasks([]);
+    setPlan(null);
+    setError(null);
+  }, []);
+
+  return { plan, tasks, error, inspect, confirm, dismiss, send, interrupt, close, clear };
 }

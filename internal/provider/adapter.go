@@ -22,6 +22,25 @@ type Adapter interface {
 	HasSession(threadID string) bool
 }
 
+// ProcessReporter is implemented by adapters that own an OS process per thread.
+// Optional: it exists so tooling can attribute spawned child processes (dev
+// servers and the like) to the agent that started them, and an adapter without
+// a per-thread process simply does not implement it.
+type ProcessReporter interface {
+	SessionPID(threadID string) (int, bool)
+}
+
+// SessionReporter is implemented by adapters that can report a thread's current
+// session, including the provider's own session id.
+//
+// Optional, and read after the fact rather than at start: several CLIs only
+// reveal the id once their stream opens, so the value captured when a session is
+// created is frequently empty. Without it a thread cannot be resumed in a later
+// run.
+type SessionReporter interface {
+	Session(threadID string) (domain.Session, bool)
+}
+
 type Capabilities struct {
 	SessionModelSwitch bool `json:"sessionModelSwitch"`
 	Resume             bool `json:"resume"`

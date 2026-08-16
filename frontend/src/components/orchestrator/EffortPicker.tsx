@@ -62,12 +62,11 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
       specularOpacity={0.8}
       specularSaturation={6}
       lightAngle={-45}
-      tint={isFloatingPopup ? 'rgba(22, 23, 28, 0.92)' : 'rgba(0, 0, 0, 0.20)'}
+      tint={isFloatingPopup ? 'rgba(22, 23, 28, 0.62)' : 'rgba(0, 0, 0, 0.20)'}
       shadow="apple"
       border="1px solid rgba(255, 255, 255, 0.18)"
-      disableRefraction={isFloatingPopup}
       className="w-[230px] p-3 text-white shadow-2xl"
-      frost={isFloatingPopup ? 28 : 12}
+      frost={isFloatingPopup ? 30 : 12}
       frostSaturation={185}
       style={{
         boxShadow:

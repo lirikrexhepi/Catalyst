@@ -1,7 +1,6 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { LiquidGlassProps, LiquidGlassVariant } from './types';
 import { useLiquidGlass } from './useLiquidGlass';
-import { LiquidGlassFilter } from './LiquidGlassFilter';
 
 function getVariantDefaults(variant?: LiquidGlassVariant): Partial<LiquidGlassProps> {
   switch (variant) {
@@ -119,7 +118,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
       ...rest
     } = props;
 
-    const { ref: internalRef, filterProps, containerStyle } = useLiquidGlass({
+    const { ref: internalRef, specularStyle, containerStyle } = useLiquidGlass({
       surface,
       radius,
       bezelWidth,
@@ -159,28 +158,25 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(
     );
 
     return (
-      <>
-        {/* Invisible SVG filter graph definitions */}
-        <LiquidGlassFilter {...filterProps} />
+      <div
+        ref={internalRef}
+        className={`liquid-glass-container select-none ${
+          isInteractive ? 'hover:scale-[1.015] active:scale-[0.985]' : ''
+        } ${className}`}
+        style={mergedStyle}
+        {...rest}
+      >
+        {/* Bezel highlight, composited rather than filtered. */}
+        {specularStyle && <div aria-hidden="true" className="liquid-glass-specular" style={specularStyle} />}
 
-        {/* Liquid Glass container */}
+        {/* Inner content layer */}
         <div
-          ref={internalRef}
-          className={`liquid-glass-container select-none ${
-            isInteractive ? 'hover:scale-[1.015] active:scale-[0.985]' : ''
-          } ${className}`}
-          style={mergedStyle}
-          {...rest}
+          className="liquid-glass-content relative z-10 w-full h-full"
+          style={{ pointerEvents: 'auto' }}
         >
-          {/* Inner content layer */}
-          <div
-            className="liquid-glass-content relative z-10 w-full h-full"
-            style={{ pointerEvents: 'auto' }}
-          >
-            {children}
-          </div>
+          {children}
         </div>
-      </>
+      </div>
     );
   }
 );

@@ -27,7 +27,35 @@ func (a *Adapter) handleEnvelope(s *session, envelope *Envelope) {
 		a.handleToolResults(s, envelope)
 	case "result":
 		a.handleResult(s, envelope)
+	case "rate_limit_event":
+		a.handleRateLimit(s, envelope)
 	}
+}
+
+// handleRateLimit forwards subscription quota. The CLI reports one window per
+// frame, so windows are emitted individually and merged downstream rather than
+// assumed to arrive together.
+func (a *Adapter) handleRateLimit(s *session, envelope *Envelope) {
+	info := envelope.RateLimitInfo
+	if info == nil || info.RateLimitType == "" {
+		return
+	}
+
+	limit := domain.RateLimit{
+		Window:      info.RateLimitType,
+		Status:      info.Status,
+		ResetsAt:    info.ResetsAt,
+		UsedPercent: info.UsedPercent,
+	}
+	// Some builds report headroom instead of consumption; normalise to used.
+	if limit.UsedPercent == nil && info.RemainingPct != nil {
+		used := 100 - *info.RemainingPct
+		limit.UsedPercent = &used
+	}
+
+	event := a.event(s, domain.EventRateLimit)
+	event.RateLimits = []domain.RateLimit{limit}
+	a.emit.Emit(event)
 }
 
 func (a *Adapter) event(s *session, kind domain.EventKind) domain.RuntimeEvent {

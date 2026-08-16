@@ -11,7 +11,23 @@ import (
 	"catalyst/internal/domain"
 )
 
+// CoordinatorThreadID is the live orchestrator conversation.
+//
+// History binds a *copy* of this conversation to each workspace instead of
+// giving every workspace its own live thread: the input bar is one continuous
+// chat, and rebinding it per spawn would reset the user's context every time
+// they delegated. See Coordinator.BindWorkspace.
 const CoordinatorThreadID = "coordinator"
+
+// CoordinatorThreadFor names the orchestrator transcript stored against a
+// workspace. Reopening a session replays this alongside its agents, which is
+// what makes a Catalyst session more than a single agent's chat log.
+func CoordinatorThreadFor(workspaceID string) string {
+	if workspaceID == "" {
+		return CoordinatorThreadID
+	}
+	return CoordinatorThreadID + "-" + workspaceID
+}
 
 // Coordinator owns the single top-level conversation driven by the main input
 // bar. Switching provider, model, or options restarts the underlying CLI
@@ -26,12 +42,60 @@ type Coordinator struct {
 	cwd     string
 	started bool
 	primed  bool
+	// pending holds the turns of the current conversation that have not yet been
+	// attributed to a workspace. A spawn claims them, which is how the plan that
+	// produced a set of agents ends up stored beside those agents.
+	pending []domain.RuntimeEvent
 
 	turnSeq atomic.Uint64
+	sink    CoordinatorSink
+}
+
+// CoordinatorSink receives the orchestrator transcript once a spawn gives it a
+// workspace to belong to.
+type CoordinatorSink interface {
+	RecordCoordinator(workspaceID, threadID string, events []domain.RuntimeEvent)
 }
 
 func NewCoordinator(manager *Manager) *Coordinator {
 	return &Coordinator{manager: manager}
+}
+
+// SetSink attaches durable storage for orchestrator transcripts.
+func (c *Coordinator) SetSink(sink CoordinatorSink) {
+	c.mu.Lock()
+	c.sink = sink
+	c.mu.Unlock()
+}
+
+// BindWorkspace hands the conversation so far to a newly created workspace and
+// starts a fresh one.
+//
+// Called at spawn time: everything the user and orchestrator said to reach this
+// plan is stored under the workspace the plan created, then cleared so the next
+// delegation records its own discussion rather than repeating this one.
+func (c *Coordinator) BindWorkspace(workspaceID string) string {
+	threadID := CoordinatorThreadFor(workspaceID)
+
+	c.mu.Lock()
+	sink := c.sink
+	events := c.pending
+	c.pending = nil
+	c.mu.Unlock()
+
+	if sink == nil {
+		return threadID
+	}
+
+	// Re-stamped onto the workspace's own thread id so a replay groups them
+	// with that session rather than with the live coordinator.
+	stored := make([]domain.RuntimeEvent, 0, len(events))
+	for _, event := range events {
+		event.ThreadID = threadID
+		stored = append(stored, event)
+	}
+	sink.RecordCoordinator(workspaceID, threadID, stored)
+	return threadID
 }
 
 // Config is the frontend-facing selection for the coordinator thread.
@@ -136,11 +200,34 @@ func (c *Coordinator) Interrupt(ctx context.Context) error {
 
 func (c *Coordinator) Reset(ctx context.Context) error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	c.started, c.primed = false, false
+	// The unattributed transcript belongs to the conversation being discarded;
+	// carrying it forward would file it under whatever the next request spawns.
+	c.pending = nil
+	c.mu.Unlock()
 	return c.manager.Stop(ctx, CoordinatorThreadID)
 }
 
 func (c *Coordinator) History() []domain.RuntimeEvent {
 	return c.manager.History(CoordinatorThreadID)
 }
+
+// Observe collects an orchestrator event for the workspace a later spawn will
+// create. Cheap and lock-scoped: it runs for every streamed token.
+func (c *Coordinator) Observe(event domain.RuntimeEvent) {
+	if event.ThreadID != CoordinatorThreadID {
+		return
+	}
+
+	c.mu.Lock()
+	// A conversation that never delegates would otherwise grow without bound.
+	// The cap is generous; only the tail matters for reconstructing a plan.
+	if len(c.pending) < coordinatorPendingLimit {
+		c.pending = append(c.pending, event)
+	}
+	c.mu.Unlock()
+}
+
+// coordinatorPendingLimit bounds the unattributed transcript held in memory
+// between spawns.
+const coordinatorPendingLimit = 4000

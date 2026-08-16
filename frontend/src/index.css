@@ -14,8 +14,8 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
+.material-symbols-outlined,
+.material-symbols-rounded {
   font-weight: normal;
   font-style: normal;
   font-size: 18px;
@@ -29,6 +29,14 @@ body,
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+}
+
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
 }
 
 /* Modern Minimalistic Arrowless Scrollbar */
@@ -97,6 +105,55 @@ body,
   background: rgba(255, 255, 255, 0.45);
 }
 
+/* Horizontal tab strips scroll but must not show a bar: the rail is only a few
+   pixels taller than the tabs themselves. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Status dots breathe rather than blink. Opacity floors at 0.35 instead of 0 so
+   the indicator never reads as missing, and the symmetric ease makes it feel
+   like respiration instead of a flashing alert. */
+@keyframes status-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.88);
+  }
+}
+
+.status-dot-working {
+  animation: status-breathe 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Motion is decoration here; the dot stays legible without it. */
+@media (prefers-reduced-motion: reduce) {
+  .status-dot-working {
+    animation: none;
+    opacity: 0.75;
+  }
+}
+
+/* Indeterminate load bar for the browser frame. A cross-origin page reports no
+   progress, so the bar conveys activity rather than completion. */
+@keyframes browser-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
 /* Feed card surface.
    These cards sit inside the already frosted agent panel, so they only need enough blur
    to obscure text showing through, not a second full-strength pass. The original
@@ -110,22 +167,25 @@ body,
   background-color: rgba(255, 255, 255, 0.14);
 }
 
-/* While a window is being dragged or resized it travels over new background every frame,
-   so its blurred backdrop can never be reused and is recomputed from scratch each time —
-   the single most expensive thing the compositor does during a gesture. Suspending the
-   filter for the duration keeps motion at full framerate; the tint underneath keeps the
-   surface reading as glass, and the filter returns the moment the gesture ends. */
+/* A dragged window travels over new background each frame, so its blurred backdrop
+   cannot be reused. blur() is GPU-accelerated and measures at ~7ms/frame for four
+   panels, so it is left running: suspending it made the surface visibly flatten
+   mid-drag for no measurable gain. Only the saturate pass is dropped, which is the
+   part that has to re-read the sampled pixels. */
 [data-gesture='active'] .liquid-glass-container {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  background-color: rgba(30, 32, 38, 0.82) !important;
+  backdrop-filter: blur(7px) !important;
+  -webkit-backdrop-filter: blur(7px) !important;
 }
 
+/* No `will-change` here. Promoting this wrapper to its own compositor layer cuts the
+   popup's backdrop-filter off from the scene behind it: a backdrop filter can only
+   sample through ancestors that are not themselves layer boundaries, so the menu
+   renders flat while the input bar beside it blurs correctly. The transition is
+   cheap enough not to need the hint. */
 .glass-popup-anim {
   transition:
     opacity 200ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 200ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -142,7 +202,13 @@ body,
   margin: 0;
   padding: 0;
   border: 0;
-  font: inherit;
+  /* Deliberately NOT `font: inherit`. The shorthand resets font-size, and
+     because this rule sits outside Tailwind's layers it beats any text-[…]
+     utility on the element — silently ignoring the size the caller asked for.
+     Inheriting each property individually leaves font-size to the class. */
+  font-family: inherit;
+  font-weight: inherit;
+  font-style: inherit;
   letter-spacing: inherit;
   line-height: inherit;
   white-space: pre-wrap;
@@ -226,9 +292,12 @@ body,
   pointer-events: none;
 }
 
+/* Deliberately not disabled under reduced-motion: this marks a request that is
+   still running. A frozen indicator reads as a hung agent, so the motion is
+   slowed rather than removed. */
 @media (prefers-reduced-motion: reduce) {
   .an-text-shimmer::before {
-    animation: none;
+    animation-duration: 2.6s;
   }
 }
 
@@ -243,11 +312,15 @@ body,
   backface-visibility: hidden;
 }
 
+/* Progress indicators keep animating under reduced-motion for the same reason
+   the shimmer does; only the rate is eased back. */
 @media (prefers-reduced-motion: reduce) {
-  .animate-pulse,
+  .animate-pulse {
+    animation-duration: 3s;
+  }
+
   .animate-spin {
-    animation: none;
-    will-change: auto;
+    animation-duration: 2s;
   }
 }
 

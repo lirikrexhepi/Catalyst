@@ -16,6 +16,7 @@ const (
 	EventApprovalRequest  EventKind = "approval.request"
 	EventApprovalResolved EventKind = "approval.resolved"
 	EventUsage            EventKind = "usage"
+	EventRateLimit        EventKind = "rate.limit"
 	EventDiagnostic       EventKind = "diagnostic"
 	EventProviderStatus   EventKind = "provider.status"
 )
@@ -45,6 +46,7 @@ type RuntimeEvent struct {
 	Plan       []PlanEntry      `json:"plan,omitempty"`
 	Approval   *ApprovalRequest `json:"approval,omitempty"`
 	Usage      *Usage           `json:"usage,omitempty"`
+	RateLimits []RateLimit      `json:"rateLimits,omitempty"`
 	StopReason StopReason       `json:"stopReason,omitempty"`
 	Error      string           `json:"error,omitempty"`
 }
@@ -101,4 +103,16 @@ type Usage struct {
 	CacheWriteTokens int64   `json:"cacheWriteTokens,omitempty"`
 	ContextWindow    int64   `json:"contextWindow,omitempty"`
 	CostUSD          float64 `json:"costUsd,omitempty"`
+}
+
+// RateLimit is one subscription quota window as the CLI reports it.
+//
+// UsedPercent is a pointer because "not reported" and "0% used" are different
+// facts: the CLI omits the field entirely on some plans and states, and showing
+// an empty bar for unknown quota would be a lie.
+type RateLimit struct {
+	Window      string `json:"window"`
+	Status      string `json:"status,omitempty"`
+	UsedPercent *int   `json:"usedPercent,omitempty"`
+	ResetsAt    int64  `json:"resetsAt,omitempty"`
 }

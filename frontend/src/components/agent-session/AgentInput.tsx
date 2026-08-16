@@ -33,7 +33,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
   const { providers, models } = useOrchestratorStore();
 
   const [message, setMessage] = useState('');
-  const [textareaHeight, setTextareaHeight] = useState(22);
+  const [textareaHeight, setTextareaHeight] = useState(20);
   // Falls back to the store's selection so a window never displays a model the
   // session is not actually running.
   const [localModelId, setLocalModelId] = useState(
@@ -65,14 +65,14 @@ export const AgentInput: React.FC<AgentInputProps> = ({
     if (!el) return;
 
     if (!message || message.length === 0) {
-      el.style.height = '22px';
-      setTextareaHeight(22);
+      el.style.height = '20px';
+      setTextareaHeight(20);
       return;
     }
 
     el.style.height = '0px';
     const scrollH = el.scrollHeight;
-    const targetHeight = Math.min(Math.max(scrollH, 22), 120);
+    const targetHeight = Math.min(Math.max(scrollH, 20), 120);
     el.style.height = `${targetHeight}px`;
     setTextareaHeight(targetHeight);
   }, [message]);
@@ -105,7 +105,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
         if (textareaRef.current) {
           textareaRef.current.style.height = '22px';
         }
-        setTextareaHeight(22);
+        setTextareaHeight(20);
       }
     }
     if (e.key === 'Escape') {
@@ -124,7 +124,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
       if (textareaRef.current) {
         textareaRef.current.style.height = '22px';
       }
-      setTextareaHeight(22);
+      setTextareaHeight(20);
     }
   };
 
@@ -247,8 +247,8 @@ export const AgentInput: React.FC<AgentInputProps> = ({
               style={{
                 opacity: modelPickerMount.isVisible ? 1 : 0,
                 transform: modelPickerMount.isVisible
-                  ? 'translate3d(0, 0, 0) scale(1)'
-                  : 'translate3d(0, 8px, 0) scale(0.96)',
+                  ? 'none'
+                  : 'translateY(8px) scale(0.96)',
                 pointerEvents: modelPickerMount.isVisible ? 'auto' : 'none',
               }}
             >
@@ -268,8 +268,8 @@ export const AgentInput: React.FC<AgentInputProps> = ({
               style={{
                 opacity: effortPickerMount.isVisible ? 1 : 0,
                 transform: effortPickerMount.isVisible
-                  ? 'translate3d(0, 0, 0) scale(1)'
-                  : 'translate3d(-10px, 0, 0) scale(0.96)',
+                  ? 'none'
+                  : 'translateX(-10px) scale(0.96)',
                 pointerEvents: effortPickerMount.isVisible ? 'auto' : 'none',
               }}
             >

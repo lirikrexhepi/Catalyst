@@ -19,6 +19,8 @@ export interface Coordinator {
   error: string | null;
   send: (text: string) => Promise<void>;
   interrupt: () => Promise<void>;
+  /** Drops the transcript after the backend session has been reset. */
+  clear: () => void;
 }
 
 export interface CoordinatorOptions {
@@ -157,5 +159,13 @@ export function useCoordinator(options: CoordinatorOptions = {}): Coordinator {
     }
   }, []);
 
-  return { blocks, isBusy, error, send, interrupt };
+  const clear = useCallback(() => {
+    setBlocks([]);
+    setError(null);
+    setIsBusy(false);
+    pendingTurn.current = null;
+    replyText.current = '';
+  }, []);
+
+  return { blocks, isBusy, error, send, interrupt, clear };
 }

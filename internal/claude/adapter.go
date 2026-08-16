@@ -307,6 +307,35 @@ func (a *Adapter) HasSession(threadID string) bool {
 	return ok
 }
 
+// SessionPID reports the CLI process backing a thread, so servers it spawns can
+// be traced back to this agent.
+func (a *Adapter) SessionPID(threadID string) (int, bool) {
+	s, ok := a.lookup(threadID)
+	if !ok {
+		return 0, false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.proc == nil {
+		return 0, false
+	}
+	return s.proc.PID(), true
+}
+
+// Session reports the thread's current session. The provider session id is only
+// known once the CLI announces it, which is after StartSession returns.
+func (a *Adapter) Session(threadID string) (domain.Session, bool) {
+	s, ok := a.lookup(threadID)
+	if !ok {
+		return domain.Session{}, false
+	}
+	return domain.Session{
+		ThreadID:          threadID,
+		Driver:            domain.DriverClaude,
+		ProviderSessionID: s.providerSessionID(),
+	}, true
+}
+
 func (a *Adapter) lookup(threadID string) (*session, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

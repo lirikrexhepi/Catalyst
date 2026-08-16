@@ -90,11 +90,11 @@ export const TaskModelPicker: React.FC<TaskModelPickerProps> = ({
             specularOpacity={0.7}
             specularSaturation={6}
             lightAngle={-45}
-            tint="rgba(20, 22, 28, 0.94)"
+            tint="rgba(20, 22, 28, 0.62)"
             shadow="apple"
             border="1px solid rgba(255, 255, 255, 0.20)"
             className="w-[210px] p-1.5 text-white shadow-2xl"
-            frost={24}
+            frost={30}
             frostSaturation={180}
             style={{
               boxShadow:

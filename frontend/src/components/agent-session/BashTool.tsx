@@ -62,7 +62,7 @@ const BashToolImpl: React.FC<BashToolProps> = ({
 
           {/* Running Indicator */}
           {status === 'running' && (
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse ml-0.5 shrink-0" />
+            <span className="w-1.5 h-1.5 rounded-full bg-white/80 ml-0.5 shrink-0 status-dot-working" />
           )}
 
           {/* Error Exit Code Pill */}
