@@ -269,6 +269,7 @@ export namespace domain {
 	    message?: string;
 	    models?: Model[];
 	    checkedAt: number;
+	    settings: ProviderSettings;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProviderSnapshot(source);
@@ -285,6 +286,7 @@ export namespace domain {
 	        this.message = source["message"];
 	        this.models = this.convertValues(source["models"], Model);
 	        this.checkedAt = source["checkedAt"];
+	        this.settings = this.convertValues(source["settings"], ProviderSettings);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

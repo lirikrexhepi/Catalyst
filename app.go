@@ -37,6 +37,9 @@ type App struct {
 
 func NewApp() *App {
 	registry := provider.NewRegistry(drivers.All()...)
+	// Applied before anything probes, so a preferred model saved in an earlier
+	// run is already in effect for the first CLI detection.
+	registry.UsePrefs(provider.NewPrefs(configRoot()))
 	manager := session.NewManager(registry)
 	workspaces := session.NewWorkspaces()
 	coordinator := session.NewCoordinator(manager)
@@ -64,13 +67,18 @@ func NewApp() *App {
 	}
 }
 
-// historyRoot resolves where sessions are stored, falling back to the working
-// directory when the user config dir is unavailable.
-func historyRoot() string {
+// configRoot is where Catalyst keeps everything it remembers between runs,
+// falling back to the working directory when the user config dir is unavailable.
+func configRoot() string {
 	if dir, err := os.UserConfigDir(); err == nil {
-		return filepath.Join(dir, "catalyst", "history")
+		return filepath.Join(dir, "catalyst")
 	}
-	return filepath.Join(".catalyst", "history")
+	return ".catalyst"
+}
+
+// historyRoot resolves where sessions are stored.
+func historyRoot() string {
+	return filepath.Join(configRoot(), "history")
 }
 
 func (a *App) startup(ctx context.Context) {

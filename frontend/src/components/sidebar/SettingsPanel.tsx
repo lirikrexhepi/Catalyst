@@ -2,16 +2,19 @@ import React, { useRef } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { ScrollArea } from '../common/ScrollArea';
 import { WallpaperState } from './useWallpaper';
+import { DefaultModels } from './useDefaultModels';
 import { isCustom } from './wallpapers';
 
 export interface SettingsPanelProps {
   wallpaper: WallpaperState;
+  defaultModels: DefaultModels;
   onClose: () => void;
   className?: string;
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   wallpaper,
+  defaultModels,
   onClose,
   className = '',
 }) => {
@@ -65,7 +68,76 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </button>
       </div>
 
-      <ScrollArea maxHeight={420} className="px-4 pb-4 flex flex-col gap-2.5">
+      <ScrollArea maxHeight={460} className="px-4 pb-4 flex flex-col gap-2.5">
+        {defaultModels.entries.length > 0 && (
+          <>
+            <div className="flex items-baseline justify-between gap-2 px-0.5">
+              <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
+                Default model
+              </span>
+              <span className="text-[10px] font-['Geist'] text-white/25 tracking-tight">
+                per CLI
+              </span>
+            </div>
+
+            {defaultModels.error && (
+              <div className="px-3 py-2 rounded-[9px] bg-amber-500/10 border border-amber-400/25">
+                <span className="text-[11px] font-medium font-['Geist'] text-amber-100/90 leading-relaxed">
+                  {defaultModels.error}
+                </span>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              {defaultModels.entries.map(({ provider, models, modelId }) => (
+                <div
+                  key={provider.id}
+                  className="flex items-center gap-2.5 p-2 rounded-[10px] bg-white/[0.04] border border-white/[0.08]"
+                >
+                  {provider.icon && (
+                    <img
+                      src={provider.icon}
+                      alt=""
+                      draggable={false}
+                      className="w-[18px] h-[18px] object-contain shrink-0"
+                    />
+                  )}
+                  <span className="text-[11.5px] font-medium font-['Geist'] text-white/90 tracking-tight truncate flex-1 min-w-0">
+                    {provider.name}
+                  </span>
+
+                  {/* A native select rather than the glass picker: this is a
+                      one-off preference, and the picker carries effort and
+                      thinking state that does not apply here. */}
+                  <select
+                    value={modelId}
+                    disabled={defaultModels.isSaving === provider.id || models.length === 0}
+                    onChange={(event) => void defaultModels.select(provider.id, event.target.value)}
+                    className="h-[24px] max-w-[150px] rounded-[7px] bg-white/[0.07] border border-white/[0.12] hover:border-white/25 focus:border-white/30 outline-none text-[11px] font-medium font-['Geist'] text-white/85 px-1.5 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default"
+                  >
+                    {/* Empty means "whatever the CLI itself defaults to", which
+                        is different from pinning its current default. */}
+                    <option value="" className="bg-[#22242c] text-white/85">
+                      CLI default
+                    </option>
+                    {models.map((model) => (
+                      <option
+                        key={model.id}
+                        value={model.id}
+                        className="bg-[#22242c] text-white/85"
+                      >
+                        {model.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+
+            <div className="h-px bg-white/[0.08] my-1" />
+          </>
+        )}
+
         <div className="flex items-baseline justify-between gap-2 px-0.5">
           <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
             Wallpaper

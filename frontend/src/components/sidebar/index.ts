@@ -11,6 +11,8 @@ export { useServers } from './useServers';
 export type { Servers } from './useServers';
 export { SettingsPanel } from './SettingsPanel';
 export type { SettingsPanelProps } from './SettingsPanel';
+export { useDefaultModels } from './useDefaultModels';
+export type { DefaultModels, ProviderDefault } from './useDefaultModels';
 export { useWallpaper } from './useWallpaper';
 export type { WallpaperState } from './useWallpaper';
 export { BUILT_IN as BUILT_IN_WALLPAPERS } from './wallpapers';

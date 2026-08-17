@@ -24,6 +24,10 @@ func main() {
 		Height:           860,
 		MinWidth:         900,
 		MinHeight:        600,
+		// The wallpaper is the interface here, so the OS title bar is dropped and
+		// the scene runs edge to edge. The app draws its own drag strip and window
+		// controls, since a frameless window has neither.
+		Frameless: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},

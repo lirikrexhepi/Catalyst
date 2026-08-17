@@ -24,6 +24,9 @@ interface OrchestratorStore {
   addModel: (model: AIModel) => void;
   selectProvider: (providerId: string) => void;
   selectModel: (modelId: string) => void;
+  /** Selects without opening the effort picker, for changes the user did not
+   *  make from the picker itself. */
+  selectModelSilently: (modelId: string) => void;
   setModelSettings: (modelId: string, settings: Partial<ModelSettings>) => void;
   setMessageText: (text: string) => void;
   setModelPickerOpen: (open: boolean) => void;
@@ -81,7 +84,18 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
 
       const previous = get().selectedModelId;
       const keep = models.find((model) => model.id === previous);
-      const fallback = models.find((model) => model.providerId === 'claude') || models[0];
+
+      // A model the user pinned in Settings wins the initial choice. `defaultModel`
+      // comes from the provider's saved settings, so a fresh run opens on the CLI
+      // and model they chose rather than on whichever happens to sort first.
+      const preferred = ready
+        .map((snapshot) => snapshot.settings?.model)
+        .filter((id): id is string => !!id)
+        .map((id) => models.find((model) => model.id === id))
+        .find((model): model is typeof models[number] => !!model);
+
+      const fallback =
+        preferred ?? models.find((model) => model.providerId === 'claude') ?? models[0];
       const selected = keep || fallback;
 
       set({
@@ -150,6 +164,12 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
         isEffortPickerOpen: true,
       });
     }
+  },
+
+  selectModelSilently: (modelId) => {
+    const model = get().models.find((m) => m.id === modelId);
+    if (!model) return;
+    set({ selectedModelId: modelId, selectedProviderId: model.providerId });
   },
 
   openEffortForModel: (modelId) => {

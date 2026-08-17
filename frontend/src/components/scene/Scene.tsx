@@ -15,6 +15,7 @@ import {
   Sidebar,
   SidebarPanel,
   UsagePanel,
+  useDefaultModels,
   useServers,
   useUsage,
   useWallpaper,
@@ -99,6 +100,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   const usage = useUsage(activePanel === 'usage');
   const runningServers = useServers(activePanel === 'terminal');
   const wallpaper = useWallpaper();
+  const defaultModels = useDefaultModels(activePanel === 'settings');
   // Both sides of the screen are dropped together: the agent windows and the
   // orchestrator transcript belong to the session that just ended.
   const clearSession = useCallback(() => {
@@ -162,7 +164,9 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
       {/* Coordinator: input bar, its transcript, and any pending delegation.
           Outer container is pointer-events-none so clicks on empty space pass straight
           through to agent windows behind and beside it. */}
-      <div className="absolute top-6 z-40 flex flex-col items-center gap-2.5 w-full px-4 pointer-events-none">
+      {/* Clears the frameless window's drag strip so the input never sits under
+          it and steal its own clicks. */}
+      <div className="absolute top-10 z-40 flex flex-col items-center gap-2.5 w-full px-4 pointer-events-none">
         <div className="pointer-events-auto">
           <OrchestratorInput
             onSubmit={coordinator.send}
@@ -259,7 +263,11 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
 
       {activePanel === 'settings' && (
         <div className="absolute left-[86px] top-1/2 -translate-y-1/2 z-40 pointer-events-auto">
-          <SettingsPanel wallpaper={wallpaper} onClose={closePanel} />
+          <SettingsPanel
+            wallpaper={wallpaper}
+            defaultModels={defaultModels}
+            onClose={closePanel}
+          />
         </div>
       )}
 

@@ -47,6 +47,10 @@ type ProviderSnapshot struct {
 	Message      string       `json:"message,omitempty"`
 	Models       []Model      `json:"models,omitempty"`
 	CheckedAt    int64        `json:"checkedAt"`
+	// Settings are the user's stored choices for this CLI, carried on the
+	// snapshot so the UI can honour a preferred model without a second call per
+	// provider on every refresh.
+	Settings ProviderSettings `json:"settings"`
 }
 
 type Model struct {

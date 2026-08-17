@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="Catalyst">
+  <title>Catalyst</title>
+  <!-- Near-black ground rather than pure #000, so the mark keeps a little depth
+       against both dark chrome and a white page. -->
+  <rect width="256" height="256" fill="#111110"/>
+  <!-- Double chevron: acceleration, and one request driving forward into many.
+       Filled wedges rather than strokes, so the terminals stay flat and the
+       weight never thins out when scaled down to a 16px favicon. -->
+  <g fill="#FAF9F5">
+    <path d="M56 44h34l58 84-58 84H56l58-84z"/>
+    <path d="M132 44h34l58 84-58 84h-34l58-84z"/>
+  </g>
+</svg>

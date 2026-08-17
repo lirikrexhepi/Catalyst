@@ -15,6 +15,31 @@ type Registry struct {
 	drivers  map[domain.DriverKind]Driver
 	settings map[domain.DriverKind]domain.ProviderSettings
 	cache    map[domain.DriverKind]domain.ProviderSnapshot
+
+	// prefs persists settings between runs. Optional: without it the registry
+	// behaves exactly as before and every existing test stays valid.
+	prefs *Prefs
+}
+
+// UsePrefs attaches persistent storage and applies whatever was saved earlier,
+// so a preferred model chosen in a previous run is in effect before the first
+// probe runs.
+func (r *Registry) UsePrefs(prefs *Prefs) {
+	if prefs == nil {
+		return
+	}
+
+	stored := prefs.All()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.prefs = prefs
+	for kind, settings := range stored {
+		// Only for drivers this build knows about, so a stale file naming a
+		// removed provider is ignored rather than resurrecting it.
+		if _, ok := r.drivers[kind]; ok {
+			r.settings[kind] = settings
+		}
+	}
 }
 
 func NewRegistry(drivers ...Driver) *Registry {
@@ -45,13 +70,21 @@ func (r *Registry) Settings(kind domain.DriverKind) domain.ProviderSettings {
 
 func (r *Registry) SetSettings(kind domain.DriverKind, settings domain.ProviderSettings) error {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	if _, ok := r.drivers[kind]; !ok {
+		r.mu.Unlock()
 		return fmt.Errorf("unknown provider %q", kind)
 	}
 	r.settings[kind] = settings
+	// Dropped so the next probe re-reads the CLI with the new settings; a
+	// changed binary path or model would otherwise report stale results.
 	delete(r.cache, kind)
-	return nil
+	prefs := r.prefs
+	r.mu.Unlock()
+
+	if prefs == nil {
+		return nil
+	}
+	return prefs.Set(kind, settings)
 }
 
 func (r *Registry) NewAdapter(kind domain.DriverKind, emit Emitter) (Adapter, error) {
@@ -107,6 +140,7 @@ func (r *Registry) probeOne(ctx context.Context, kind domain.DriverKind, force b
 	snapshot.Driver = kind
 	snapshot.DisplayName = driver.DisplayName()
 	snapshot.CheckedAt = time.Now().UnixMilli()
+	snapshot.Settings = settings
 
 	r.mu.Lock()
 	r.cache[kind] = snapshot
