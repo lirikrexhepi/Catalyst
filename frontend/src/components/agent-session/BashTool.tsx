@@ -48,9 +48,9 @@ const BashToolImpl: React.FC<BashToolProps> = ({
         className="flex items-center justify-between cursor-pointer gap-2 h-[22px]"
       >
         <div className="flex items-center gap-2 min-w-0 h-full">
-          {/* Material Symbols terminal_add icon */}
+          {/* Material Symbols terminal icon */}
           <span className="material-symbols-outlined text-[17px] text-current/95 shrink-0 w-[18px] h-[18px] flex items-center justify-center leading-none">
-            terminal_add
+            terminal
           </span>
 
           <span className="text-[12px] font-medium font-['Geist'] text-current tracking-tight truncate leading-none flex items-center">

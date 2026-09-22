@@ -48,6 +48,7 @@ export default function NewAgentSheet({ onClose, onStarted }: { onClose: () => v
     const p = providers[0]
     const m = p.models.find((x) => x.default) ?? p.models[0]
     if (m) setChoice({ driver: p.driver, model: m.id, options: defaultOptions(m.options) })
+    else setChoice({ driver: p.driver, model: '', options: {} })
   }, [choice, providers])
 
   const ready = prompt.trim() && cwd && choice?.driver && !starting

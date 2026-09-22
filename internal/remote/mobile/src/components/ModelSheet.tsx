@@ -59,7 +59,8 @@ export default function ModelSheet({ value, title = 'Model', onChange, onClose }
       {providers.length === 0 ? (
         <div className="empty" style={{ padding: 0 }}>
           <strong>No agent CLIs found</strong>
-          Install or enable Claude Code, Antigravity or OpenCode on your PC, then refresh.
+          Install Claude Code, Codex, Antigravity or OpenCode on your PC, then refresh. If the desktop
+          already lists them, pull to reconnect — the phone reads the same probe.
         </div>
       ) : (
         <>
@@ -76,21 +77,36 @@ export default function ModelSheet({ value, title = 'Model', onChange, onClose }
           <div>
             <span className="label">Model</span>
             <div className="list" role="listbox" aria-label="Model">
-              {provider?.models.map((m) => (
+              {(provider?.models ?? []).length === 0 ? (
                 <button
-                  key={m.id}
                   role="option"
-                  aria-pressed={current?.model === m.id}
-                  aria-selected={current?.model === m.id}
-                  onClick={() => pickModel(m.id)}
+                  aria-pressed={!current?.model}
+                  aria-selected={!current?.model}
+                  onClick={() => onChange({ driver, model: '', options: {} })}
                 >
                   <span style={{ flex: 1, minWidth: 0 }}>
-                    {m.name}
-                    {m.name !== m.id && <div className="sub">{m.id}</div>}
+                    CLI default
+                    <div className="sub">Whatever {provider?.name || driver} uses when no model is pinned</div>
                   </span>
-                  {current?.model === m.id && <Check size={18} aria-hidden="true" />}
+                  {!current?.model && <Check size={18} aria-hidden="true" />}
                 </button>
-              ))}
+              ) : (
+                provider?.models.map((m) => (
+                  <button
+                    key={m.id}
+                    role="option"
+                    aria-pressed={current?.model === m.id}
+                    aria-selected={current?.model === m.id}
+                    onClick={() => pickModel(m.id)}
+                  >
+                    <span style={{ flex: 1, minWidth: 0 }}>
+                      {m.name}
+                      {m.name !== m.id && <div className="sub">{m.id}</div>}
+                    </span>
+                    {current?.model === m.id && <Check size={18} aria-hidden="true" />}
+                  </button>
+                ))
+              )}
             </div>
           </div>
 

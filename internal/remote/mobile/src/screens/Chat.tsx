@@ -218,10 +218,11 @@ function NewChat({ openDrawer, go }: ChatProps) {
   useEffect(() => {
     if (providers.length === 0) return
     const p = providers.find((x) => x.driver === choice?.driver)
-    if (p && p.models.some((m) => m.id === choice?.model)) return
+    if (p && (choice?.model === '' ? p.models.length === 0 : p.models.some((m) => m.id === choice?.model))) return
     const first = providers[0]
     const m = first.models.find((x) => x.default) ?? first.models[0]
     if (m) setLocalChoice({ driver: first.driver, model: m.id, options: defaultOptions(m.options) })
+    else setLocalChoice({ driver: first.driver, model: '', options: {} })
   }, [choice, providers])
 
   const project = projects.find((p) => p.path === cwd)

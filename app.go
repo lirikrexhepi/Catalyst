@@ -129,7 +129,7 @@ func NewApp() *App {
 		projectsStore := projects.New(configRoot())
 	remoteServer := remote.NewServer(4545, manager, coordinator, constructor, spawner, projectsStore, recorder, store)
 
-	return &App{
+	app := &App{
 		registry:       registry,
 		manager:        manager,
 		coordinator:    coordinator,
@@ -153,6 +153,8 @@ func NewApp() *App {
 		taskService:    taskService,
 		prefService:    prefService,
 	}
+	app.wireRemote()
+	return app
 }
 
 // configRoot is where Composer keeps everything it remembers between runs,
@@ -175,6 +177,7 @@ func (a *App) startup(ctx context.Context) {
 	a.enableManagedServers()
 	a.rehydrateFromHistory()
 	if a.remoteServer != nil {
+		a.wireRemote()
 		_ = a.remoteServer.Start(ctx)
 	}
 	a.orchestrator.SetOnSpawn(func(result session.SpawnResult) {

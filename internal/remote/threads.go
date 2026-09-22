@@ -286,10 +286,10 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]provider, 0)
 	for _, snap := range hooks.Providers(r.URL.Query().Get("refresh") == "1") {
-		if snap.Availability != domain.AvailabilityReady || len(snap.Models) == 0 {
+		if snap.Availability != domain.AvailabilityReady {
 			continue
 		}
-		p := provider{Driver: string(snap.Driver), Name: snap.DisplayName}
+		p := provider{Driver: string(snap.Driver), Name: snap.DisplayName, Models: []model{}}
 		for _, m := range snap.Models {
 			p.Models = append(p.Models, model{ID: m.ID, Name: firstNonEmpty(m.DisplayName, m.ID), Default: m.Default, Options: m.Options})
 		}
