@@ -90,32 +90,19 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
 
   return (
     <div
-      className={`rounded-[14px] glass-card border border-white/25 p-3 text-white max-w-full shadow-md font-['Geist'] select-none flex flex-col gap-2.5 ${className}`}
-      style={{
-        boxShadow:
-          '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
-      }}
+      className={`rounded-xl bg-current/[0.05] p-3 text-current max-w-full font-['Geist'] select-none flex flex-col gap-2.5 border-0 shadow-none ${className}`}
     >
-      {/* Header with Step Indicator */}
-      <div className="flex items-center justify-between pb-1.5 border-b border-white/10">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[15px] text-white/70">
+          <span className="material-symbols-outlined text-[15px] text-current/60">
             chat_bubble_outline
           </span>
-          <span className="text-[12px] font-medium text-white/90">Question</span>
+          <span className="text-[12px] font-medium text-current/90">Question</span>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] text-white/60">
-          <span className="material-symbols-outlined text-[14px] cursor-pointer hover:text-white">
-            keyboard_arrow_up
-          </span>
-          <span>
-            {questionNumber} of {totalQuestions}
-          </span>
-          <span className="material-symbols-outlined text-[14px] cursor-pointer hover:text-white">
-            keyboard_arrow_down
-          </span>
-        </div>
+        <span className="text-[11px] text-current/40 tabular-nums">
+          {questionNumber} of {totalQuestions}
+        </span>
       </div>
 
       {list.map((item, index) => {
@@ -141,10 +128,10 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
                     <div
                       key={opt.key}
                       onClick={() => handleSelect(index, opt.key)}
-                      className={`flex items-center gap-2 px-2 py-1 rounded-[8px] border transition-all cursor-pointer ${
+                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-white/15 border-white/30 text-white'
-                          : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/70'
+                          ? 'bg-current/[0.12] text-current'
+                          : 'bg-current/[0.04] hover:bg-current/[0.08] text-current/70'
                       }`}
                     >
                       <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-white/15 text-white/90 select-none">
@@ -169,10 +156,10 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
                     key={opt.key}
                     type="button"
                     onClick={() => handleSelect(index, opt.key)}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-[8px] border text-left transition-all cursor-pointer active:scale-[0.99] ${
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all cursor-pointer active:scale-[0.99] ${
                       isSelected
-                        ? 'bg-white/20 border-white/35 text-white shadow-sm'
-                        : 'bg-white/5 border-white/10 hover:bg-white/10 text-white/80'
+                        ? 'bg-current/[0.12] text-current'
+                        : 'bg-current/[0.04] hover:bg-current/[0.08] text-current/75'
                     }`}
                   >
                     <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-white/15 text-white/90 select-none">
@@ -187,8 +174,7 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
         );
       })}
 
-      {/* Footer Controls */}
-      <div className="flex items-center justify-between pt-1 border-t border-white/10">
+      <div className="flex items-center justify-between pt-1">
         {submitted ? (
           <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium py-0.5">
             <span className="material-symbols-outlined text-[14px]">check_circle</span>
@@ -203,17 +189,17 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
             <button
               type="button"
               onClick={handleSkip}
-              className="px-2.5 py-1 text-[12px] text-white/60 hover:text-white transition-colors cursor-pointer"
+              className="px-2.5 py-1 text-[12px] text-current/50 hover:text-current transition-colors cursor-pointer"
             >
               Skip
             </button>
 
             <button
-              type="button"
+              type="submit"
               onClick={handleNext}
-              className="px-3 py-1 rounded-[7px] bg-blue-500 hover:bg-blue-600 active:scale-95 text-[12px] font-medium text-white shadow-md transition-all cursor-pointer"
+              className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 active:scale-95 text-[12px] font-medium text-white transition-all cursor-pointer"
             >
-              Next
+              Submit
             </button>
           </div>
         )}

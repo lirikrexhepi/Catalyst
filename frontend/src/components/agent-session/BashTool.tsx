@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { OrbitLoader } from './OrbitLoader';
 
 export interface BashToolProps {
   command: string;
@@ -39,11 +40,7 @@ const BashToolImpl: React.FC<BashToolProps> = ({
 
   return (
     <div
-      className={`rounded-[14px] glass-card border border-current/25 px-3.5 py-2.5 text-current max-w-full shadow-md transition-all duration-150 group select-none font-['Geist'] ${className}`}
-      style={{
-        boxShadow:
-          '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
-      }}
+      className={`rounded-xl bg-current/[0.05] px-3.5 py-2.5 text-current max-w-full transition-all duration-150 group select-none font-['Geist'] border-0 shadow-none ${className}`}
     >
       {/* Header Row - Centered vertically */}
       <div
@@ -60,14 +57,12 @@ const BashToolImpl: React.FC<BashToolProps> = ({
             {status === 'running' ? `Running command: ${commandSummary}` : `Ran command: ${commandSummary}`}
           </span>
 
-          {/* Running Indicator */}
           {status === 'running' && (
-            <span className="w-1.5 h-1.5 rounded-full bg-current/80 ml-0.5 shrink-0 status-dot-working" />
+            <OrbitLoader size={12} className="ml-0.5 shrink-0" />
           )}
 
-          {/* Error Exit Code Pill */}
           {status === 'error' && exitCode !== undefined && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/25 text-rose-200 border border-rose-500/40 shrink-0 font-['Geist'] leading-none">
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-200 shrink-0 font-['Geist'] leading-none">
               exit {exitCode}
             </span>
           )}
@@ -112,18 +107,21 @@ const BashToolImpl: React.FC<BashToolProps> = ({
         }}
       >
         <div className="overflow-hidden">
-          <div className="pt-2 flex flex-col gap-1 font-['Geist'] text-[12px]">
-            {/* Full command invocation */}
-            <div className="text-current font-medium select-text leading-relaxed tracking-tight">
-              {command}
+          <div className="pt-2">
+            <div className="rounded-lg bg-black/45 px-3 py-2.5 font-mono text-[11.5px] leading-relaxed overflow-x-auto max-h-[220px] custom-scrollbar select-text">
+              <div className="flex items-start gap-1.5">
+                <span className="text-emerald-400 shrink-0 select-none">❯</span>
+                <span className="text-current/95 whitespace-pre-wrap break-all">{command}</span>
+              </div>
+              {output && (
+                <pre className="text-current/70 whitespace-pre-wrap m-0 mt-1 overflow-visible">
+                  {output}
+                </pre>
+              )}
+              {status === 'running' && (
+                <span className="inline-block w-[7px] h-[14px] bg-emerald-400/80 mt-1 animate-pulse" />
+              )}
             </div>
-
-            {/* Output lines */}
-            {output && (
-              <pre className="text-current/85 font-['Geist'] text-[12px] whitespace-pre-wrap select-text leading-relaxed p-0 m-0 overflow-x-auto max-h-[220px] custom-scrollbar">
-                {output}
-              </pre>
-            )}
           </div>
         </div>
       </div>

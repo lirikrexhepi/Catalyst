@@ -41,16 +41,11 @@ const PlanToolImpl: React.FC<PlanToolProps> = ({
 
   return (
     <div
-      className={`rounded-[14px] glass-card border border-white/25 p-3 text-white max-w-full shadow-md font-['Geist'] select-none flex flex-col gap-2 transition-all duration-150 ${className}`}
-      style={{
-        boxShadow:
-          '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
-      }}
+      className={`rounded-xl bg-current/[0.05] p-3 text-current max-w-full font-['Geist'] select-none flex flex-col gap-2 transition-all duration-150 border-0 shadow-none ${className}`}
     >
-      {/* Header Row */}
       <div
         onClick={() => setIsExpanded((prev) => !prev)}
-        className="flex items-center justify-between cursor-pointer gap-2 pb-1 border-b border-white/10"
+        className="flex items-center justify-between cursor-pointer gap-2"
       >
         <div className="flex items-center gap-1.5 min-w-0">
           <span className="material-symbols-outlined text-[15px] text-white/70 shrink-0 leading-none">
@@ -106,17 +101,17 @@ const PlanToolImpl: React.FC<PlanToolProps> = ({
               </button>
 
               {isApproved ? (
-                <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-300 bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 rounded-[7px]">
+                <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-300 bg-emerald-500/15 px-2.5 py-1 rounded-md">
                   <span className="material-symbols-outlined text-[13px]">check</span>
                   Approved
                 </div>
               ) : (
                 <button
-                  type="button"
+                  type="submit"
                   onClick={handleApprove}
-                  className="px-3 py-1 rounded-[7px] bg-blue-500 hover:bg-blue-600 active:scale-95 text-[12px] font-medium text-white shadow-md transition-all cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 active:scale-95 text-[12px] font-medium text-white transition-all cursor-pointer"
                 >
-                  Approve
+                  Submit
                 </button>
               )}
             </div>

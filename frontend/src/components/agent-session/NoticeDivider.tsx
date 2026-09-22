@@ -51,7 +51,7 @@ const NoticeDividerImpl: React.FC<NoticeDividerProps> = ({ label, icon, classNam
     <div className={`flex items-center gap-2.5 py-1 select-none ${className}`}>
       <span className="h-px flex-1 bg-gradient-to-r from-transparent to-white/20" />
 
-      <span className="inline-flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
+      <span className="inline-flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-current/[0.04]">
         {switchData ? (
           <span className="flex items-center gap-1.5 shrink-0">
             {renderChatIcon(switchData.fromDriver, switchData.fromModel, isLight, 'w-3.5 h-3.5')}

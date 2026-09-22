@@ -30,6 +30,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const setAutoStartAgents = useOrchestratorStore((s) => s.setAutoStartAgents);
   const autoApprovePermissions = useOrchestratorStore((s) => s.autoApprovePermissions);
   const setAutoApprovePermissions = useOrchestratorStore((s) => s.setAutoApprovePermissions);
+  const interfaceSounds = useOrchestratorStore((s) => s.interfaceSounds);
+  const setInterfaceSounds = useOrchestratorStore((s) => s.setInterfaceSounds);
 
   const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
   const [hasChangedGpu, setHasChangedGpu] = useState<boolean>(false);
@@ -191,6 +193,43 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div
               className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
                 autoApprovePermissions
+                  ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
+                  : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className={`flex items-center justify-between p-2.5 rounded-[10px] ${
+          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
+        }`}>
+          <div className="flex flex-col">
+            <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
+              isLight ? 'text-[#030303]' : 'text-white/90'
+            }`}>
+              Interface sounds
+            </span>
+            <span className={`text-[10px] font-['Geist'] tracking-tight leading-snug ${
+              isLight ? 'text-black/50' : 'text-white/40'
+            }`}>
+              Chime when an agent finishes a task
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={interfaceSounds}
+            data-cuelume-toggle
+            onClick={() => setInterfaceSounds(!interfaceSounds)}
+            className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ml-2 ${
+              interfaceSounds
+                ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
+                : isLight ? 'bg-black/15' : 'bg-white/15'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
+                interfaceSounds
                   ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
                   : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
               }`}

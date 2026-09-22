@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fileIconForPath } from '../common/fileIcon';
 
 export interface SearchToolProps {
   files: string[];
@@ -67,29 +68,29 @@ const SearchToolImpl: React.FC<SearchToolProps> = ({
       >
         <div className="overflow-hidden">
           <div
-            className="rounded-[14px] glass-card border border-current/25 p-2.5 max-w-full flex flex-col gap-1 shadow-md"
-            style={{
-              boxShadow:
-                '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
-            }}
+            className="rounded-xl bg-current/[0.05] p-2.5 max-w-full flex flex-col gap-1 border-0 shadow-none"
           >
-            {files.map((file, idx) => (
+            {files.map((file, idx) => {
+              const fileIcon = fileIconForPath(file);
+              return (
               <div
                 key={`${file}-${idx}`}
                 onClick={() => onFileClick?.(file)}
                 className="flex items-center gap-2.5 px-2 py-1.5 rounded-[8px] hover:bg-current/15 active:scale-[0.99] transition-colors duration-150 cursor-pointer group/item"
               >
-                {/* Material Symbols cards_stack icon */}
-                <span className="material-symbols-outlined text-[17px] text-current/90 group-hover/item:text-current shrink-0 leading-none">
-                  cards_stack
-                </span>
+                <img
+                  src={fileIcon}
+                  alt=""
+                  draggable={false}
+                  className="w-[18px] h-[18px] shrink-0"
+                />
 
-                {/* File Path in 12px Geist */}
                 <span className="text-[12px] font-medium text-current tracking-tight select-text truncate">
                   {file}
                 </span>
               </div>
-            ))}
+              );
+            })}
 
             {files.length === 0 && !isSearching && (
               <div className="px-2 py-1.5 text-[12px] text-current/60">

@@ -99,9 +99,9 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
   return (
     <div className={`flex flex-col h-full w-full min-h-0 select-none ${className}`}>
       {/* Subheader Toolbar */}
-      <div className="flex items-center justify-between shrink-0 pb-2 px-1 border-b border-white/[0.07]">
+      <div className="flex items-center justify-between shrink-0 pb-2 px-1">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-[7px] bg-white/[0.06] border border-white/[0.08] text-white/80 text-[11px] font-mono">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-[7px] bg-white/[0.06] text-white/80 text-[11px] font-mono">
             <GitBranch size={13} className="text-white/60 shrink-0" />
             <span className="truncate max-w-[180px]">
               {matchingLane?.branch || branch || 'main'}
@@ -163,9 +163,8 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
       {/* Main Git Content: Left File List + Right Diff View */}
       <div className="flex-1 min-h-0 flex gap-2.5 pt-2.5">
         {/* Left File/History List */}
-        <div className="w-[240px] shrink-0 flex flex-col min-h-0 rounded-[10px] bg-black/40 border border-white/[0.08] overflow-hidden">
-          {/* Segment: Changes vs Commits */}
-          <div className="flex items-center p-1 border-b border-white/[0.06] bg-white/[0.02]">
+        <div className="w-[240px] shrink-0 flex flex-col min-h-0 rounded-xl bg-black/40 overflow-hidden">
+          <div className="flex items-center p-1 bg-white/[0.02]">
             <button
               type="button"
               onClick={() => git.selectView({ kind: 'changes' })}
@@ -271,7 +270,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
         </div>
 
         {/* Right Diff Viewport */}
-        <div className="flex-1 min-h-0 rounded-[10px] bg-[#0d0f12] border border-white/[0.08] overflow-hidden flex flex-col">
+        <div className="flex-1 min-h-0 rounded-xl bg-[#0d0f12] overflow-hidden flex flex-col">
           <DiffView
             diffs={git.diffs}
             isLoading={git.isDiffLoading}

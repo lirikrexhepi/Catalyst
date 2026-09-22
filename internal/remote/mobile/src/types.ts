@@ -142,3 +142,28 @@ export interface Project {
   runningAgents: number
   lastActivity: number
 }
+
+export type PreviewState = 'starting' | 'live' | 'failed'
+
+export interface PreviewInfo {
+  port: number
+  url?: string
+  state: PreviewState
+  error?: string
+  startedAt?: number
+}
+
+export interface DevServer {
+  pid: number
+  port: number
+  name: string
+  kind: string
+  ownerThreadId?: string
+  preview?: PreviewInfo
+}
+
+export interface ServerGroup {
+  threadId?: string
+  title: string
+  servers: DevServer[]
+}

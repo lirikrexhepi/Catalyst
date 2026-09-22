@@ -11,7 +11,7 @@ import { QuestionTool } from './QuestionTool';
 import { ApprovalCard } from './ApprovalCard';
 import { MarkdownText } from './MarkdownText';
 import { NoticeDivider } from './NoticeDivider';
-import { SpiralLoader } from './SpiralLoader';
+import { OrbitLoader } from './OrbitLoader';
 import { MessageTimestamp } from './MessageTimestamp';
 import { RespondToApproval, RespondToQuestion } from '../../../wailsjs/go/main/App';
 
@@ -227,7 +227,7 @@ export const AntigravitySessionFeed: React.FC<AntigravitySessionFeedProps> = ({
                 )}
 
                 <div className="flex items-center gap-2 pt-1 pl-1">
-                  <SpiralLoader size={14} className="text-white/80" />
+                  <OrbitLoader size={14} className="text-white/80" />
                   <span className="text-[12px] font-medium font-['Geist'] text-white/70 tracking-tight select-none">
                     Working
                   </span>

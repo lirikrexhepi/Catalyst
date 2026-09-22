@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { fileIconForPath } from '../common/fileIcon';
 
 export interface DiffLine {
   type: 'add' | 'delete' | 'context';
@@ -34,8 +35,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isCopied, setIsCopied] = useState(false);
-
-  const fileExt = filePath.split('.').pop()?.toUpperCase() || 'FILE';
+  const fileIcon = fileIconForPath(filePath);
 
   const handleCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -49,11 +49,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
 
   return (
     <div
-      className={`rounded-[14px] glass-card border border-current/25 px-3.5 py-2.5 text-current max-w-full shadow-md transition-all duration-150 group select-none font-['Geist'] ${className}`}
-      style={{
-        boxShadow:
-          '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
-      }}
+      className={`rounded-xl bg-current/[0.05] px-3.5 py-2.5 text-current max-w-full transition-all duration-150 group select-none font-['Geist'] border-0 shadow-none ${className}`}
     >
       {/* Header Row - Exact same 22px height & alignment as BashTool */}
       <div
@@ -61,10 +57,12 @@ const EditToolImpl: React.FC<EditToolProps> = ({
         className="flex items-center justify-between cursor-pointer gap-2 h-[22px]"
       >
         <div className="flex items-center gap-2 min-w-0 h-full">
-          {/* File extension badge */}
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-300 border border-blue-400/30 leading-none shrink-0 flex items-center justify-center">
-            {fileExt}
-          </span>
+          <img
+            src={fileIcon}
+            alt=""
+            draggable={false}
+            className="w-[18px] h-[18px] shrink-0"
+          />
 
           <span className="text-[12px] font-medium text-current tracking-tight truncate leading-none flex items-center">
             {editVerb(toolName, status)} {filePath}

@@ -3,7 +3,7 @@ import { LiquidGlass } from '../../liquid-glass';
 import { useTheme } from '../../themes';
 import { ScrollArea } from '../common/ScrollArea';
 import { AgentSessionFeed, AgentStreamBlock } from '../agent-session';
-import { SpiralLoader } from '../agent-session/SpiralLoader';
+import { OrbitLoader } from '../agent-session/OrbitLoader';
 import { TextShimmer } from '../agent-session/TextShimmer';
 
 export interface OrchestratorCardProps {
@@ -161,7 +161,7 @@ export const OrchestratorCard: React.FC<OrchestratorCardProps> = ({
 
               {isBusy && !hasLiveIndicator && (
                 <div className="flex items-center gap-2 pt-3 pl-1">
-                  <SpiralLoader size={13} />
+                  <OrbitLoader size={13} />
                   <TextShimmer
                     duration={1.5}
                     className="text-[12px] font-medium font-['Geist'] tracking-tight"
@@ -181,7 +181,7 @@ export const OrchestratorCard: React.FC<OrchestratorCardProps> = ({
             </ScrollArea>
           ) : isBusy ? (
             <div className="flex-1 flex items-center justify-center gap-2">
-              <SpiralLoader size={15} />
+              <OrbitLoader size={15} />
               <TextShimmer
                 duration={1.5}
                 className="text-[13px] font-medium font-['Geist'] tracking-tight"

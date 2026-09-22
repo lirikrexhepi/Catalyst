@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { ScrollArea } from '../common/ScrollArea';
 import { AgentSessionFeed, AgentStreamBlock } from '../agent-session';
-import { SpiralLoader } from '../agent-session/SpiralLoader';
+import { OrbitLoader } from '../agent-session/OrbitLoader';
 import { TextShimmer } from '../agent-session/TextShimmer';
 
 export interface CoordinatorPanelProps {
@@ -121,7 +121,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
             streaming, so this only covers the gap before any block arrives. */}
         {isBusy && !hasLiveIndicator && (
           <div className="flex items-center gap-2 pt-3 pl-0.5">
-            <SpiralLoader size={13} />
+            <OrbitLoader size={13} />
             <TextShimmer duration={1.5} className="text-[12px] font-medium font-['Geist'] tracking-tight">
               Thinking
             </TextShimmer>

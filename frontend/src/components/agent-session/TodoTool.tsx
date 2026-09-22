@@ -29,14 +29,10 @@ const TodoToolImpl: React.FC<TodoToolProps> = ({
 }) => {
   return (
     <div
-      className={`rounded-[14px] glass-card border border-white/25 p-3 text-white max-w-full shadow-md font-['Geist'] select-none flex flex-col gap-2 ${className}`}
-      style={{
-        boxShadow:
-          '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
-      }}
+      className={`rounded-xl bg-current/[0.05] p-3 text-current max-w-full font-['Geist'] select-none flex flex-col gap-2 border-0 shadow-none ${className}`}
     >
       {title && (
-        <div className="text-[12px] font-medium text-white tracking-tight pb-1 border-b border-white/10">
+        <div className="text-[12px] font-medium text-current tracking-tight">
           {title}
         </div>
       )}
@@ -50,7 +46,7 @@ const TodoToolImpl: React.FC<TodoToolProps> = ({
             <div
               key={todo.id}
               onClick={() => onToggleTodo?.(todo.id)}
-              className="flex items-center gap-2.5 px-1 py-0.5 rounded-[6px] hover:bg-white/10 active:scale-[0.99] transition-all cursor-pointer group"
+              className="flex items-center gap-2.5 px-1 py-0.5 rounded-md hover:bg-current/[0.06] active:scale-[0.99] transition-all cursor-pointer group"
             >
               {/* Status Icon */}
               {isDone ? (

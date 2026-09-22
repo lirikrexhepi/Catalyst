@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { SpiralLoader } from './SpiralLoader';
+import React, { useEffect, useRef, useState } from 'react';
+import { OrbitLoader } from './OrbitLoader';
 import { TextShimmer } from './TextShimmer';
 
 export interface ThinkingBlockProps {
@@ -10,32 +10,73 @@ export interface ThinkingBlockProps {
   className?: string;
 }
 
-/**
- * Thinking Tool component with active streaming & completed collapsed states.
- * - Active State: Spiral Loader (16px) + TextShimmer "Thinking" (12px Geist font)
- * - Done State: "Thought for Xs >" (40% white opacity, 12px Geist font, comfortable padding)
- * - Glass Chat Bubble: 12px Geist font, frosted translucent white glass container
- */
+const VERBS = [
+  'Accomplishing', 'Actioning', 'Actualizing', 'Architecting', 'Baking', 'Beaming', "Beboppin'",
+  'Befuddling', 'Billowing', 'Blanching', 'Bloviating', 'Boogieing', 'Boondoggling', 'Booping',
+  'Bootstrapping', 'Brewing', 'Burrowing', 'Calculating', 'Canoodling', 'Caramelizing', 'Cascading',
+  'Catapulting', 'Cerebrating', 'Channelling', 'Choreographing', 'Churning', 'Clauding', 'Coalescing',
+  'Cogitating', 'Combobulating', 'Composing', 'Computing', 'Concocting', 'Considering', 'Contemplating',
+  'Cooking', 'Crafting', 'Creating', 'Crystallizing', 'Cultivating', 'Crunching', 'Deciphering',
+  'Deliberating', 'Determining', 'Dilly-dallying', 'Discombobulating', 'Doing', 'Doodling', 'Drizzling',
+  'Ebbing', 'Effecting', 'Elucidating', 'Embellishing', 'Enchanting', 'Envisioning', 'Evaporating',
+  'Fermenting', 'Fiddle-faddling', 'Finagling', 'Flambéing', 'Flibbertigibbeting', 'Flowing',
+  'Flummoxing', 'Fluttering', 'Forging', 'Forming', 'Frosting', 'Frolicking', 'Gallivanting', 'Galloping',
+  'Garnishing', 'Generating', 'Germinating', 'Gitifying', 'Grooving', 'Gusting', 'Harmonizing', 'Hashing',
+  'Hatching', 'Herding', 'Hibernating', 'Honking', 'Hullaballooing', 'Hyperspacing', 'Ideating', 'Imagining',
+  'Improvising', 'Incubating', 'Inferring', 'Infusing', 'Ionizing', 'Jitterbugging', 'Julienning', 'Kneading',
+  'Leavening', 'Levitating', 'Lollygagging', 'Manifesting', 'Marinating', 'Meandering', 'Metamorphosing',
+  'Misting', 'Moonwalking', 'Moseying', 'Mulling', 'Mustering', 'Musing', 'Nebulizing', 'Nesting', 'Noodling',
+  'Nucleating', 'Orbiting', 'Orchestrating', 'Osmosing', 'Perambulating', 'Percolating', 'Perusing',
+  'Philosophising', 'Photosynthesizing', 'Pollinating', 'Pontificating', 'Pondering', 'Pouncing',
+  'Precipitating', 'Prestidigitating', 'Processing', 'Proofing', 'Propagating', 'Puttering', 'Puzzling',
+  'Quantumizing', 'Razzle-dazzling', 'Razzmatazzing', 'Recombobulating', 'Reticulating', 'Roosting',
+  'Ruminating', 'Sautéing', 'Scampering', 'Scheming', 'Schlepping', 'Scurrying', 'Seasoning', 'Shenaniganing',
+  'Shimmying', 'Simmering', 'Skedaddling', 'Sketching', 'Slithering', 'Smooshing', 'Sock-hopping', 'Spelunking',
+  'Spinning', 'Sprouting', 'Stewing', 'Sublimating', 'Sussing', 'Swirling', 'Swooping', 'Symbioting',
+  'Synthesizing', 'Tempering', 'Thinking', 'Thundering', 'Tinkering', 'Tomfoolering', 'Topsy-turvying',
+  'Transfiguring', 'Transmuting', 'Twisting', 'Undulating', 'Unfurling', 'Unravelling', 'Vibing', 'Waddling',
+  'Wandering', 'Warping', 'Whatchamacalliting', 'Whirlpooling', 'Whirring', 'Whisking', 'Wibbling', 'Working',
+  'Wrangling', 'Zesting', 'Zigzagging',
+];
+
 const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
   isThinking = false,
   thoughtText = '',
-  durationSeconds = 3,
+  durationSeconds = 0,
   defaultExpanded,
   className = '',
 }) => {
-  // Collapsed unless explicitly opened: reasoning is supporting detail, so it
-  // should not push the answer off screen while it streams.
   const [isExpanded, setIsExpanded] = useState<boolean>(defaultExpanded ?? false);
-
-  // Live elapsed timer while thinking, Zeron-style "Thinking… Ns".
   const [elapsed, setElapsed] = useState(0);
+  const [settledSeconds, setSettledSeconds] = useState<number | null>(null);
+  const [verbIndex, setVerbIndex] = useState(() => Math.floor(Math.random() * VERBS.length));
+  const startedAtRef = useRef(0);
+
+  useEffect(() => {
+    if (!isThinking) {
+      if (startedAtRef.current > 0) {
+        setSettledSeconds(Math.max(0, Math.floor((Date.now() - startedAtRef.current) / 1000)));
+        startedAtRef.current = 0;
+      }
+      return;
+    }
+    startedAtRef.current = Date.now();
+    setSettledSeconds(null);
+    setElapsed(0);
+    setVerbIndex(Math.floor(Math.random() * VERBS.length));
+    const id = window.setInterval(() => {
+      if (startedAtRef.current > 0) {
+        setElapsed(Math.floor((Date.now() - startedAtRef.current) / 1000));
+      }
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [isThinking]);
+
   useEffect(() => {
     if (!isThinking) return;
-    setElapsed(0);
-    const startedAt = Date.now();
     const id = window.setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startedAt) / 1000));
-    }, 500);
+      setVerbIndex((i) => (i + 1) % VERBS.length);
+    }, 3000);
     return () => window.clearInterval(id);
   }, [isThinking]);
 
@@ -43,11 +84,12 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
     setIsExpanded((prev) => !prev);
   };
 
-  const doneSeconds = durationSeconds > 0 ? durationSeconds : elapsed;
+  const verb = VERBS[verbIndex % VERBS.length];
+  const liveText = `${verb}…${elapsed > 0 ? ` ${elapsed}s` : ''}`;
+  const doneSeconds = durationSeconds > 0 ? durationSeconds : (settledSeconds ?? elapsed);
 
   return (
     <div className={`flex flex-col gap-1.5 select-none ${className}`}>
-      {/* Trigger Header Button with comfortable horizontal padding */}
       <button
         type="button"
         onClick={toggleExpand}
@@ -57,18 +99,11 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
       >
         {isThinking ? (
           <>
-            <SpiralLoader size={16} className="text-current/90" />
-            <TextShimmer duration={1.5} className="text-[12px] font-medium font-['Geist'] tracking-tight select-none leading-none">
-              Thinking… {elapsed > 0 ? `${elapsed}s` : ''}
-            </TextShimmer>
-            <span className="flex items-center gap-[3px] ml-0.5" aria-hidden>
-              {[0, 1, 2].map((dot) => (
-                <span
-                  key={dot}
-                  className="w-[3px] h-[3px] rounded-full bg-current/60 animate-pulse"
-                  style={{ animationDelay: `${dot * 0.25}s` }}
-                />
-              ))}
+            <OrbitLoader size={16} className="text-current/90" />
+            <span key={verb} className="an-verb-swap">
+              <TextShimmer duration={1.5} className="text-[12px] font-medium font-['Geist'] tracking-tight select-none leading-none">
+                {liveText}
+              </TextShimmer>
             </span>
           </>
         ) : (
@@ -77,7 +112,6 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
           </span>
         )}
 
-        {/* Chevron Indicator */}
         <span
           className={`material-symbols-outlined text-[15px] leading-none transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
             isExpanded ? 'rotate-90' : 'rotate-0'
@@ -87,7 +121,6 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
         </span>
       </button>
 
-      {/* Collapsible Frosted White Glass Chat Bubble Panel */}
       <div
         className="grid transition-[grid-template-rows,opacity] duration-220 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{
@@ -98,11 +131,7 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
       >
         <div className="overflow-hidden">
           <div
-            className="rounded-[14px] glass-card border border-current/15 px-3.5 py-2.5 max-w-full text-[12px] font-['Geist'] text-current leading-relaxed tracking-tight select-text shadow-md font-medium"
-            style={{
-              boxShadow:
-                '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
-            }}
+            className="rounded-xl bg-current/[0.05] px-3.5 py-2.5 max-w-full text-[12px] font-['Geist'] text-current leading-relaxed tracking-tight select-text font-medium border-0 shadow-none"
           >
             {isThinking && !thoughtText ? (
               <span className="text-current/50">Reasoning…</span>

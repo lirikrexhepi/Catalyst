@@ -8,7 +8,7 @@ import { AgentServersView } from './AgentServersView';
 import { domain, servers } from '../../../wailsjs/go/models';
 import { GitState } from '../git';
 import { MessageSquare, Globe, GitBranch, ListTodo, Terminal, X, Square } from 'lucide-react';
-import { SpiralLoader } from './SpiralLoader';
+import { OrbitLoader } from './OrbitLoader';
 import { TextShimmer } from './TextShimmer';
 import { AgentStreamBlock, TodoToolBlockData } from './types';
 import { AgentTasklistView } from './AgentTasklistView';
@@ -568,7 +568,7 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
 
                 {isWorking && !hasLiveIndicator && (
                   <div className="flex items-center gap-2 pt-3 pl-0.5">
-                    <SpiralLoader size={13} />
+                    <OrbitLoader size={13} />
                     <TextShimmer
                       duration={1.5}
                       className="text-[12px] font-medium font-['Geist'] tracking-tight"

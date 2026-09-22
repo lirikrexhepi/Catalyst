@@ -9,6 +9,7 @@ import (
 	"composer/internal/domain"
 	"composer/internal/logger"
 	"composer/internal/remote"
+	"composer/internal/servers"
 	"composer/internal/session"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -56,15 +57,19 @@ func (a *App) wireRemote() {
 	}
 	a.remoteServer.SetHooks(remote.Hooks{
 		Providers: func(force bool) []domain.ProviderSnapshot {
-			ctx := a.ctx
-			if ctx == nil {
-				ctx = context.Background()
-			}
+			// Bounded so a slow CLI probe cannot outlive the HTTP write timeout
+			// and leave the phone with no providers at all.
+			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+			defer cancel()
 			return a.registry.Probe(ctx, force)
 		},
 		SendAgent:  a.remoteSendAgent,
 		NewAgent:   a.remoteNewAgent,
 		SaveUpload: a.remoteSaveUpload,
+		Servers: func() []servers.Group {
+			groups, _ := a.ListServers()
+			return groups
+		},
 	})
 }
 

@@ -30,6 +30,7 @@ import { useTheme } from '../../themes';
 import { MutateAgentTask, RespondToQuestion } from '../../../wailsjs/go/main/App';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 import { session } from '../../../wailsjs/go/models';
+import { playTaskComplete } from '../../sound';
 
 export interface SceneProps {
   children?: React.ReactNode;
@@ -112,6 +113,9 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     (notif: Omit<DynamicIslandNotification, 'id' | 'timestamp'>) => {
       if (notificationTimerRef.current) {
         window.clearTimeout(notificationTimerRef.current);
+      }
+      if (notif.type === 'success' && useOrchestratorStore.getState().interfaceSounds) {
+        playTaskComplete();
       }
       const fullNotif: DynamicIslandNotification = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,

@@ -478,8 +478,7 @@ function appendText(
     return next;
   }
 
-  // A new block: whatever was streaming before it is finished.
-  const settled = kind === 'text' ? closeThinking(closeStreaming(blocks)) : closeStreaming(blocks);
+  const settled = closeThinking(closeStreaming(blocks));
   const id = `${kind}-${itemId || event.seq}`;
   return [
     ...settled,

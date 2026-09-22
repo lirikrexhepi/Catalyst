@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { fileIconForPath } from '../common/fileIcon';
 
 export interface ToolGroupItem {
   id?: string;
@@ -44,13 +45,14 @@ function splitTarget(target: string): { dir: string; base: string } {
   return { dir: parts.slice(0, -1).join('/') + '/', base: parts[parts.length - 1] };
 }
 
-function FileBadge({ ext }: { ext: string }) {
+function FileBadge({ target }: { target: string }) {
   return (
-    <span className="w-[22px] h-[22px] rounded-[6px] bg-current/[0.07] flex items-center justify-center shrink-0">
-      <span className="font-mono text-[8.5px] font-semibold text-current/60 leading-none tracking-tight">
-        {ext.slice(0, 4)}
-      </span>
-    </span>
+    <img
+      src={fileIconForPath(target)}
+      alt=""
+      draggable={false}
+      className="w-[18px] h-[18px] shrink-0"
+    />
   );
 }
 
@@ -192,7 +194,7 @@ const ToolGroupImpl: React.FC<ToolGroupProps> = ({
                         </span>
                       </span>
                     ) : showBadge ? (
-                      <FileBadge ext={ext as string} />
+                      <FileBadge target={item.target} />
                     ) : (
                       <RowIcon type={item.type} />
                     )}
@@ -228,13 +230,12 @@ const ToolGroupImpl: React.FC<ToolGroupProps> = ({
                     )}
                   </div>
 
-                  {/* Expanded Details / Output */}
                   {isItemExpanded && hasDetails && (
                     <div
                       onClick={(e) => e.stopPropagation()}
-                      className="my-1 ml-6 mr-1 p-2 rounded-[8px] bg-current/[0.04] border border-current/10 text-current/85 text-[11px] select-text shadow-sm"
+                      className="my-1 ml-6 mr-1 p-2 rounded-lg bg-current/[0.04] text-current/85 text-[11px] select-text"
                     >
-                      <div className="flex items-center justify-between pb-1 mb-1 border-b border-current/10 text-current/45 text-[10px] tracking-tight">
+                      <div className="flex items-center justify-between pb-1 mb-1 text-current/45 text-[10px] tracking-tight">
                         <span className="truncate pr-2">{item.target || item.action}</span>
                         <button
                           type="button"

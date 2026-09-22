@@ -1,4 +1,4 @@
-import type { FileRef, ModelChoice, Project, ProviderInfo, RuntimeEvent, ThreadSummary } from './types'
+import type { FileRef, ModelChoice, PreviewInfo, Project, ProviderInfo, RuntimeEvent, ServerGroup, ThreadSummary } from './types'
 
 const TOKEN_KEY = 'composer_remote_token'
 const BASE_KEY = 'composer_remote_base'
@@ -136,4 +136,9 @@ export const api = {
     request('/api/question/answer', { method: 'POST', body: JSON.stringify({ threadId, requestId, answers }) }),
   upload: (name: string, mime: string, data: string) =>
     request<FileRef>('/api/upload', { method: 'POST', body: JSON.stringify({ name, mime, data }) }),
+  servers: () => request<ServerGroup[]>('/api/servers'),
+  previewStart: (port: number) =>
+    request<PreviewInfo>('/api/preview/start', { method: 'POST', body: JSON.stringify({ port }) }),
+  previewStop: (port: number) =>
+    request<{ ok?: boolean }>('/api/preview/stop', { method: 'POST', body: JSON.stringify({ port }) }),
 }

@@ -473,10 +473,10 @@ body,
    translate3d, which the compositor animates without repainting. */
 @keyframes text-shimmer {
   0% {
-    transform: translate3d(50%, 0, 0);
+    background-position: 100% 0;
   }
   100% {
-    transform: translate3d(-50%, 0, 0);
+    background-position: -100% 0;
   }
 }
 
@@ -503,11 +503,10 @@ body,
     transparent 65%
   );
   background-size: var(--shimmer-spread, 200%) 100%;
-  background-position: center;
+  background-position: 100% 0;
   -webkit-background-clip: text;
   background-clip: text;
   animation: text-shimmer var(--shimmer-duration, 1.6s) linear infinite;
-  will-change: transform;
   pointer-events: none;
 }
 
@@ -517,6 +516,96 @@ body,
 @media (prefers-reduced-motion: reduce) {
   .an-text-shimmer::before {
     animation-duration: 2.6s;
+  }
+}
+
+.an-orbit {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.an-orbit-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1.5px solid currentColor;
+  opacity: 0.22;
+}
+
+.an-orbit-arm {
+  position: absolute;
+  inset: 0;
+  animation: orbit-spin 1.15s linear infinite;
+  will-change: transform;
+}
+
+.an-orbit-sat {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 9999px;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.an-orbit-core {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  margin: -1.5px 0 0 -1.5px;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: orbit-core-pulse 1.15s ease-in-out infinite;
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-core-pulse {
+  0%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+.an-verb-swap {
+  display: inline-block;
+  animation: verb-swap 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes verb-swap {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .an-orbit-arm {
+    animation-duration: 2.4s;
+  }
+  .an-orbit-core {
+    animation-duration: 2.4s;
   }
 }
 

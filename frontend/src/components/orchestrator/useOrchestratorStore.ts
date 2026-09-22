@@ -18,10 +18,12 @@ interface OrchestratorStore {
   providersError: string | null;
   autoStartAgents: boolean;
   autoApprovePermissions: boolean;
+  interfaceSounds: boolean;
 
   // Actions
   setAutoStartAgents: (enabled: boolean) => void;
   setAutoApprovePermissions: (enabled: boolean) => void;
+  setInterfaceSounds: (enabled: boolean) => void;
   loadProviders: (force?: boolean) => Promise<void>;
   setProviders: (providers: CLIProvider[]) => void;
   setModels: (models: AIModel[]) => void;
@@ -72,6 +74,10 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
     typeof window !== 'undefined'
       ? localStorage.getItem('orchestrator_auto_approve_permissions') !== 'false'
       : true,
+  interfaceSounds:
+    typeof window !== 'undefined'
+      ? localStorage.getItem('orchestrator_interface_sounds') !== 'false'
+      : true,
 
   setAutoStartAgents: (autoStartAgents: boolean) => {
     if (typeof window !== 'undefined') {
@@ -85,6 +91,13 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
       localStorage.setItem('orchestrator_auto_approve_permissions', autoApprovePermissions ? 'true' : 'false');
     }
     set({ autoApprovePermissions });
+  },
+
+  setInterfaceSounds: (interfaceSounds: boolean) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orchestrator_interface_sounds', interfaceSounds ? 'true' : 'false');
+    }
+    set({ interfaceSounds });
   },
 
   // Discovers installed CLIs and their models. Only ready providers are

@@ -44,6 +44,7 @@ type Server struct {
 	cancelFeed   func()
 	running      bool
 	hooks        Hooks
+	previews     *PreviewManager
 }
 
 func NewServer(
@@ -63,6 +64,7 @@ func NewServer(
 		port:         port,
 		auth:         NewAuthManager(),
 		tunnel:       NewTunnelManager(port),
+		previews:     NewPreviewManager(port),
 		clients:      make(map[*websocket.Conn]bool),
 		manager:      manager,
 		coordinator:  coordinator,
@@ -137,6 +139,10 @@ func (s *Server) Stop() {
 
 	s.tunnel.Stop()
 
+	if s.previews != nil {
+		s.previews.StopAll()
+	}
+
 	if s.httpServer != nil {
 		_ = s.httpServer.Close()
 	}
@@ -205,6 +211,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/interrupt", s.requireAuth(s.handleThreadInterrupt))
 	mux.HandleFunc("/api/agent/new", s.requireAuth(s.handleNewAgent))
 	mux.HandleFunc("/api/upload", s.requireAuth(s.handleUpload))
+	mux.HandleFunc("/api/servers", s.requireAuth(s.handleServers))
+	mux.HandleFunc("/api/preview/start", s.requireAuth(s.handlePreviewStart))
+	mux.HandleFunc("/api/preview/stop", s.requireAuth(s.handlePreviewStop))
 	mux.HandleFunc("/api/ws", s.handleWebSocket)
 }
 

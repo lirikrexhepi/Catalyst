@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"composer/internal/domain"
+	"composer/internal/servers"
 	"composer/internal/session"
 )
 
@@ -40,6 +41,7 @@ type Hooks struct {
 	SendAgent  func(ctx context.Context, threadID, text string, files []domain.FileRef, choice *ModelChoice) error
 	NewAgent   func(ctx context.Context, req NewAgentRequest) (string, error)
 	SaveUpload func(name, mime, payload string) (domain.FileRef, error)
+	Servers    func() []servers.Group
 }
 
 // SetHooks installs the app-level hooks.
@@ -174,10 +176,9 @@ func (s *Server) threadSummaries() []ThreadSummary {
 	summarize(&coord, events)
 	out = append(out, coord)
 
+	// Every agent the desktop knows, keyed so history rows reuse live state.
+	agents := make(map[string]ThreadSummary)
 	for _, agent := range s.orchestrator.ListAgents() {
-		if agent.State == domain.TaskClosed && !agent.Live {
-			continue
-		}
 		row := ThreadSummary{
 			ThreadID: agent.ThreadID, Title: agent.Title, Kind: "agent",
 			Driver: string(agent.Driver), Model: agent.Model, State: agent.State,
@@ -189,9 +190,51 @@ func (s *Server) threadSummaries() []ThreadSummary {
 		if row.LastActivity == 0 {
 			row.LastActivity = s.manager.LastActivity(agent.ThreadID)
 		}
-		out = append(out, row)
+		agents[agent.ThreadID] = row
+	}
+
+	// The chat list mirrors the desktop's history panel: every stored chat,
+	// finished or not, newest first. Live-only listing left the phone empty
+	// after a restart or once chats were closed on the desktop.
+	seen := make(map[string]bool)
+	if s.history != nil {
+		metas, _ := s.history.List()
+		for _, meta := range metas {
+			if meta.Workspace.Archived {
+				continue
+			}
+			for _, task := range meta.Tasks {
+				if task.ThreadID == "" || task.ThreadID == meta.CoordinatorThreadID || task.ThreadID == session.CoordinatorThreadID || seen[task.ThreadID] {
+					continue
+				}
+				seen[task.ThreadID] = true
+				row, ok := agents[task.ThreadID]
+				if !ok {
+					row = ThreadSummary{
+						ThreadID: task.ThreadID, Kind: "agent", Driver: string(task.Driver), Model: task.Model,
+						Options: task.Options, State: task.State, Cwd: meta.Workspace.Cwd, ProjectCwd: meta.Workspace.Cwd,
+						ProjectName: projectName(meta.Workspace.Cwd),
+					}
+				}
+				if row.Title == "" {
+					row.Title = firstNonEmpty(task.Title, meta.Workspace.Title, "Chat")
+				}
+				if row.LastActivity < meta.Workspace.UpdatedAt {
+					row.LastActivity = meta.Workspace.UpdatedAt
+				}
+				out = append(out, row)
+			}
+		}
+	}
+	for id, row := range agents {
+		if !seen[id] && (row.Live || row.State != domain.TaskClosed) {
+			out = append(out, row)
+		}
 	}
 	sort.SliceStable(out[1:], func(i, j int) bool { return out[1+i].LastActivity > out[1+j].LastActivity })
+	if len(out) > 120 {
+		out = out[:120]
+	}
 	return out
 }
 

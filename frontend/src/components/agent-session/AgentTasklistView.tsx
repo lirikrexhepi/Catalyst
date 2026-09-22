@@ -116,7 +116,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
       style={style}
     >
       {/* Header with Progress & Filter Tabs */}
-      <div className="shrink-0 px-3 pt-2 pb-3 border-b border-white/[0.08] flex flex-col gap-2.5">
+      <div className="shrink-0 px-3 pt-2 pb-3 flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-[17px] text-white/70 leading-none">
@@ -126,7 +126,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
               Tasklist
             </span>
             {totalCount > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-white/[0.08] border border-white/[0.08] text-white/80">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-medium bg-white/[0.08] text-white/80">
                 {completedCount}/{totalCount}
               </span>
             )}
@@ -134,7 +134,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
 
           {/* Quick Filter Pill Switcher */}
           {totalCount > 0 && (
-            <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] border border-white/[0.06] text-[10px]">
+            <div className="flex items-center p-0.5 rounded-full bg-white/[0.06] text-[10px]">
               <button
                 type="button"
                 onClick={() => setFilter('all')}
@@ -199,7 +199,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-1.5">
         {filteredTodos.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/40">
-            <div className="w-10 h-10 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mb-3 text-white/35 shadow-inner">
+            <div className="w-10 h-10 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-3 text-white/35">
               <span className="material-symbols-outlined text-[20px]">
                 {filter === 'completed' ? 'done_all' : 'fact_check'}
               </span>
@@ -227,12 +227,12 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
               <div
                 key={todo.id}
                 onClick={() => handleToggle(todo, originalIndex >= 0 ? originalIndex : idx)}
-                className={`group flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all duration-150 cursor-pointer ${
+                className={`group flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 cursor-pointer border-0 ${
                   isDone
-                    ? 'bg-white/[0.02] border-white/[0.05] hover:bg-white/[0.05]'
+                    ? 'bg-white/[0.02] hover:bg-white/[0.05]'
                     : isInProgress
-                    ? 'bg-sky-500/[0.08] border-sky-400/25 shadow-[0_2px_12px_rgba(56,189,248,0.12)] hover:border-sky-400/40'
-                    : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.07] hover:border-white/20'
+                    ? 'bg-sky-500/[0.08] hover:bg-sky-500/[0.12]'
+                    : 'bg-white/[0.04] hover:bg-white/[0.07]'
                 }`}
               >
                 {/* Status Indicator Icon */}
@@ -330,7 +330,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
       </div>
 
       {/* Quick Add Task Input at Bottom */}
-      <div className="shrink-0 p-3 pt-2 border-t border-white/[0.08] bg-black/10 backdrop-blur-sm">
+      <div className="shrink-0 p-3 pt-2 bg-black/10 backdrop-blur-sm">
         <form onSubmit={handleAddTask} className="flex items-center gap-2">
           <div className="relative flex-1">
             <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-white/35 pointer-events-none">
@@ -341,14 +341,14 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
               value={newTaskText}
               onChange={(e) => setNewTaskText(e.target.value)}
               placeholder="Add task to this agent... (Enter to save)"
-              className="w-full pl-8 pr-3 py-1.5 text-[12px] rounded-lg bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] border border-white/[0.08] focus:border-white/25 text-white placeholder:text-white/35 focus:outline-none transition-all"
+              className="w-full pl-8 pr-3 py-1.5 text-[12px] rounded-lg bg-white/[0.06] hover:bg-white/[0.09] focus:bg-white/[0.12] text-white placeholder:text-white/35 focus:outline-none transition-all border-0"
             />
           </div>
           {newTaskText.trim() && (
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-white/[0.15] hover:bg-white/25 active:scale-95 text-white border border-white/15 transition-all cursor-pointer shadow-sm shrink-0"
+              className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-white/[0.15] hover:bg-white/25 active:scale-95 text-white transition-all cursor-pointer shrink-0"
             >
               Add
             </button>

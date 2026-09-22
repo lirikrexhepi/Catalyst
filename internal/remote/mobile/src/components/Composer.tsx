@@ -1,9 +1,7 @@
 import React, { useRef, useState } from 'react'
-import { ArrowUp, ChevronDown, Clock3, Paperclip, Square, X } from 'lucide-react'
+import { ArrowUp, Clock3, Plus, Square, X } from 'lucide-react'
 import { api } from '../api'
-import { choiceLabel } from '../format'
-import { effectiveChoice, interrupt, removeQueued, send, setChoice, useStore } from '../store'
-import ModelSheet from './ModelSheet'
+import { interrupt, removeQueued, send, useStore } from '../store'
 import type { FileRef } from '../types'
 
 interface Attachment {
@@ -32,17 +30,20 @@ async function shrink(file: File): Promise<{ data: string; mime: string }> {
   }
 }
 
-export default function Composer({ threadId, placeholder }: { threadId: string; placeholder: string }) {
-  const thread = useStore((s) => s.threads[threadId])
-  const providers = useStore((s) => s.providers)
-  useStore((s) => s.choices[threadId])
-  useStore((s) => s.summaries)
-  const choice = effectiveChoice(threadId)
+interface ComposerProps {
+  /** Absent for a new chat: the first message creates the agent via onCreate. */
+  threadId?: string
+  placeholder: string
+  onCreate?: (text: string) => Promise<boolean>
+}
+
+export default function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
+  const thread = useStore((s) => (threadId ? s.threads[threadId] : undefined))
   const [text, setText] = useState('')
   const [files, setFiles] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [picking, setPicking] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
   const filePicker = useRef<HTMLInputElement>(null)
 
@@ -50,7 +51,7 @@ export default function Composer({ threadId, placeholder }: { threadId: string; 
   const waiting = thread?.blocks.some(
     (b) => (b.type === 'approval_request' && b.status === 'pending') || (b.type === 'tool_question' && !b.answered),
   )
-  const canSend = (text.trim().length > 0 || files.length > 0) && !uploading
+  const canSend = (text.trim().length > 0 || files.length > 0) && !uploading && !creating
 
   const grow = () => {
     const el = input.current
@@ -61,6 +62,15 @@ export default function Composer({ threadId, placeholder }: { threadId: string; 
 
   const submit = () => {
     if (!canSend) return
+    if (!threadId) {
+      if (!onCreate || !text.trim()) return
+      setCreating(true)
+      void onCreate(text.trim()).then((ok) => {
+        setCreating(false)
+        if (ok) setText('')
+      })
+      return
+    }
     void send(threadId, text, files.map((f) => f.ref))
     setText('')
     setFiles([])
@@ -89,7 +99,7 @@ export default function Composer({ threadId, placeholder }: { threadId: string; 
     <div className="composer">
       {waiting && (
         <div className="hint" role="status">
-          <Clock3 size={14} aria-hidden="true" /> The agent is waiting for your answer above
+          <Clock3 size={14} aria-hidden="true" /> Waiting for your answer above
         </div>
       )}
       {thread && thread.queued.length > 0 && (
@@ -98,7 +108,12 @@ export default function Composer({ threadId, placeholder }: { threadId: string; 
             <div className="queued-chip" key={q.id}>
               <Clock3 size={13} aria-hidden="true" />
               <span>{q.text}</span>
-              <button className="icon-btn" style={{ width: 28, height: 28 }} onClick={() => removeQueued(threadId, q.id)} aria-label="Remove queued message">
+              <button
+                className="icon-btn"
+                style={{ width: 28, height: 28 }}
+                onClick={() => threadId && removeQueued(threadId, q.id)}
+                aria-label="Remove queued message"
+              >
                 <X size={14} aria-hidden="true" />
               </button>
             </div>
@@ -119,15 +134,15 @@ export default function Composer({ threadId, placeholder }: { threadId: string; 
       )}
       {error && <div className="hint" style={{ color: 'var(--fault)' }}>{error}</div>}
       <div className="field">
-        <button className="icon-btn" onClick={() => filePicker.current?.click()} aria-label="Attach a photo" disabled={uploading}>
-          <Paperclip size={20} className={uploading ? 'spin' : undefined} aria-hidden="true" />
+        <button className="icon-btn" onClick={() => filePicker.current?.click()} aria-label="Attach a photo" disabled={uploading || !threadId}>
+          <Plus size={22} className={uploading ? 'spin' : undefined} aria-hidden="true" />
         </button>
         <input ref={filePicker} type="file" accept="image/*" multiple hidden onChange={(e) => void attach(e.target.files)} />
         <textarea
           ref={input}
           rows={1}
           value={text}
-          placeholder={busy ? 'Queue a message' : placeholder}
+          placeholder={placeholder}
           aria-label="Message"
           onChange={(e) => {
             setText(e.target.value)
@@ -142,28 +157,15 @@ export default function Composer({ threadId, placeholder }: { threadId: string; 
           }}
         />
         {busy && !canSend ? (
-          <button className="send stop" onClick={() => void interrupt(threadId)} aria-label="Stop the agent">
-            <Square size={14} fill="currentColor" aria-hidden="true" />
+          <button className="send stop" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding">
+            <Square size={13} fill="currentColor" aria-hidden="true" />
           </button>
         ) : (
           <button className="send" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'}>
-            <ArrowUp size={20} aria-hidden="true" />
+            <ArrowUp size={20} strokeWidth={2.5} aria-hidden="true" />
           </button>
         )}
       </div>
-      <div className="composer-meta">
-        <button className="model-pill" onClick={() => setPicking(true)} aria-label={`Model: ${choiceLabel(choice, providers)}. Change`}>
-          <span>{choiceLabel(choice, providers)}</span>
-          <ChevronDown size={14} aria-hidden="true" />
-        </button>
-      </div>
-      {picking && (
-        <ModelSheet
-          value={choice}
-          onChange={(c) => setChoice(threadId, c)}
-          onClose={() => setPicking(false)}
-        />
-      )}
     </div>
   )
 }

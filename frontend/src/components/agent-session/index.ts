@@ -1,5 +1,5 @@
 export * from './types';
-export * from './SpiralLoader';
+export * from './OrbitLoader';
 export * from './TextShimmer';
 export * from './ThinkingBlock';
 export * from './BashTool';
