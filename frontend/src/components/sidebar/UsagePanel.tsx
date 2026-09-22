@@ -37,10 +37,23 @@ function since(timestamp: number): string {
 const WINDOW_NAMES: Record<string, string> = {
   five_hour: 'Session (5h)',
   seven_day: 'Weekly (7d)',
+  monthly: 'Monthly',
   seven_day_opus: 'Opus weekly',
   seven_day_sonnet: 'Sonnet weekly',
   seven_day_scoped: 'Model weekly',
 };
+
+// Compact token counts: 950 → "950", 12_400 → "12.4K", 5_200_000 → "5.2M".
+function compactTokens(value: number): string {
+  if (!value) return '0';
+  if (value < 1000) return `${value}`;
+  if (value < 1_000_000) {
+    const v = value / 1000;
+    return `${v >= 100 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, '')}K`;
+  }
+  const v = value / 1_000_000;
+  return `${v >= 100 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, '')}M`;
+}
 
 // Model-scoped weekly windows arrive named after the model they cover, so the
 // label is built rather than looked up.
@@ -114,7 +127,16 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const quotaIssues = drivers
     .filter((driver) => !!driver.limitsError)
     .map((driver) => ({ driver: driver.driver, message: driver.limitsError as string }));
-  const empty = quotaDrivers.length === 0 && quotaIssues.length === 0 && !error;
+  // Session spend comes from the event stream and needs no subscription, so a
+  // CLI without quota (OpenCode on third-party models, Codex, Antigravity)
+  // still shows what it burned this run.
+  const spendDrivers = drivers.filter(
+    (driver) =>
+      (driver.inputTokens ?? 0) + (driver.outputTokens ?? 0) > 0 ||
+      (driver.costUsd ?? 0) > 0 ||
+      (driver.turns ?? 0) > 0,
+  );
+  const empty = quotaDrivers.length === 0 && quotaIssues.length === 0 && spendDrivers.length === 0 && !error;
 
   return (
     <LiquidGlass
@@ -171,6 +193,43 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           <p className="text-[12px] font-['Geist'] text-white/45 leading-relaxed">
             Reading your plan usage…
           </p>
+        </div>
+      )}
+
+      {spendDrivers.length > 0 && (
+        <div className="mx-4 mb-4 flex flex-col gap-2 shrink-0">
+          <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase px-0.5">
+            This run
+          </span>
+          {spendDrivers.map((driver) => (
+            <div
+              key={`spend-${driver.driver}`}
+              className="p-3 rounded-[12px] bg-white/[0.05] border border-white/[0.09] flex flex-col gap-1.5"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-[11px] font-medium font-['Geist'] text-white/70 tracking-tight">
+                  {DRIVER_NAMES[driver.driver] ?? driver.driver}
+                </span>
+                {(driver.costUsd ?? 0) > 0 && (
+                  <span className="text-[11px] font-semibold font-['Geist'] text-white/90 tabular-nums">
+                    ${driver.costUsd.toFixed(2)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-[10px] font-['Geist'] text-white/45 tracking-tight tabular-nums">
+                <span title="Input tokens">↓ {compactTokens(driver.inputTokens ?? 0)}</span>
+                <span title="Output tokens">↑ {compactTokens(driver.outputTokens ?? 0)}</span>
+                {(driver.cacheReadTokens ?? 0) > 0 && (
+                  <span title="Cache read tokens">cache {compactTokens(driver.cacheReadTokens)}</span>
+                )}
+                {(driver.turns ?? 0) > 0 && (
+                  <span title="Turns">
+                    {driver.turns} turn{driver.turns === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

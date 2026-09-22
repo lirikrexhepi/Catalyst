@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"composer/internal/domain"
+	"composer/internal/opencode"
 	"composer/internal/session"
 )
 
@@ -21,8 +23,11 @@ func (a *App) UsageReport() session.UsageReport {
 
 // refreshQuota pulls limits from every CLI whose quota Composer can reach.
 //
-// Only Claude's is reachable: it is fetched from the account with the OAuth
-// token the CLI stores, falling back to that CLI's own on-disk cache.
+// Claude's is fetched from the account with the OAuth token the CLI stores,
+// falling back to that CLI's own on-disk cache. OpenCode Go's comes from the
+// official usage endpoint with the key the CLI stores in auth.json. A missing
+// Go sign-in is not an error worth showing: most OpenCode setups run other
+// providers, and their spend is still tracked below from the event stream.
 // Antigravity refreshes its token and quota in memory for the lifetime of a CLI
 // process and writes neither to disk, so there is nothing to read and no way to
 // authenticate a fetch without impersonating its OAuth client. Its quota stays
@@ -32,6 +37,12 @@ func (a *App) refreshQuota() {
 	a.usage.SetLimits(domain.DriverClaude, limits, fetchedAt)
 	if err != nil {
 		a.usage.SetQuotaError(domain.DriverClaude, err.Error())
+	}
+
+	goLimits, goFetchedAt, goErr := a.opencodeQuota.Snapshot()
+	a.usage.SetLimits(domain.DriverOpenCode, goLimits, goFetchedAt)
+	if goErr != nil && !errors.Is(goErr, opencode.ErrNoGoCredentials) {
+		a.usage.SetQuotaError(domain.DriverOpenCode, goErr.Error())
 	}
 }
 
@@ -43,6 +54,7 @@ func (a *App) refreshQuota() {
 // opening the panel paints immediately instead of waiting on the network.
 func (a *App) RefreshUsage() session.UsageReport {
 	a.quota.Invalidate()
+	a.opencodeQuota.Invalidate()
 	return a.UsageReport()
 }
 

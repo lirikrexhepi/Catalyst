@@ -15,6 +15,7 @@ import (
 	"composer/internal/history"
 	"composer/internal/logger"
 	"composer/internal/memory"
+	"composer/internal/opencode"
 	"composer/internal/projects"
 	"composer/internal/provider"
 	"composer/internal/remote"
@@ -46,6 +47,7 @@ type App struct {
 	orchestrator *session.Constructor
 	usage        *session.UsageTracker
 	quota        *claude.QuotaSource
+	opencodeQuota *opencode.GoQuotaSource
 	scanner      *servers.Scanner
 	devservers   *devserver.Manager
 	control      *devserver.Control
@@ -127,6 +129,7 @@ func NewApp() *App {
 		orchestrator:   constructor,
 		usage:          session.NewUsageTracker(),
 		quota:          claude.NewQuotaSource(""),
+		opencodeQuota:  opencode.NewGoQuotaSource(),
 		scanner:        servers.NewScanner(),
 		devservers:     devservers,
 		control:        control,
@@ -187,6 +190,9 @@ func (a *App) startup(ctx context.Context) {
 	})
 
 	a.quota.OnUpdate(func() {
+		runtime.EventsEmit(ctx, quotaChangedChannel)
+	})
+	a.opencodeQuota.OnUpdate(func() {
 		runtime.EventsEmit(ctx, quotaChangedChannel)
 	})
 
