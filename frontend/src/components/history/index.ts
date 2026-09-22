@@ -4,3 +4,7 @@ export { RestoredSessionBar } from './RestoredSessionBar';
 export type { RestoredSessionBarProps } from './RestoredSessionBar';
 export { useHistory } from './useHistory';
 export type { HistoryState, RestoredSession, RestoredTask } from './useHistory';
+export { ImportClaudeDialog } from './ImportClaudeDialog';
+export type { ImportClaudeDialogProps } from './ImportClaudeDialog';
+export { useClaudeImport } from './useClaudeImport';
+export type { ClaudeImportState } from './useClaudeImport';

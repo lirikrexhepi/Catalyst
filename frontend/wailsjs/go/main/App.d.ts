@@ -5,6 +5,7 @@ import {attachments} from '../models';
 import {domain} from '../models';
 import {session} from '../models';
 import {remote} from '../models';
+import {claudeimport} from '../models';
 import {history} from '../models';
 import {devserver} from '../models';
 import {servers} from '../models';
@@ -61,11 +62,15 @@ export function GitFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<domain
 
 export function GitOverview():Promise<Array<domain.WorktreeChanges>>;
 
+export function ImportClaudeCodeSession(arg1:string):Promise<string>;
+
 export function InterruptTurn(arg1:string):Promise<void>;
 
 export function IsGitRepo(arg1:string):Promise<boolean>;
 
 export function IsProviderEnabled(arg1:string):Promise<boolean>;
+
+export function ListClaudeCodeSessions():Promise<Array<claudeimport.ExternalSession>>;
 
 export function ListHistory():Promise<Array<history.Meta>>;
 
@@ -140,6 +145,8 @@ export function ServerLogs(arg1:string):Promise<Array<string>>;
 export function SetProviderPermission(arg1:string,arg2:boolean):Promise<void>;
 
 export function SetUserPreference(arg1:string,arg2:string):Promise<void>;
+
+export function SpawnFromImported(arg1:string,arg2:string,arg3:string,arg4:string,arg5:domain.ModelOptions):Promise<session.SpawnResult>;
 
 export function SpawnTasks(arg1:Array<session.SpawnRequest>,arg2:session.SpawnOptions):Promise<session.SpawnResult>;
 

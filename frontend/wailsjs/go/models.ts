@@ -25,6 +25,39 @@ export namespace attachments {
 
 }
 
+export namespace claudeimport {
+	
+	export class ExternalSession {
+	    id: string;
+	    title: string;
+	    cwd: string;
+	    model?: string;
+	    preview?: string;
+	    filePath: string;
+	    messageCount: number;
+	    startedAt: number;
+	    updatedAt: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ExternalSession(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.cwd = source["cwd"];
+	        this.model = source["model"];
+	        this.preview = source["preview"];
+	        this.filePath = source["filePath"];
+	        this.messageCount = source["messageCount"];
+	        this.startedAt = source["startedAt"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+
+}
+
 export namespace devserver {
 	
 	export class Snapshot {
@@ -1003,6 +1036,7 @@ export namespace domain {
 	    createdAt: number;
 	    updatedAt: number;
 	    archived?: boolean;
+	    importedFrom?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Workspace(source);
@@ -1017,6 +1051,7 @@ export namespace domain {
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
 	        this.archived = source["archived"];
+	        this.importedFrom = source["importedFrom"];
 	    }
 	}
 	

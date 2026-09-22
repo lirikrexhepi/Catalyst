@@ -106,6 +106,10 @@ export function GitOverview() {
   return window['go']['main']['App']['GitOverview']();
 }
 
+export function ImportClaudeCodeSession(arg1) {
+  return window['go']['main']['App']['ImportClaudeCodeSession'](arg1);
+}
+
 export function InterruptTurn(arg1) {
   return window['go']['main']['App']['InterruptTurn'](arg1);
 }
@@ -116,6 +120,10 @@ export function IsGitRepo(arg1) {
 
 export function IsProviderEnabled(arg1) {
   return window['go']['main']['App']['IsProviderEnabled'](arg1);
+}
+
+export function ListClaudeCodeSessions() {
+  return window['go']['main']['App']['ListClaudeCodeSessions']();
 }
 
 export function ListHistory() {
@@ -264,6 +272,10 @@ export function SetProviderPermission(arg1, arg2) {
 
 export function SetUserPreference(arg1, arg2) {
   return window['go']['main']['App']['SetUserPreference'](arg1, arg2);
+}
+
+export function SpawnFromImported(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['SpawnFromImported'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function SpawnTasks(arg1, arg2) {

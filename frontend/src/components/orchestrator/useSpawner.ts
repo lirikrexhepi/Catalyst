@@ -10,6 +10,7 @@ import {
   ParseTasks,
   ResumeHistoryThread,
   SendTurn,
+  SpawnFromImported,
   SpawnTasks,
   StopSession,
   SwitchTaskProviderWithOptions,
@@ -36,6 +37,8 @@ export interface SpawnedTask {
   isBusy: boolean;
   workspaceId?: string;
   isLive?: boolean;
+  /** Set on tasks replayed from an imported outside chat (e.g. "claude-code"). */
+  importedFrom?: string;
   projectName?: string;
   projectPath?: string;
   /** Server timestamp of the running turn's start; set while the agent works. */
@@ -509,6 +512,53 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
       const currentTask = tasksRef.current.find((t) => t.threadId === threadId);
 
       if (currentTask && currentTask.workspaceId && currentTask.isLive === false) {
+        // Imported outside chats are read-only context: messaging one starts a
+        // fresh agent in the same folder with the transcript attached, rather
+        // than resuming a conversation the CLI never had.
+        if (currentTask.importedFrom) {
+          try {
+            const store = useOrchestratorStore.getState();
+            const desired = modelId
+              ? store.models.find((m) => m.id === modelId) ?? store.getSelectedModel()
+              : undefined;
+            const promptText =
+              files.length > 0
+                ? `${trimmed}${files.map((f) => `\n@${f.path}`).join('')}`
+                : trimmed;
+            const result = await SpawnFromImported(
+              currentTask.workspaceId,
+              promptText,
+              desired?.providerId || currentTask.driver || 'claude',
+              desired?.id || currentTask.model || '',
+              desired ? toModelOptions(desired, store.getCurrentModelSettings(desired.id)) : null,
+            );
+            const spawned = result.tasks?.[0];
+            if (!spawned) throw new Error('spawn returned no tasks');
+            if (desired) {
+              lastSentOptions.current[spawned.threadId] = JSON.stringify(
+                toModelOptions(desired, store.getCurrentModelSettings(desired.id)),
+              );
+            }
+            const created = withEarlyEvents({
+              threadId: spawned.threadId,
+              title: spawned.title || currentTask.title,
+              branch: (spawned as any).worktree?.branch,
+              model: spawned.model,
+              driver: spawned.driver,
+              blocks: [userBlock(promptText, `user-${Date.now()}`, [], Date.now())],
+              isBusy: true,
+              workspaceId: currentTask.workspaceId,
+              isLive: true,
+              projectName: currentTask.projectName,
+              projectPath: currentTask.projectPath,
+            });
+            setTasks((prev) => [...prev, created]);
+            return spawned.threadId;
+          } catch (cause) {
+            setError(cause instanceof Error ? cause.message : String(cause));
+            return undefined;
+          }
+        }
         try {
           // Only this chat's agent is started, not every task of its session.
           await ResumeHistoryThread(currentTask.workspaceId, threadId);
@@ -999,6 +1049,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
           isBusy: false,
           workspaceId: targetWorkspaceId,
           isLive: false,
+          importedFrom: (meta.workspace as any)?.importedFrom,
           projectName: folderName,
           projectPath: cwd,
         };

@@ -43,6 +43,8 @@ export interface DynamicIslandProps {
   onTerminateAgent?: (threadId: string) => void;
   onRefreshHistory?: () => void;
   onNewChat?: () => void;
+  /** Opens the Claude Code import picker. Hidden when not provided. */
+  onImportClaude?: () => void;
   className?: string;
 }
 
@@ -437,6 +439,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   onDeleteHistory,
   onRefreshHistory,
   onNewChat,
+  onImportClaude,
   className = '',
 }) => {
   // Mode: 'idle' (compact), 'projects' (expanded project picker), 'project-chats' (project's past chats), 'usage' (expanded usage card)
@@ -991,6 +994,23 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               <span className="material-symbols-rounded text-[14px] leading-none text-white/80">add</span>
               <span>New Chat in {selectedProject.name}</span>
             </button>
+
+            {onImportClaude && (
+              <button
+                type="button"
+                onClick={() => {
+                  onImportClaude();
+                }}
+                className={`w-full my-1 h-[28px] rounded-full ${
+                  isLight
+                    ? 'bg-black/[0.04] hover:bg-black/[0.08] text-[#1d1d1f]'
+                    : 'bg-white/[0.05] hover:bg-white/[0.1] text-white/85'
+                } active:scale-[0.98] flex items-center justify-center gap-1.5 text-[11.5px] font-medium font-['Geist'] transition-all cursor-pointer shrink-0`}
+              >
+                <span className="material-symbols-rounded text-[14px] leading-none opacity-80">upload</span>
+                <span>Import Claude Code chat…</span>
+              </button>
+            )}
 
             {/* Chat Sessions List */}
             <ScrollArea className="flex-1 pr-1" maxHeight={205}>

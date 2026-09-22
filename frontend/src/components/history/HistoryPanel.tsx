@@ -24,6 +24,8 @@ export interface HistoryPanelProps {
   onNewChat: () => void;
   onRefresh: () => void;
   onClose: () => void;
+  /** Opens the Claude Code import picker. Hidden when not provided. */
+  onImport?: () => void;
   className?: string;
 }
 
@@ -107,6 +109,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
   onNewChat,
   onRefresh,
   onClose,
+  onImport,
   className = '',
 }) => {
   const chatItems = useMemo(() => extractChatHistoryItems(entries), [entries]);
@@ -141,6 +144,16 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
           >
             <span className="material-symbols-rounded text-[17px] leading-none">add</span>
           </button>
+          {onImport && (
+            <button
+              type="button"
+              title="Import Claude Code chat"
+              onClick={onImport}
+              className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
+            >
+              <span className="material-symbols-rounded text-[16px] leading-none">upload</span>
+            </button>
+          )}
           <button
             type="button"
             title="Refresh"

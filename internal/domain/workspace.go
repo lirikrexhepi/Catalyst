@@ -12,6 +12,11 @@ type Workspace struct {
 	CreatedAt int64  `json:"createdAt"`
 	UpdatedAt int64  `json:"updatedAt"`
 	Archived  bool   `json:"archived,omitempty"`
+	// ImportedFrom marks a workspace brought in from outside chat history
+	// (e.g. "claude-code"). Imported transcripts are read-only context:
+	// new agents start fresh and receive the transcript as prompt context
+	// rather than resuming the outside conversation.
+	ImportedFrom string `json:"importedFrom,omitempty"`
 }
 
 type TaskState string
