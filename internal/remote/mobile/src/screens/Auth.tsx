@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import jsQR from 'jsqr'
+import { QrCode } from 'lucide-react'
 import { api, applyScannedLink, getBase, getToken } from '../api'
 import { runDiagnostics, maskToken, DiagResult } from '../debug'
+import wallpaperImg from '../assets/wallpaper.png'
 
 export default function AuthScreen({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false)
@@ -9,6 +11,7 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
   const [paste, setPaste] = useState('')
   const [scanning, setScanning] = useState(false)
   const [scanSupported, setScanSupported] = useState(false)
+  const [showManual, setShowManual] = useState(false)
   const [showDiag, setShowDiag] = useState(false)
   const [diagRunning, setDiagRunning] = useState(false)
   const [diagResults, setDiagResults] = useState<DiagResult[] | null>(null)
@@ -20,10 +23,13 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
   const stoppedRef = useRef(false)
 
   useEffect(() => {
-    setScanSupported(
+    const supported =
       typeof navigator !== 'undefined' &&
       !!navigator.mediaDevices?.getUserMedia
-    )
+    setScanSupported(supported)
+    if (!supported) {
+      setShowManual(true)
+    }
     return () => stopScan()
   }, [])
 
@@ -34,12 +40,14 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
       const s = await api.status()
       if (s.authenticated === false) {
         setError('That code did not work. Generate a fresh QR on your PC and try again.')
+        setShowManual(true)
       } else {
         onDone()
         return
       }
     } catch (e) {
       setError(`Connection failed: ${e instanceof Error ? e.message : String(e)}`)
+      setShowManual(true)
     } finally {
       setBusy(false)
     }
@@ -73,7 +81,11 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
   const handleLink = async (link: string) => {
     if (!applyScannedLink(link)) {
       setError('Could not read that QR. Try pasting the full link instead.')
+      setShowManual(true)
       return
+    }
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try { navigator.vibrate(50) } catch { /* ignore */ }
     }
     stopScan()
     await verify()
@@ -134,64 +146,113 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
       }
       scanLoop.current = requestAnimationFrame(() => void tick())
     } catch {
-      setError('Camera blocked. Allow camera access, or paste the link from your PC instead.')
+      setError('Camera access unavailable. Enter the link from your PC instead.')
+      setShowManual(true)
     }
   }
 
   return (
-    <div className="screen">
-      <div className="scroll">
-        <div className="pair">
-          <h1>Your agents, from your pocket</h1>
-          <p>On your PC open Settings, then Remote access, and scan the code shown there.</p>
+    <div className="screen pair-screen">
+      {/* Upper backdrop wallpaper */}
+      <div className="pair-hero" aria-hidden="true">
+        <img src={wallpaperImg} alt="" className="pair-wallpaper" />
+        <div className="pair-hero-vignette" />
+      </div>
+
+      {/* Foreground scroll & bottom card */}
+      <div className="scroll pair-scroll">
+        <div className="pair-spacer" />
+
+        <div className="pair-card">
+          <div className="pair-brand">the orchestrator.</div>
+          <h1 className="pair-title">
+            Your agents, from<br />your pocket
+          </h1>
+          <p className="pair-desc">
+            On your PC open Settings, then Remote access, and scan the code shown there.
+          </p>
 
           {scanning ? (
-            <>
-              <video ref={videoRef} playsInline muted aria-label="Camera preview for scanning" />
-              <button className="btn" onClick={stopScan}>
+            <div className="pair-scanner">
+              <div className="pair-video-wrap">
+                <video ref={videoRef} playsInline muted autoPlay aria-label="Camera preview for scanning" />
+                <div className="pair-scan-reticle">
+                  <div className="reticle-corner top-left" />
+                  <div className="reticle-corner top-right" />
+                  <div className="reticle-corner bottom-left" />
+                  <div className="reticle-corner bottom-right" />
+                  <div className="reticle-laser" />
+                </div>
+              </div>
+              <button className="btn pair-cancel-btn" onClick={stopScan}>
                 Cancel scan
               </button>
-            </>
+            </div>
           ) : (
-            <>
+            <div className="pair-actions">
               {scanSupported && (
-                <button className="btn primary" onClick={() => void startScan()}>
-                  Scan the code
+                <button
+                  className="btn primary pair-scan-btn"
+                  onClick={() => void startScan()}
+                  disabled={busy}
+                >
+                  <QrCode size={20} strokeWidth={2.2} />
+                  <span>Scan the code</span>
                 </button>
               )}
-              <label className="label" htmlFor="pair-link" style={{ marginTop: 8 }}>
-                Or paste the link from your PC
-              </label>
-              <input
-                id="pair-link"
-                className="input"
-                value={paste}
-                onChange={(e) => setPaste(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void handleLink(paste)
-                }}
-                inputMode="url"
-                autoCapitalize="off"
-                autoCorrect="off"
-                placeholder="https://…"
-              />
-              <button className="btn" onClick={() => void handleLink(paste)} disabled={busy || !paste.trim()}>
-                {busy ? 'Connecting' : 'Connect'}
-              </button>
-              {!scanSupported && <p style={{ fontSize: 14 }}>This browser cannot use the camera, so paste the link instead.</p>}
-            </>
+
+              {/* Link input is hidden by default; revealed only if QR/camera fails or manually requested */}
+              {showManual ? (
+                <div className="pair-manual-box">
+                  <label className="pair-manual-label" htmlFor="pair-link">
+                    Or paste the link from your PC
+                  </label>
+                  <div className="pair-input-group">
+                    <input
+                      id="pair-link"
+                      className="input pair-input"
+                      value={paste}
+                      onChange={(e) => setPaste(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') void handleLink(paste)
+                      }}
+                      inputMode="url"
+                      autoCapitalize="off"
+                      autoCorrect="off"
+                      placeholder="https://…"
+                    />
+                    <button
+                      className="btn pair-connect-btn"
+                      onClick={() => void handleLink(paste)}
+                      disabled={busy || !paste.trim()}
+                    >
+                      {busy ? 'Connecting…' : 'Connect'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="pair-link-trigger"
+                  onClick={() => setShowManual(true)}
+                >
+                  Trouble scanning? Enter link manually
+                </button>
+              )}
+            </div>
           )}
 
           <canvas ref={canvasRef} style={{ display: 'none' }} />
+
           {error && (
-            <div className="err" role="alert">
+            <div className="pair-err" role="alert">
               {error}
             </div>
           )}
 
           <button
-            className="btn"
-            style={{ background: 'none', border: 0, color: 'var(--text-3)', fontWeight: 500 }}
+            type="button"
+            className="pair-diag-trigger"
             aria-expanded={showDiag}
             onClick={() => {
               setShowDiag((v) => !v)
@@ -200,18 +261,22 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
           >
             {showDiag ? 'Hide connection check' : 'Check the connection'}
           </button>
+
           {showDiag && (
             <div className="diag">
               <div>Server: {getBase() || 'none saved'}</div>
               <div>Token: {maskToken(getToken())}</div>
-              {diagRunning && <div className="when">Running checks</div>}
+              {diagRunning && <div className="when">Running checks…</div>}
               {diagResults?.map((r, i) => (
                 <div key={i}>
-                  <span style={{ color: r.ok ? 'var(--ok)' : 'var(--fault)', fontWeight: 700 }}>{r.ok ? 'Passed' : 'Failed'}</span> {r.name}
+                  <span style={{ color: r.ok ? 'var(--ok)' : 'var(--fault)', fontWeight: 700 }}>
+                    {r.ok ? 'Passed' : 'Failed'}
+                  </span>{' '}
+                  {r.name}
                   <div className="when">{r.detail}</div>
                 </div>
               ))}
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button className="btn" onClick={() => void runDiag()} disabled={diagRunning}>
                   Run again
                 </button>
