@@ -1,4 +1,4 @@
-import { RemoteAgentView, RemoteStatus, RuntimeEvent } from './types'
+import { Project, RemoteAgentView, RemoteStatus, RuntimeEvent } from './types'
 
 const TOKEN_KEY = 'composer_remote_token'
 const BASE_KEY = 'composer_remote_base'
@@ -107,6 +107,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   status: () => request<{ authenticated?: boolean } & Partial<RemoteStatus>>('/api/status'),
   agents: () => request<RemoteAgentView[]>('/api/agents'),
+  projects: () => request<Project[]>('/api/projects'),
   history: () => request<RuntimeEvent[]>('/api/history'),
   agentHistory: (threadId: string) => request<RuntimeEvent[]>(`/api/agent/${encodeURIComponent(threadId)}/history`),
   sendCoordinator: (text: string) =>

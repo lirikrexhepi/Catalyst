@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Screen, Project, RuntimeEvent } from '../types'
 import { api } from '../api'
-import { groupAgentsByProject, formatRelative } from '../utils'
+import { formatRelative } from '../utils'
 import NavHeader from '../components/NavHeader'
 import Row from '../components/Row'
 import Avatar from '../components/Avatar'
@@ -19,12 +19,12 @@ export default function ProjectList({ push }: Props) {
     let mounted = true
     const fetchData = async () => {
       try {
-        const [agents, history] = await Promise.all([
-          api.agents(),
+        const [projs, history] = await Promise.all([
+          api.projects(),
           api.history().catch(() => [])
         ])
         if (mounted) {
-          setProjects(groupAgentsByProject(agents))
+          setProjects(Array.isArray(projs) ? projs : [])
           if (history && history.length > 0) {
             setCoordinatorEvent(history[history.length - 1])
           }
@@ -47,7 +47,8 @@ export default function ProjectList({ push }: Props) {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <NavHeader title="Chats" large />
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 110 }}>
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
+        <SectionLabel text="Coordinator" />
         <div className="rise">
           <Row
             avatar={<Avatar name="Coordinator" />}
@@ -59,22 +60,25 @@ export default function ProjectList({ push }: Props) {
           />
         </div>
 
-        <div style={{ height: 8 }} />
-
+        <SectionLabel text={`Projects · ${projects.length}`} />
         {loading && projects.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14 }}>Loading...</div>
+          <div style={{ padding: 28, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14 }}>Loading...</div>
         ) : projects.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14, lineHeight: 1.5 }}>
-            No active projects
-            <div style={{ fontSize: 12.5, marginTop: 6 }}>Spawn agents from the desktop to see them here.</div>
+          <div style={{ padding: 36, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14, lineHeight: 1.5 }}>
+            No projects yet
+            <div style={{ fontSize: 12.5, marginTop: 6 }}>Add a project on the desktop to see it here.</div>
           </div>
         ) : (
           projects.map((p, i) => (
-            <div className="rise" key={p.path} style={{ animationDelay: `${Math.min(i * 30, 240)}ms` }}>
+            <div className="rise" key={p.id || p.path} style={{ animationDelay: `${Math.min(i * 30, 240)}ms` }}>
               <Row
                 avatar={<Avatar name={p.name} active={p.runningCount > 0} />}
                 title={p.name}
-                subtitle={`${p.agents.length} agent${p.agents.length === 1 ? '' : 's'}${p.runningCount > 0 ? `, ${p.runningCount} running` : ''}`}
+                subtitle={
+                  p.totalAgents === 0
+                    ? 'No agents'
+                    : `${p.totalAgents} agent${p.totalAgents === 1 ? '' : 's'}${p.runningCount > 0 ? `, ${p.runningCount} running` : ''}`
+                }
                 timestamp={p.lastActivity ? formatRelative(p.lastActivity) : undefined}
                 badge={p.runningCount}
                 onClick={() => push({ id: 'agents', projectPath: p.path, projectName: p.name })}
@@ -83,6 +87,14 @@ export default function ProjectList({ push }: Props) {
           ))
         )}
       </div>
+    </div>
+  )
+}
+
+function SectionLabel({ text }: { text: string }) {
+  return (
+    <div style={{ padding: '12px 16px 4px', fontSize: 12.5, fontWeight: 700, color: 'var(--text-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      {text}
     </div>
   )
 }

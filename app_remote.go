@@ -16,7 +16,7 @@ func (a *App) GetRemoteInfo() remote.RemoteInfo {
 
 func (a *App) StartRemoteServer(port int) (remote.RemoteInfo, error) {
 	if a.remoteServer == nil {
-		a.remoteServer = remote.NewServer(port, a.manager, a.coordinator, a.orchestrator, a.spawner, a.projects)
+		a.remoteServer = remote.NewServer(port, a.manager, a.coordinator, a.orchestrator, a.spawner, a.projects, a.recorder, a.historyStore)
 	}
 	if err := a.remoteServer.Start(context.Background()); err != nil {
 		logger.Errorf("App", "Failed to start remote server: %v", err)

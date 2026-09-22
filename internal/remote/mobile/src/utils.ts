@@ -15,12 +15,14 @@ export function groupAgentsByProject(agents: RemoteAgentView[]): Project[] {
         path,
         name: getProjectName(path),
         agents: [],
+        totalAgents: 0,
         runningCount: 0,
         lastActivity: Date.now() - i // fallback fake activity sort
       })
     }
     const p = map.get(path)!
     p.agents.push(agent)
+    p.totalAgents++
     if (agent.state === 'running') {
       p.runningCount++
     }

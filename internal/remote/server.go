@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"composer/internal/domain"
+	"composer/internal/history"
 	"composer/internal/logger"
 	"composer/internal/projects"
 	"composer/internal/session"
@@ -38,6 +39,8 @@ type Server struct {
 	orchestrator *session.Constructor
 	spawner      *session.Spawner
 	projects     *projects.Store
+	recorder     *history.Recorder
+	history      *history.Store
 	cancelFeed   func()
 	running      bool
 }
@@ -49,6 +52,8 @@ func NewServer(
 	orchestrator *session.Constructor,
 	spawner *session.Spawner,
 	projectsStore *projects.Store,
+	recorder *history.Recorder,
+	historyStore *history.Store,
 ) *Server {
 	if port <= 0 {
 		port = 4545
@@ -63,6 +68,8 @@ func NewServer(
 		orchestrator: orchestrator,
 		spawner:      spawner,
 		projects:     projectsStore,
+		recorder:     recorder,
+		history:      historyStore,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allows mobile phone connecting over local LAN, Tailscale, or Cloudflare tunnel
@@ -234,36 +241,76 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleHistory(w http.ResponseWriter, r *http.Request) {
-	events := s.coordinator.History()
+	events := s.threadHistory(session.CoordinatorThreadID)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(events)
 }
 
-func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
-	agents := s.orchestrator.ListAgents()
-	views := make([]RemoteAgentView, 0, len(agents))
-	for _, a := range agents {
-		views = append(views, RemoteAgentView{
-			ThreadID: a.ThreadID,
-			Title:    a.Title,
-			Driver:   string(a.Driver),
-			Model:    a.Model,
-			State:    a.State,
-			Cwd:      a.Cwd,
-			Branch:   a.Branch,
-			Live:     a.Live,
-		})
+// threadHistory prefers live memory, then falls back to the on-disk history
+// store. Memory alone goes blank for finished threads and after restarts,
+// which is why chat history used to show nothing.
+func (s *Server) threadHistory(threadID string) []domain.RuntimeEvent {
+	if live := s.manager.History(threadID); len(live) > 0 {
+		return live
 	}
+	if s.recorder == nil || s.history == nil {
+		return []domain.RuntimeEvent{}
+	}
+	workspaceID, ok := s.recorder.WorkspaceOf(threadID)
+	if !ok {
+		if threadID == session.CoordinatorThreadID {
+			return s.coordinator.History()
+		}
+		return []domain.RuntimeEvent{}
+	}
+	loaded, err := s.history.Load(workspaceID)
+	if err != nil {
+		return []domain.RuntimeEvent{}
+	}
+	if events, ok := loaded.Transcripts[threadID]; ok {
+		return events
+	}
+	return []domain.RuntimeEvent{}
+}
+
+func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {
+	views := s.visibleAgents()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(views)
 }
 
-// handleProjects groups agents by their working directory and returns a summary per project.
-// NOTE: This is a lightweight client-side-derivable grouping. A dedicated projects store
-// endpoint should be evaluated in the future for richer metadata (branch info, project config, etc.).
-func (s *Server) handleProjects(w http.ResponseWriter, r *http.Request) {
+// visibleAgents mirrors the desktop: finished workspaces that are no longer
+// live are history, not chats. Without this the phone fills with phantom
+// projects whose stored state still says "running".
+func (s *Server) visibleAgents() []RemoteAgentView {
 	agents := s.orchestrator.ListAgents()
+	views := make([]RemoteAgentView, 0, len(agents))
+	for _, a := range agents {
+		if a.State == domain.TaskClosed && !a.Live {
+			continue
+		}
+		views = append(views, RemoteAgentView{
+			ThreadID:   a.ThreadID,
+			Title:      a.Title,
+			Driver:     string(a.Driver),
+			Model:      a.Model,
+			State:      a.State,
+			Cwd:        a.Cwd,
+			ProjectCwd: a.ProjectCwd,
+			Branch:     a.Branch,
+			Live:       a.Live,
+		})
+	}
+	return views
+}
+
+// handleProjects returns the user's real projects from the projects store —
+// the same list the desktop shows — with their live agents attached.
+// Running means a live session in TaskRunning state; stored states from old
+// workspaces are never trusted, which is what used to paint phantom projects.
+func (s *Server) handleProjects(w http.ResponseWriter, r *http.Request) {
 	type projectEntry struct {
+		ID            string            `json:"id"`
 		Name          string            `json:"name"`
 		Path          string            `json:"path"`
 		Agents        []RemoteAgentView `json:"agents"`
@@ -271,33 +318,47 @@ func (s *Server) handleProjects(w http.ResponseWriter, r *http.Request) {
 		RunningAgents int               `json:"runningAgents"`
 		LastActivity  int64             `json:"lastActivity"`
 	}
-	byPath := make(map[string]*projectEntry)
-	for _, a := range agents {
-		e, ok := byPath[a.Cwd]
-		if !ok {
-			name := a.Cwd
-			if idx := strings.LastIndexAny(a.Cwd, `/\`); idx >= 0 {
-				name = a.Cwd[idx+1:]
+	agents := s.visibleAgents()
+
+	out := make([]*projectEntry, 0)
+	if s.projects != nil {
+		for _, p := range s.projects.List() {
+			e := &projectEntry{ID: p.ID, Name: p.Name, Path: p.Path, Agents: []RemoteAgentView{}}
+			for _, a := range agents {
+				if !underPath(a.ProjectCwd, p.Path) && !underPath(a.Cwd, p.Path) {
+					continue
+				}
+				e.Agents = append(e.Agents, a)
+				e.TotalAgents++
+				if a.Live && a.State == domain.TaskRunning {
+					e.RunningAgents++
+				}
+				for _, ev := range s.manager.History(a.ThreadID) {
+					if ev.At > e.LastActivity {
+						e.LastActivity = ev.At
+					}
+				}
 			}
-			e = &projectEntry{Name: name, Path: a.Cwd}
-			byPath[a.Cwd] = e
+			out = append(out, e)
 		}
-		view := RemoteAgentView{
-			ThreadID: a.ThreadID, Title: a.Title, Driver: string(a.Driver),
-			Model: a.Model, State: a.State, Cwd: a.Cwd, Branch: a.Branch, Live: a.Live,
-		}
-		e.Agents = append(e.Agents, view)
-		e.TotalAgents++
-		if a.State == "running" {
-			e.RunningAgents++
-		}
-	}
-	out := make([]*projectEntry, 0, len(byPath))
-	for _, e := range byPath {
-		out = append(out, e)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(out)
+}
+
+func underPath(child, parent string) bool {
+	if child == "" || parent == "" {
+		return false
+	}
+	lc, lp := strings.ToLower(child), strings.ToLower(parent)
+	if lc == lp {
+		return true
+	}
+	if !strings.HasPrefix(lc, lp) {
+		return false
+	}
+	sep := lc[len(lp)]
+	return sep == '/' || sep == '\\'
 }
 
 // handleAgentHistory returns the event history for a specific agent thread.
@@ -311,7 +372,7 @@ func (s *Server) handleAgentHistory(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"missing threadId"}`, http.StatusBadRequest)
 		return
 	}
-	events := s.manager.History(threadID)
+	events := s.threadHistory(threadID)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(events)
 }

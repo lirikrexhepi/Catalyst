@@ -33,7 +33,7 @@ export default function App() {
   }, [])
 
   const pop = useCallback(() => {
-    setStack(prev => prev.length > 1 ? prev.slice(0, -1) : prev)
+    setStack(prev => prev.slice(0, -1))
   }, [])
 
   const switchTab = useCallback((t: TabId) => {

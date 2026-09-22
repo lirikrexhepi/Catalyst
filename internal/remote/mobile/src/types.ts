@@ -7,6 +7,7 @@ export interface RemoteAgentView {
   model: string
   state: TaskState
   cwd: string
+  projectCwd?: string
   branch?: string
   live: boolean
 }
@@ -85,9 +86,11 @@ export type Screen =
   | { id: 'agent-chat'; threadId: string; title: string; cwd: string }
 
 export interface Project {
+  id?: string
   path: string
   name: string
   agents: RemoteAgentView[]
+  totalAgents: number
   runningCount: number
   lastActivity: number
 }

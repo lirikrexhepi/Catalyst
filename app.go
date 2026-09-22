@@ -116,7 +116,7 @@ func NewApp() *App {
 	}
 
 		projectsStore := projects.New(configRoot())
-	remoteServer := remote.NewServer(4545, manager, coordinator, constructor, spawner, projectsStore)
+	remoteServer := remote.NewServer(4545, manager, coordinator, constructor, spawner, projectsStore, recorder, store)
 
 	return &App{
 		registry:       registry,

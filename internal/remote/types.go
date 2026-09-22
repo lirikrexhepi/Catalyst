@@ -60,12 +60,13 @@ type RemoteStatus struct {
 }
 
 type RemoteAgentView struct {
-	ThreadID string           `json:"threadId"`
-	Title    string           `json:"title"`
-	Driver   string           `json:"driver"`
-	Model    string           `json:"model"`
-	State    domain.TaskState `json:"state"`
-	Cwd      string           `json:"cwd"`
-	Branch   string           `json:"branch,omitempty"`
-	Live     bool             `json:"live"`
+	ThreadID   string           `json:"threadId"`
+	Title      string           `json:"title"`
+	Driver     string           `json:"driver"`
+	Model      string           `json:"model"`
+	State      domain.TaskState `json:"state"`
+	Cwd        string           `json:"cwd"`
+	ProjectCwd string           `json:"projectCwd,omitempty"`
+	Branch     string           `json:"branch,omitempty"`
+	Live       bool             `json:"live"`
 }

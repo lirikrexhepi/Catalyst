@@ -26,7 +26,7 @@ export default function NavHeader({ title, subtitle, onBack, rightAction, large,
     >
       <div
         style={{
-          minHeight: 54,
+          minHeight: 50,
           display: 'grid',
           gridTemplateColumns: 'minmax(72px, 1fr) auto minmax(72px, 1fr)',
           alignItems: 'center',
@@ -82,8 +82,8 @@ export default function NavHeader({ title, subtitle, onBack, rightAction, large,
       </div>
 
       {large && (
-        <div style={{ padding: '2px 16px 12px' }}>
-          <h1 style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{title}</h1>
+        <div style={{ padding: '0 16px 10px' }}>
+          <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{title}</h1>
         </div>
       )}
     </div>

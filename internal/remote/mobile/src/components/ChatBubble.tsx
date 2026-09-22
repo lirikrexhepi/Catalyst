@@ -123,8 +123,13 @@ export default function ChatBubble({ event, isUser = false, onApprove, onAnswer 
     case 'turn.completed':
       return null
 
-    case 'turn.failed':
-      return <Centered text={error || text || 'Turn failed'} color="#ff6961" />
+    case 'turn.failed': {
+      const raw = error || text || 'Turn failed'
+      const friendly = raw.includes('no active session')
+        ? 'This agent has finished and can no longer receive messages. Start a new task from its project to continue.'
+        : raw
+      return <Centered text={friendly} color="#ff6961" />
+    }
 
     case 'notice':
       if (!text) return null
