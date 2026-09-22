@@ -47,6 +47,11 @@ type ExternalSession struct {
 	MessageCount int    `json:"messageCount"`
 	StartedAt    int64  `json:"startedAt"`
 	UpdatedAt    int64  `json:"updatedAt"`
+	// AgentRun marks transcripts produced by an agent rather than typed by
+	// the user: Composer/catalyst worktree runs, orchestrator-spawned CLIs
+	// and test sessions. The picker hides these by default so hand-written
+	// chats are findable, with a toggle to reveal them.
+	AgentRun bool `json:"agentRun"`
 }
 
 // ParsedSession is a fully converted transcript, ready to be stored. Events
@@ -129,6 +134,7 @@ func List() ([]ExternalSession, error) {
 			MessageCount: countMessages(parsed.Events),
 			StartedAt:    parsed.StartedAt,
 			UpdatedAt:    parsed.UpdatedAt,
+			AgentRun:     isAgentRun(parsed),
 		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt > out[j].UpdatedAt })
@@ -490,6 +496,29 @@ func parseAt(raw string, fallback int64) int64 {
 		return millis
 	}
 	return fallback
+}
+
+// isAgentRun reports transcripts produced by an agent rather than typed by
+// the user. Composer spawns a `claude` CLI per task, and every one of those
+// leaves a transcript behind: orchestrator planning prompts, worktree scratch
+// runs (alpha.txt/beta.txt style), and `go test` sessions under the temp dir.
+// Those dwarf hand-written chats in the picker, so they are flagged rather
+// than listed alongside them.
+func isAgentRun(parsed *ParsedSession) bool {
+	if strings.HasPrefix(parsed.Prompt, "You are the orchestrator in Composer") {
+		return true
+	}
+	lowered := strings.ToLower(parsed.Cwd)
+	if strings.Contains(lowered, "worktrees") &&
+		(strings.Contains(lowered, "composer") || strings.Contains(lowered, "catalyst")) {
+		return true
+	}
+	if temp := strings.ToLower(os.TempDir()); temp != "" && temp != `\` && temp != "/" {
+		if lowered == temp || strings.HasPrefix(lowered, temp+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 func countMessages(events []domain.RuntimeEvent) int {

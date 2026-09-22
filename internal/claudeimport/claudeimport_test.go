@@ -90,6 +90,18 @@ func TestParseFileConvertsConversation(t *testing.T) {
 	}
 }
 
+func TestIsAgentRunFlagsOrchestratorAndWorktreeSessions(t *testing.T) {
+	if !isAgentRun(&ParsedSession{Prompt: "You are the orchestrator in Composer, plan this."}) {
+		t.Errorf("orchestrator prompt not flagged")
+	}
+	if !isAgentRun(&ParsedSession{Cwd: `C:\Users\PC\AppData\Local\composer\worktrees\001-abc\write-alpha`}) {
+		t.Errorf("composer worktree run not flagged")
+	}
+	if isAgentRun(&ParsedSession{Prompt: "Fix the login bug", Cwd: `C:\Users\PC\Projects\hobby\orchestrator`}) {
+		t.Errorf("hand-written project chat flagged")
+	}
+}
+
 func TestListFindsSampleSession(t *testing.T) {
 	dir := t.TempDir()
 	projects := filepath.Join(dir, "projects", "proj")

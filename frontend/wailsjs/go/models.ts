@@ -37,6 +37,7 @@ export namespace claudeimport {
 	    messageCount: number;
 	    startedAt: number;
 	    updatedAt: number;
+	    agentRun: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ExternalSession(source);
@@ -53,6 +54,7 @@ export namespace claudeimport {
 	        this.messageCount = source["messageCount"];
 	        this.startedAt = source["startedAt"];
 	        this.updatedAt = source["updatedAt"];
+	        this.agentRun = source["agentRun"];
 	    }
 	}
 
