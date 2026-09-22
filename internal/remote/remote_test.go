@@ -17,8 +17,8 @@ func TestAuthManager(t *testing.T) {
 	}
 
 	pin := auth.PIN()
-	if len(pin) != 6 {
-		t.Fatalf("expected 6-digit PIN, got %q", pin)
+	if len(pin) != pinDigits {
+		t.Fatalf("expected %d-digit PIN, got %q", pinDigits, pin)
 	}
 
 	if !auth.Validate(token) {
@@ -26,6 +26,15 @@ func TestAuthManager(t *testing.T) {
 	}
 	if !auth.Validate(pin) {
 		t.Error("expected valid PIN to validate")
+	}
+	for i := 0; i < maxFailures; i++ {
+		auth.Validate("wrong")
+	}
+	if auth.Validate(pin) {
+		t.Error("expected PIN to be refused once the failure budget is spent")
+	}
+	if !auth.Validate(token) {
+		t.Error("expected token to keep working while PIN logins are locked")
 	}
 	if auth.Validate("wrong-token") {
 		t.Error("expected invalid token to fail")

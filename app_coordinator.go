@@ -32,20 +32,32 @@ func (a *App) CoordinatorSendFiles(
 	if cfg.Cwd, err = a.requireCwd(cfg.Cwd); err != nil {
 		return "", err
 	}
-	text = a.withProjectContext(cfg.Cwd, text)
-	if a.orchestrator != nil {
-		if manifest := a.orchestrator.FormatAgentManifest(cfg.Cwd); manifest != "" {
-			text = manifest + "\n\n" + text
-		}
-	}
+	// Context rides along for the model only; the transcript records exactly
+	// what the user typed, which is what the UI's optimistic bubble shows.
+	preamble := a.coordinatorPreamble(cfg.Cwd)
 	a.orchestrator.Remember(cfg)
-	turnID, err := a.coordinator.SendWithFiles(a.ctx, cfg, text, files)
+	turnID, err := a.coordinator.SendWithContext(a.ctx, cfg, text, preamble, files)
 	if err != nil {
 		logger.Errorf("App", "CoordinatorSendFiles failed: %v", err)
 	} else {
 		logger.Infof("App", "CoordinatorSendFiles dispatched turnID=%s", turnID)
 	}
 	return turnID, err
+}
+
+// coordinatorPreamble joins the agent manifest and project memory the
+// coordinator needs to plan, without putting them in the user's message.
+func (a *App) coordinatorPreamble(cwd string) string {
+	parts := make([]string, 0, 2)
+	if a.orchestrator != nil {
+		if manifest := a.orchestrator.FormatAgentManifest(cwd); manifest != "" {
+			parts = append(parts, manifest)
+		}
+	}
+	if memory := a.projectMemory(cwd); memory != "" {
+		parts = append(parts, "Project context (long-lived, applies to all work here):\n"+memory)
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 func (a *App) CoordinatorInterrupt() error {
@@ -186,21 +198,17 @@ func (a *App) OrchestratorMessageAgent(threadID, text string) error {
 	})
 }
 
-// withProjectContext prepends long-lived project memory (Cursor shared context,
-// Synara pins/notes equivalent) so agents don't need re-onboarding every task.
-// Stored per project directory under configRoot/memory, human-editable.
-func (a *App) withProjectContext(cwd, text string) string {
+// projectMemory is long-lived per-project context (human-editable, stored
+// under configRoot/memory) given to agents so they need no re-onboarding.
+func (a *App) projectMemory(cwd string) string {
 	if a.memory == nil || strings.TrimSpace(cwd) == "" {
-		return text
+		return ""
 	}
 	mem := strings.TrimSpace(a.memory.LoadProjectMemory(cwd))
-	if mem == "" {
-		return text
-	}
 	if len(mem) > 4000 {
 		mem = mem[:4000] + "\n[truncated]"
 	}
-	return "Project context (long-lived, applies to all work here):\n" + mem + "\n\n--- Current request ---\n\n" + text
+	return mem
 }
 
 func isSamePath(p1, p2 string) bool {

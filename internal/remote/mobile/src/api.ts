@@ -1,4 +1,4 @@
-import { Project, RemoteAgentView, RemoteStatus, RuntimeEvent } from './types'
+import type { FileRef, ModelChoice, Project, ProviderInfo, RuntimeEvent, ThreadSummary } from './types'
 
 const TOKEN_KEY = 'composer_remote_token'
 const BASE_KEY = 'composer_remote_base'
@@ -99,29 +99,41 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       const body = await res.json()
       if (body && typeof body.error === 'string' && body.error) detail = body.error
     } catch { /* ignore */ }
-    throw new Error(detail)
+    // Marked so callers can tell a server answer (do not retry the send)
+    // from a network failure (safe to retry over the socket).
+    throw Object.assign(new Error(detail), { status: res.status })
   }
   return res.json() as Promise<T>
 }
 
+/** True when the request never got an HTTP answer, so a retry cannot double-send. */
+export function isNetworkError(e: unknown): boolean {
+  return !(e && typeof e === 'object' && 'status' in e)
+}
+
 export const api = {
-  status: () => request<{ authenticated?: boolean } & Partial<RemoteStatus>>('/api/status'),
-  agents: () => request<RemoteAgentView[]>('/api/agents'),
+  status: () => request<{ authenticated?: boolean }>('/api/status'),
+  threads: () => request<ThreadSummary[]>('/api/threads'),
+  thread: (threadId: string) =>
+    request<{ events: RuntimeEvent[]; lastSeq: number }>(`/api/thread/${encodeURIComponent(threadId)}`),
   projects: () => request<Project[]>('/api/projects'),
-  history: () => request<RuntimeEvent[]>('/api/history'),
-  agentHistory: (threadId: string) => request<RuntimeEvent[]>(`/api/agent/${encodeURIComponent(threadId)}/history`),
-  sendCoordinator: (text: string) =>
-    request<{ turnId: string }>('/api/coordinator/send', { method: 'POST', body: JSON.stringify({ text }) }),
-  interruptCoordinator: () =>
-    request('/api/coordinator/interrupt', { method: 'POST', body: '{}' }),
-  newCoordinator: () =>
-    request('/api/coordinator/new', { method: 'POST', body: '{}' }),
-  sendAgent: (threadId: string, text: string) =>
-    request<{ turnId: string }>('/api/agent/send', { method: 'POST', body: JSON.stringify({ threadId, text }) }),
-  stopAgent: (threadId: string) =>
+  models: (refresh = false) => request<ProviderInfo[]>(`/api/models${refresh ? '?refresh=1' : ''}`),
+  send: (threadId: string, text: string, files: FileRef[], choice?: ModelChoice) =>
+    request<{ ok?: boolean; turnId?: string }>('/api/send', {
+      method: 'POST',
+      body: JSON.stringify({ threadId, text, files, choice }),
+    }),
+  interrupt: (threadId: string) =>
+    request('/api/interrupt', { method: 'POST', body: JSON.stringify({ threadId }) }),
+  endAgent: (threadId: string) =>
     request('/api/agent/stop', { method: 'POST', body: JSON.stringify({ threadId }) }),
+  newConversation: () => request('/api/coordinator/new', { method: 'POST', body: '{}' }),
+  newAgent: (body: { prompt: string; cwd: string; choice: ModelChoice; autoApprove: boolean }) =>
+    request<{ threadId: string }>('/api/agent/new', { method: 'POST', body: JSON.stringify(body) }),
   approve: (threadId: string, requestId: string, decision: string) =>
     request('/api/approve', { method: 'POST', body: JSON.stringify({ threadId, requestId, decision }) }),
-  answerQuestion: (threadId: string, requestId: string, answers: string[]) =>
+  answer: (threadId: string, requestId: string, answers: string[]) =>
     request('/api/question/answer', { method: 'POST', body: JSON.stringify({ threadId, requestId, answers }) }),
+  upload: (name: string, mime: string, data: string) =>
+    request<FileRef>('/api/upload', { method: 'POST', body: JSON.stringify({ name, mime, data }) }),
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"composer/internal/attachments"
 	"composer/internal/claude"
@@ -27,7 +28,14 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-const runtimeEventChannel = "agent:event"
+// runtimeEventsChannel carries batches of runtime events. Emitting one IPC
+// message per streamed token made the webview re-render per token; batches
+// are flushed every eventFlushInterval with consecutive deltas pre-merged.
+const runtimeEventsChannel = "agent:events"
+
+const eventFlushInterval = 16 * time.Millisecond
+
+const eventBatchLimit = 256
 
 const serversChangedChannel = "servers:changed"
 
@@ -86,6 +94,7 @@ func NewApp() *App {
 	coordinator.SetSink(recorder)
 	spawner.SetTracker(history.NewTracker(recorder, coordinator))
 	constructor := session.NewConstructor(manager, coordinator, spawner, workspaces)
+	constructor.SetResumeResolver(recorder.ResumeID)
 
 	var db *sqlite.DB
 	var sessionService *service.SessionService
@@ -205,35 +214,74 @@ func (a *App) startup(ctx context.Context) {
 	events, cancel := a.manager.Bus().Subscribe()
 	a.stopFeed = cancel
 
-	go func() {
-		for event := range events {
-			if event.Kind == domain.EventAgentMessage || event.Kind == domain.EventAgentThought {
-				textPrev := event.Text
-				if len(textPrev) > 80 {
-					textPrev = textPrev[:80] + "..."
-				}
-				logger.Debugf("EventBus", "kind=%s thread=%s delta=%v text=%q", event.Kind, event.ThreadID, event.Delta, textPrev)
-			} else if event.Kind == domain.EventToolCall || event.Kind == domain.EventToolResult {
-				name := ""
-				if event.Tool != nil {
-					name = event.Tool.Name
-				}
-				logger.Infof("EventBus", "kind=%s thread=%s tool=%s", event.Kind, event.ThreadID, name)
-			} else {
-				logger.Infof("EventBus", "kind=%s thread=%s turn=%s err=%s", event.Kind, event.ThreadID, event.TurnID, event.Error)
-			}
+	go a.pumpEvents(ctx, events)
+}
 
-			a.usage.Observe(event)
-			// Held until a spawn claims it, so the discussion that produced a
-			// plan is stored with the agents that plan created.
-			a.coordinator.Observe(event)
-			// The Orchestrator constructor: executes coordinator plans itself
-			// rather than returning JSON for the frontend to format.
-			a.orchestrator.Observe(event)
-			a.trackTaskState(event)
-			runtime.EventsEmit(ctx, runtimeEventChannel, event)
+// pumpEvents feeds every runtime event to the backend observers immediately
+// and forwards them to the webview in batches.
+func (a *App) pumpEvents(ctx context.Context, events <-chan domain.RuntimeEvent) {
+	ticker := time.NewTicker(eventFlushInterval)
+	defer ticker.Stop()
+	batch := make([]domain.RuntimeEvent, 0, eventBatchLimit)
+
+	flush := func() {
+		if len(batch) == 0 {
+			return
 		}
-	}()
+		runtime.EventsEmit(ctx, runtimeEventsChannel, batch)
+		batch = make([]domain.RuntimeEvent, 0, eventBatchLimit)
+	}
+
+	for {
+		select {
+		case event, ok := <-events:
+			if !ok {
+				flush()
+				return
+			}
+			a.observe(event)
+			// Consecutive deltas of one streamed item become a single event.
+			if n := len(batch); n > 0 && event.Delta && sameStreamItem(batch[n-1], event) {
+				batch[n-1].Text += event.Text
+			} else {
+				batch = append(batch, event)
+			}
+			if len(batch) >= eventBatchLimit {
+				flush()
+			}
+		case <-ticker.C:
+			flush()
+		}
+	}
+}
+
+func sameStreamItem(prev, next domain.RuntimeEvent) bool {
+	return prev.Delta && prev.Kind == next.Kind && prev.ThreadID == next.ThreadID &&
+		prev.TurnID == next.TurnID && prev.ItemID == next.ItemID &&
+		(next.Kind == domain.EventAgentMessage || next.Kind == domain.EventAgentThought)
+}
+
+func (a *App) observe(event domain.RuntimeEvent) {
+	if event.Kind == domain.EventAgentMessage || event.Kind == domain.EventAgentThought {
+		logger.Debugf("EventBus", "kind=%s thread=%s delta=%v len=%d", event.Kind, event.ThreadID, event.Delta, len(event.Text))
+	} else if event.Kind == domain.EventToolCall || event.Kind == domain.EventToolResult {
+		name := ""
+		if event.Tool != nil {
+			name = event.Tool.Name
+		}
+		logger.Infof("EventBus", "kind=%s thread=%s tool=%s", event.Kind, event.ThreadID, name)
+	} else {
+		logger.Infof("EventBus", "kind=%s thread=%s turn=%s err=%s", event.Kind, event.ThreadID, event.TurnID, event.Error)
+	}
+
+	a.usage.Observe(event)
+	// Held until a spawn claims it, so the discussion that produced a
+	// plan is stored with the agents that plan created.
+	a.coordinator.Observe(event)
+	// The Orchestrator constructor: executes coordinator plans itself
+	// rather than returning JSON for the frontend to format.
+	a.orchestrator.Observe(event)
+	a.trackTaskState(event)
 }
 
 func (a *App) domReady(ctx context.Context) {

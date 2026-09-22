@@ -10,16 +10,27 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/skip2/go-qrcode"
 )
 
 const CookieName = "composer_remote_token"
 
+// Failed-credential budget. Past it, PIN logins are refused until the
+// window rolls over; the 192-bit token (what the QR code carries) keeps
+// working, so pairing by scan is never locked out.
+const (
+	failureWindow = 15 * time.Minute
+	maxFailures   = 20
+	pinDigits     = 8
+)
+
 type AuthManager struct {
-	mu    sync.RWMutex
-	token string
-	pin   string
+	mu       sync.RWMutex
+	token    string
+	pin      string
+	failures []time.Time
 }
 
 func NewAuthManager() *AuthManager {
@@ -36,9 +47,10 @@ func (a *AuthManager) Regenerate() {
 	_, _ = rand.Read(b)
 	a.token = hex.EncodeToString(b)
 
-	// 6-digit numeric PIN
-	n, _ := rand.Int(rand.Reader, big.NewInt(900000))
-	a.pin = fmt.Sprintf("%06d", n.Int64()+100000)
+	// 8-digit numeric PIN (10^8 space) behind a global failure budget.
+	n, _ := rand.Int(rand.Reader, big.NewInt(90000000))
+	a.pin = fmt.Sprintf("%0*d", pinDigits, n.Int64()+10000000)
+	a.failures = nil
 }
 
 func (a *AuthManager) Token() string {
@@ -53,17 +65,43 @@ func (a *AuthManager) PIN() string {
 	return a.pin
 }
 
-// Validate checks if the provided string matches either the 256-bit token or the 6-digit PIN.
+// Validate checks the candidate against the token, or the PIN while the
+// failure budget is not exhausted. Every mismatch is counted.
 func (a *AuthManager) Validate(candidate string) bool {
 	if candidate == "" {
 		return false
 	}
-	a.mu.RLock()
-	defer a.mu.RUnlock()
+	a.mu.Lock()
+	defer a.mu.Unlock()
 
-	tokenMatch := subtle.ConstantTimeCompare([]byte(a.token), []byte(candidate)) == 1
-	pinMatch := subtle.ConstantTimeCompare([]byte(a.pin), []byte(candidate)) == 1
-	return tokenMatch || pinMatch
+	if subtle.ConstantTimeCompare([]byte(a.token), []byte(candidate)) == 1 {
+		return true
+	}
+	a.pruneFailuresLocked()
+	if len(a.failures) < maxFailures && subtle.ConstantTimeCompare([]byte(a.pin), []byte(candidate)) == 1 {
+		return true
+	}
+	a.failures = append(a.failures, time.Now())
+	return false
+}
+
+// Locked reports whether PIN logins are currently refused.
+func (a *AuthManager) Locked() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.pruneFailuresLocked()
+	return len(a.failures) >= maxFailures
+}
+
+func (a *AuthManager) pruneFailuresLocked() {
+	cutoff := time.Now().Add(-failureWindow)
+	keep := a.failures[:0]
+	for _, at := range a.failures {
+		if at.After(cutoff) {
+			keep = append(keep, at)
+		}
+	}
+	a.failures = keep
 }
 
 // AuthenticateRequest extracts and verifies credentials from request headers, query params, or cookies.

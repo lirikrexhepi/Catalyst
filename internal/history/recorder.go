@@ -24,6 +24,17 @@ type Recorder struct {
 
 	onProviderSession func(threadID, providerSessionID string)
 	onChanged         func()
+
+	// streamMu guards streaming, the per-thread delta being accumulated before
+	// it is written. Deltas are persisted merged, one line per streamed item,
+	// so transcripts stay small and replay does not re-assemble every token.
+	streamMu  sync.Mutex
+	streaming map[string]*pendingDelta
+}
+
+type pendingDelta struct {
+	workspaceID string
+	event       domain.RuntimeEvent
 }
 
 func NewRecorder(store *Store) *Recorder {
@@ -32,6 +43,7 @@ func NewRecorder(store *Store) *Recorder {
 		workspaceOf: make(map[string]string),
 		metas:       make(map[string]*Meta),
 		dirty:       make(map[string]bool),
+		streaming:   make(map[string]*pendingDelta),
 	}
 }
 
@@ -118,6 +130,23 @@ func (r *Recorder) Record(threadID string, event domain.RuntimeEvent) {
 		return
 	}
 
+	if isMergeableDelta(event) {
+		r.streamMu.Lock()
+		pending := r.streaming[threadID]
+		if pending != nil && pending.workspaceID == workspaceID && continues(pending.event, event) {
+			pending.event.Text += event.Text
+			r.streamMu.Unlock()
+			return
+		}
+		r.streaming[threadID] = &pendingDelta{workspaceID: workspaceID, event: event}
+		r.streamMu.Unlock()
+		if pending != nil {
+			_ = r.store.Append(pending.workspaceID, threadID, pending.event)
+		}
+		return
+	}
+
+	r.flushStream(threadID)
 	_ = r.store.Append(workspaceID, threadID, event)
 
 	// A finished turn is a natural durability point, and cheap: the buffer is
@@ -131,6 +160,37 @@ func (r *Recorder) Record(threadID string, event domain.RuntimeEvent) {
 		if event.Kind == domain.EventTurnCompleted || event.Kind == domain.EventTurnFailed || event.Kind == domain.EventSessionStopped {
 			r.flushMeta(workspaceID)
 		}
+	}
+}
+
+func isMergeableDelta(event domain.RuntimeEvent) bool {
+	return event.Delta && (event.Kind == domain.EventAgentMessage || event.Kind == domain.EventAgentThought)
+}
+
+func continues(prev, next domain.RuntimeEvent) bool {
+	return prev.Kind == next.Kind && prev.TurnID == next.TurnID && prev.ItemID == next.ItemID
+}
+
+// flushStream writes the thread's accumulated delta, if any.
+func (r *Recorder) flushStream(threadID string) {
+	r.streamMu.Lock()
+	pending := r.streaming[threadID]
+	delete(r.streaming, threadID)
+	r.streamMu.Unlock()
+	if pending != nil {
+		_ = r.store.Append(pending.workspaceID, threadID, pending.event)
+	}
+}
+
+func (r *Recorder) flushAllStreams() {
+	r.streamMu.Lock()
+	threads := make([]string, 0, len(r.streaming))
+	for threadID := range r.streaming {
+		threads = append(threads, threadID)
+	}
+	r.streamMu.Unlock()
+	for _, threadID := range threads {
+		r.flushStream(threadID)
 	}
 }
 
@@ -263,6 +323,21 @@ func (r *Recorder) Restore(meta Meta) {
 	}
 }
 
+// ResumeID reports the provider session id stored for a thread, which is what
+// a CLI needs to continue that thread's conversation.
+func (r *Recorder) ResumeID(threadID string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	workspaceID, ok := r.workspaceOf[threadID]
+	if !ok {
+		return ""
+	}
+	if meta, ok := r.metas[workspaceID]; ok && meta.Resume != nil {
+		return meta.Resume[threadID]
+	}
+	return ""
+}
+
 // WorkspaceOf reports which workspace a thread belongs to.
 func (r *Recorder) WorkspaceOf(threadID string) (string, bool) {
 	r.mu.RLock()
@@ -299,6 +374,7 @@ func (r *Recorder) flushMeta(workspaceID string) {
 // FlushAll makes every open workspace durable without closing the store, so a
 // session can be left behind mid-run with nothing still buffered.
 func (r *Recorder) FlushAll() error {
+	r.flushAllStreams()
 	r.mu.Lock()
 	pending := make([]Meta, 0, len(r.dirty))
 	ids := make([]string, 0, len(r.dirty))
@@ -323,6 +399,7 @@ func (r *Recorder) FlushAll() error {
 
 // Close flushes every pending meta and transcript.
 func (r *Recorder) Close() error {
+	r.flushAllStreams()
 	r.mu.Lock()
 	pending := make([]Meta, 0, len(r.dirty))
 	ids := make([]string, 0, len(r.dirty))

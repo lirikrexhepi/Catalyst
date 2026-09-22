@@ -199,6 +199,11 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     if (e.key === 'Escape') {
       closeAllPickers();
       onCancelNewAgent?.();
+      // Esc stops the running turn, as in Claude Code.
+      if (isBusy) {
+        e.preventDefault();
+        onInterrupt?.();
+      }
     }
   };
 

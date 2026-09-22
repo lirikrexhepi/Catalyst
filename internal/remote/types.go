@@ -46,6 +46,8 @@ type PlanTaskItem struct {
 type ServerMessage struct {
 	Type   string               `json:"type"` // "event", "agents", "status", "pong", "error"
 	Event  *domain.RuntimeEvent `json:"event,omitempty"`
+	// Events is a batch of runtime events, oldest first.
+	Events []domain.RuntimeEvent `json:"events,omitempty"`
 	Agents []RemoteAgentView    `json:"agents,omitempty"`
 	Status *RemoteStatus        `json:"status,omitempty"`
 	Error  string               `json:"error,omitempty"`

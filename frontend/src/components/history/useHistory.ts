@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
+import { onRuntimeEvents } from '../agent-session/runtimeEvents';
 import {
   DeleteHistory,
   ListHistory,
@@ -57,7 +58,6 @@ export interface HistoryState {
   close: () => void;
 }
 
-const RUNTIME_CHANNEL = 'agent:event';
 
 /** Replays stored events through the same reducer the live feed uses. */
 function replay(events: RuntimeEvent[] | undefined): AgentStreamBlock[] {
@@ -146,18 +146,18 @@ export function useHistory(isOpen: boolean, onCleared?: () => void): HistoryStat
   const liveThreads = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const off = EventsOn(RUNTIME_CHANNEL, (event: RuntimeEvent) => {
-      if (!liveThreads.current.has(event.threadId)) return;
+    const off = onRuntimeEvents((batch) => {
+      const events = batch.filter((event) => liveThreads.current.has(event.threadId));
+      if (events.length === 0) return;
 
       setRestored((previous) => {
         if (!previous) return previous;
         return {
           ...previous,
-          tasks: previous.tasks.map((task) =>
-            task.threadId === event.threadId
-              ? { ...task, blocks: reduceEvent(task.blocks, event) }
-              : task,
-          ),
+          tasks: previous.tasks.map((task) => {
+            const mine = events.filter((event) => event.threadId === task.threadId);
+            return mine.length > 0 ? { ...task, blocks: mine.reduce(reduceEvent, task.blocks) } : task;
+          }),
         };
       });
     });

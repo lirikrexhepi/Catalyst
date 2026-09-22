@@ -38,6 +38,9 @@ type Task struct {
 	Models      []string     `json:"models,omitempty"`
 	Options     ModelOptions `json:"options,omitempty"`
 	State       TaskState    `json:"state"`
+	// Permission is the mode the task was started with. Carried through resume,
+	// provider switch and model change so none of them silently widen access.
+	Permission PermissionMode `json:"permission,omitempty"`
 
 	Worktree *Worktree `json:"worktree,omitempty"`
 	// Summary is captured at turn completion rather than on close, so context

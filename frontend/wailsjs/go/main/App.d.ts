@@ -123,6 +123,8 @@ export function RespondToQuestion(arg1:string,arg2:string,arg3:Array<string>):Pr
 
 export function ResumeHistory(arg1:string):Promise<session.ResumeResult>;
 
+export function ResumeHistoryThread(arg1:string,arg2:string):Promise<session.ResumeResult>;
+
 export function RevealPath(arg1:string):Promise<void>;
 
 export function SaveAttachment(arg1:string,arg2:string,arg3:string):Promise<attachments.Attachment>;

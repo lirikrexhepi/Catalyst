@@ -148,16 +148,17 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   });
 
   // Adopt backend-launched agents into the deck and focus the overview.
+  const adoptSpawned = spawner.adoptSpawned;
   useEffect(() => {
     const off = EventsOn('orchestrator:spawned', (result: session.SpawnResult) => {
       if (!result?.tasks || result.tasks.length === 0) return;
-      spawner.adoptSpawned(result);
+      adoptSpawned(result);
       setViewMode('grid');
     });
     return () => {
       off();
     };
-  }, [spawner]);
+  }, [adoptSpawned]);
 
   // View mode: 'deck' (focused 1-card carousel), 'grid' (Exposé multi-agent overview), or 'orchestrator' (Stratosphere lead workspace)
   const [viewMode, setViewMode] = useState<'deck' | 'grid' | 'orchestrator'>('deck');
@@ -267,12 +268,16 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         const valid = matching.servers.filter((s) => !s.agent && s.port > 0);
         if (valid.length > 0) return valid;
       }
-      // If process tree attribution hasn't settled or if the server was started
-      // in unowned/managed groups, surface active web servers to the preview:
-      const anyWeb = allGroups.flatMap((g) => g.servers || []).filter((s) => !s.agent && s.port > 0);
-      return anyWeb;
+      // Unattributed servers are only offered when there is a single agent,
+      // where they cannot belong to anyone else; otherwise every card would
+      // show every server.
+      if (spawner.tasks.length !== 1) return [];
+      return allGroups
+        .filter((g) => !g.threadId)
+        .flatMap((g) => g.servers || [])
+        .filter((s) => !s.agent && s.port > 0);
     },
-    [runningServers.groups],
+    [runningServers.groups, spawner.tasks.length],
   );
 
   // Unified list of active tasks in the deck (live agents and opened history sessions)
@@ -548,6 +553,8 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
 
   // When an agent finishes its turn, automatically pop and dispatch the next queued message
   const prevBusyMap = useRef<Record<string, boolean>>({});
+  // Threads the user just stopped: their queue is held rather than fired.
+  const interruptedThreads = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const task of activeTasks) {
       const wasBusy = prevBusyMap.current[task.threadId];
@@ -562,16 +569,16 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         });
 
         const queue = queuedMessagesByThread[task.threadId];
-        if (queue && queue.length > 0) {
+        const wasInterrupted = interruptedThreads.current.delete(task.threadId);
+        if (queue && queue.length > 0 && !wasInterrupted) {
           const [nextMsg, ...remaining] = queue;
           setQueuedMessagesByThread((prev) => ({
             ...prev,
             [task.threadId]: remaining,
           }));
 
-          const formattedText = `[Queued Task]: ${nextMsg.text}\n\nInstruction: Before taking any action, first record this item into your todo/task list using your task tool so progress is tracked, then begin executing.`;
-
-          void spawner.sendWithModel(task.threadId, formattedText, nextMsg.files, nextMsg.modelId);
+          // Sent exactly as typed: the queue delays a message, it does not rewrite it.
+          void spawner.sendWithModel(task.threadId, nextMsg.text, nextMsg.files, nextMsg.modelId);
         }
       }
       prevBusyMap.current[task.threadId] = isNowBusy;
@@ -655,8 +662,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         [activeTask.threadId]: (prev[activeTask.threadId] || []).filter((q) => q.id !== id),
       }));
 
-      const formattedText = `[Queued Task]: ${item.text}\n\nInstruction: Before taking any action, first record this item into your todo/task list using your task tool so progress is tracked, then begin executing.`;
-      void spawner.sendWithModel(activeTask.threadId, formattedText, item.files, item.modelId);
+      void spawner.sendWithModel(activeTask.threadId, item.text, item.files, item.modelId);
     },
     [activeTask, queuedMessagesByThread, spawner],
   );
@@ -697,6 +703,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     if (viewMode === 'orchestrator') {
       void coordinator.interrupt();
     } else if (activeTask) {
+      interruptedThreads.current.add(activeTask.threadId);
       void spawner.interrupt(activeTask.threadId);
     }
   }, [viewMode, coordinator, activeTask, spawner]);

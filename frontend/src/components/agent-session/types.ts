@@ -20,6 +20,9 @@ export interface UserMessageBlock {
   content: string;
   timestamp?: number;
   files?: UserMessageFile[];
+  /** Added optimistically on send; cleared when the backend echo arrives. */
+  pending?: boolean;
+  turnId?: string;
 }
 
 /** Inline rule marking a provider/model switch mid-conversation. */
@@ -36,6 +39,11 @@ export interface AssistantTextBlock {
   content: string;
   isStreaming?: boolean;
   timestamp?: number;
+  /** Backend content item this block renders; deltas merge only into it. */
+  itemId?: string;
+  turnId?: string;
+  /** Errors and diagnostics are never merged into by agent text. */
+  variant?: 'error';
 }
 
 export interface ThinkingBlockData {
@@ -44,6 +52,8 @@ export interface ThinkingBlockData {
   isThinking: boolean;
   thoughtText: string;
   durationSeconds?: number;
+  itemId?: string;
+  turnId?: string;
 }
 
 export interface ToolGroupBlockData {
@@ -82,6 +92,9 @@ export interface EditToolBlockData {
   additions?: number;
   deletions?: number;
   diffLines?: DiffLine[];
+  status?: 'running' | 'completed' | 'error';
+  /** Tool name (Edit, Write, MultiEdit…), shown as the card's verb. */
+  toolName?: string;
 }
 
 export interface TodoToolBlockData {

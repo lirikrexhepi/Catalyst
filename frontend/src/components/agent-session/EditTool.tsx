@@ -13,6 +13,9 @@ export interface EditToolProps {
   diffLines?: DiffLine[];
   className?: string;
   defaultExpanded?: boolean;
+  /** Tool that produced the change (Write reads as "Wrote"). */
+  toolName?: string;
+  status?: 'running' | 'completed' | 'error';
 }
 
 /**
@@ -21,24 +24,13 @@ export interface EditToolProps {
  */
 const EditToolImpl: React.FC<EditToolProps> = ({
   filePath,
-  additions = 9,
-  deletions = 4,
-  diffLines = [
-    { type: 'delete', lineNum: 1, content: "export const metadata = { title: 'Old' };" },
-    { type: 'add', lineNum: 1, content: "export const metadata = { title: 'Updated' };" },
-    { type: 'context', lineNum: 2, content: '' },
-    { type: 'context', lineNum: 3, content: 'export default function Page() {' },
-    { type: 'delete', lineNum: 4, content: '  return <div>Old content</div>;' },
-    { type: 'add', lineNum: 4, content: '  return (' },
-    { type: 'add', lineNum: 5, content: '    <div>' },
-    { type: 'add', lineNum: 6, content: '      <h1>Release notes</h1>' },
-    { type: 'add', lineNum: 7, content: '      <p>New layout applied.</p>' },
-    { type: 'add', lineNum: 8, content: '    </div>' },
-    { type: 'add', lineNum: 9, content: '  );' },
-    { type: 'context', lineNum: 10, content: '}' },
-  ],
+  additions = 0,
+  deletions = 0,
+  diffLines = [],
   className = '',
   defaultExpanded = false,
+  toolName,
+  status,
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isCopied, setIsCopied] = useState(false);
@@ -75,7 +67,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
           </span>
 
           <span className="text-[12px] font-medium text-current tracking-tight truncate leading-none flex items-center">
-            Edited {filePath}
+            {editVerb(toolName, status)} {filePath}
           </span>
         </div>
 
@@ -157,7 +149,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
                   />
 
                   {/* Content line */}
-                  <span className="font-['Geist'] text-[12px] whitespace-pre truncate">
+                  <span className="font-mono text-[11px] whitespace-pre">
                     {line.content}
                   </span>
                 </div>
@@ -169,6 +161,13 @@ const EditToolImpl: React.FC<EditToolProps> = ({
     </div>
   );
 };
+
+function editVerb(toolName?: string, status?: string): string {
+  const write = /^(write|write_to_file|writefile|create)$/i.test(toolName || '');
+  if (status === 'running') return write ? 'Writing' : 'Editing';
+  if (status === 'error') return write ? 'Failed to write' : 'Failed to edit';
+  return write ? 'Wrote' : 'Edited';
+}
 
 export const EditTool = React.memo(EditToolImpl);
 EditTool.displayName = 'EditTool';

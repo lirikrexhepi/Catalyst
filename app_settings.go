@@ -73,7 +73,30 @@ func (a *App) UpdateProviderSettings(driver string, settings domain.ProviderSett
 		}
 		_ = a.prefService.SetPermission(a.ctx, driver, settings.Enabled)
 	}
-	return a.registry.SetSettings(domain.DriverKind(driver), settings)
+	kind := domain.DriverKind(driver)
+	previous := a.registry.Settings(kind)
+	if err := a.registry.SetSettings(kind, settings); err != nil {
+		return err
+	}
+	// Adapters capture launch settings when built; rebuild it so new sessions
+	// pick up a changed binary, env or launch args without an app restart.
+	if launchSettingsChanged(previous, settings) {
+		a.manager.ResetAdapter(kind)
+	}
+	return nil
+}
+
+func launchSettingsChanged(a, b domain.ProviderSettings) bool {
+	if a.BinaryPath != b.BinaryPath || a.LaunchArgs != b.LaunchArgs || a.ServerURL != b.ServerURL ||
+		a.APIEndpoint != b.APIEndpoint || a.PrintTimeout != b.PrintTimeout || len(a.Env) != len(b.Env) {
+		return true
+	}
+	for key, value := range a.Env {
+		if b.Env[key] != value {
+			return true
+		}
+	}
+	return false
 }
 
 // RenameSession updates the user-defined custom name of an agent session.

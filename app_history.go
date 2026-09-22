@@ -75,6 +75,13 @@ func (a *App) DeleteTaskHistory(workspaceID, threadID string) error {
 // not start at all. Those are meaningfully different states and the caller is
 // told which it got rather than left to assume.
 func (a *App) ResumeHistory(workspaceID string) (session.ResumeResult, error) {
+	return a.ResumeHistoryThread(workspaceID, "")
+}
+
+// ResumeHistoryThread restarts one stored agent (or every agent of the
+// session when threadID is empty). Messaging one old chat must not launch a
+// CLI for every other task that happened to share its workspace.
+func (a *App) ResumeHistoryThread(workspaceID, threadID string) (session.ResumeResult, error) {
 	loaded, err := a.historyStore.Load(workspaceID)
 	if err != nil {
 		return session.ResumeResult{}, err
@@ -82,6 +89,9 @@ func (a *App) ResumeHistory(workspaceID string) (session.ResumeResult, error) {
 
 	requests := make([]session.ResumeRequest, 0, len(loaded.Meta.Tasks))
 	for _, task := range loaded.Meta.Tasks {
+		if threadID != "" && task.ThreadID != threadID && history.RootThreadID(task.ThreadID) != threadID {
+			continue
+		}
 		cwd := loaded.Meta.Workspace.Cwd
 		// A task that ran in a worktree must resume there; that checkout is where
 		// its work actually lives.
@@ -96,6 +106,7 @@ func (a *App) ResumeHistory(workspaceID string) (session.ResumeResult, error) {
 			Options:           task.Options,
 			Cwd:               cwd,
 			ProviderSessionID: loaded.Meta.Resume[task.ThreadID],
+			Permission:        task.Permission,
 		})
 	}
 

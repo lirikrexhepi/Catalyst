@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -42,8 +41,6 @@ type LatestPlan struct {
 	At          int64         `json:"at"`
 }
 
-var mutatingHint = regexp.MustCompile(`(?i)\b(refactor|implement|fix|bug|migrat|rewrite|rename|delete|remove|add|build|creat|updat|chang|edit|modif|patch|install|upgrade|revert|merge|commit|scaffold|generat|convert|optimi[sz]|clean\s?up|deprecat)\b`)
-
 // Constructor is The Orchestrator backend: a Cursor Projects style coordinator
 // engine. The coordinator CLI plans in prose plus a machine-readable task
 // block; the constructor — not the frontend — executes that block, tracks
@@ -65,6 +62,23 @@ type Constructor struct {
 	executed map[string]bool
 	latest   *LatestPlan
 	onSpawn  func(SpawnResult)
+	// resumeID resolves a thread's stored provider session id (history meta),
+	// used to revive a worker whose CLI is no longer running.
+	resumeID func(threadID string) string
+}
+
+// SetResumeResolver attaches the lookup for stored provider session ids.
+func (c *Constructor) SetResumeResolver(fn func(threadID string) string) {
+	c.mu.Lock()
+	c.resumeID = fn
+	c.mu.Unlock()
+}
+
+// LastConfig reports the coordinator selection remembered from the latest send.
+func (c *Constructor) LastConfig() Config {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.lastCfg
 }
 
 func NewConstructor(manager *Manager, coordinator *Coordinator, spawner *Spawner, workspaces *Workspaces) *Constructor {
@@ -227,7 +241,9 @@ func (c *Constructor) execute(turnID string, tasks []TaskRequest, cfg Config) {
 	var err error
 	if len(spawnTasks) > 0 {
 		requests := make([]SpawnRequest, 0, len(spawnTasks))
-		useWorktree := false
+		// Isolation only when agents run in parallel on the same project: a
+		// single agent works in the project directly, like a normal CLI session.
+		useWorktree := len(spawnTasks) > 1
 		for _, task := range spawnTasks {
 			cwd := task.Cwd
 			if cwd == "" {
@@ -236,13 +252,11 @@ func (c *Constructor) execute(turnID string, tasks []TaskRequest, cfg Config) {
 			requests = append(requests, SpawnRequest{
 				Title:  task.Title,
 				Prompt: task.Prompt,
-				Driver: domain.DriverKind(cfg.Driver),
-				Model:  cfg.Model,
-				Cwd:    cwd,
+				Driver:  domain.DriverKind(cfg.Driver),
+				Model:   cfg.Model,
+				Options: cfg.Options,
+				Cwd:     cwd,
 			})
-			if mutatingHint.MatchString(task.Title + " " + task.Prompt) {
-				useWorktree = true
-			}
 		}
 
 		result, err = c.spawner.Spawn(ctx, requests, SpawnOptions{
@@ -287,35 +301,8 @@ func (c *Constructor) routeMessageToAgent(ctx context.Context, targetThreadID, t
 	if trimmed == "" {
 		return fmt.Errorf("empty prompt")
 	}
-
-	// Check if session is live in manager
-	live := false
-	for _, sess := range c.manager.Sessions() {
-		if sess.ThreadID == targetThreadID {
-			live = true
-			break
-		}
-	}
-
-	// If not live, revive / resume the session using task metadata
-	if !live {
-		if task, ok := c.workspaces.TaskByThread(targetThreadID); ok {
-			cwd := ""
-			if task.Worktree != nil && task.Worktree.Path != "" {
-				cwd = task.Worktree.Path
-			}
-			if cwd == "" {
-				if ws := c.workspaces.Get(task.WorkspaceID); ws != nil {
-					cwd = ws.Cwd
-				}
-			}
-			_, _ = c.manager.Start(ctx, task.Driver, domain.SessionStartInput{
-				ThreadID: targetThreadID,
-				Cwd:      cwd,
-				Model:    task.Model,
-				Resume:   targetThreadID,
-			})
-		}
+	if err := c.EnsureLive(ctx, targetThreadID); err != nil {
+		return err
 	}
 
 	turnID := fmt.Sprintf("%s-turn-%d", targetThreadID, time.Now().UnixMilli())
@@ -326,6 +313,45 @@ func (c *Constructor) routeMessageToAgent(ctx context.Context, targetThreadID, t
 		TurnID:   turnID,
 		Text:     trimmed,
 	})
+}
+
+// EnsureLive starts a worker whose CLI is not running (after an app restart
+// or a stop), resuming its stored provider session with its own permission
+// mode. A live thread is left alone; the manager revives dead processes of
+// registered threads itself on send.
+func (c *Constructor) EnsureLive(ctx context.Context, threadID string) error {
+	if c.manager.HasSession(threadID) {
+		return nil
+	}
+	task, ok := c.workspaces.TaskByThread(threadID)
+	if !ok {
+		return fmt.Errorf("no task for thread %s", threadID)
+	}
+	cwd := ""
+	if task.Worktree != nil && task.Worktree.Path != "" {
+		cwd = task.Worktree.Path
+	}
+	if cwd == "" {
+		if ws := c.workspaces.Get(task.WorkspaceID); ws != nil {
+			cwd = ws.Cwd
+		}
+	}
+	c.mu.Lock()
+	resolve := c.resumeID
+	c.mu.Unlock()
+	resume := ""
+	if resolve != nil {
+		resume = resolve(threadID)
+	}
+	_, err := c.manager.Start(ctx, task.Driver, domain.SessionStartInput{
+		ThreadID:   threadID,
+		Cwd:        cwd,
+		Model:      task.Model,
+		Options:    task.Options,
+		Permission: TaskPermission(task.Permission),
+		Resume:     resume,
+	})
+	return err
 }
 
 func taskTitles(tasks []TaskRequest) []string {
@@ -406,10 +432,7 @@ func (c *Constructor) FormatAgentManifest(cwd string) string {
 				if checkDir == "" {
 					continue
 				}
-				agentClean := filepath.Clean(checkDir)
-				if strings.EqualFold(agentClean, cleanCwd) ||
-					strings.HasPrefix(strings.ToLower(agentClean), strings.ToLower(cleanCwd)) ||
-					strings.HasPrefix(strings.ToLower(cleanCwd), strings.ToLower(agentClean)) {
+				if isWithin(filepath.Clean(checkDir), cleanCwd) {
 					match = true
 					break
 				}
@@ -454,4 +477,21 @@ func (c *Constructor) FormatAgentManifest(cwd string) string {
 	}
 	b.WriteString("(You can route follow-ups to an existing agent by setting \"action\":\"message\" and \"targetThreadId\":\"<ID>\" in composer:tasks, or spawn a new agent with \"action\":\"spawn\".)")
 	return b.String()
+}
+
+// isWithin reports whether path is dir or lies beneath it (case-insensitive,
+// separator-aware, so C:\proj does not match C:\project).
+func isWithin(path, dir string) bool {
+	p, d := strings.ToLower(path), strings.ToLower(dir)
+	if p == d {
+		return true
+	}
+	if !strings.HasPrefix(p, d) {
+		return false
+	}
+	if strings.HasSuffix(d, "/") || strings.HasSuffix(d, "\\") {
+		return true
+	}
+	next := p[len(d)]
+	return next == '/' || next == '\\'
 }

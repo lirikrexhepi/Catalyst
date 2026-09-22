@@ -115,6 +115,13 @@ func (c *Conn) dispatch(msg *Message) {
 	if msg.Method == "" {
 		return
 	}
+	// Notifications (streamed deltas, item updates, turn completion) are
+	// handled on the read goroutine so they reach the handler in wire order.
+	// Only requests, which may block waiting on the user, get a goroutine.
+	if len(msg.ID) == 0 {
+		c.serve(msg)
+		return
+	}
 	go c.serve(msg)
 }
 

@@ -230,6 +230,10 @@ export function ResumeHistory(arg1) {
   return window['go']['main']['App']['ResumeHistory'](arg1);
 }
 
+export function ResumeHistoryThread(arg1, arg2) {
+  return window['go']['main']['App']['ResumeHistoryThread'](arg1, arg2);
+}
+
 export function RevealPath(arg1) {
   return window['go']['main']['App']['RevealPath'](arg1);
 }

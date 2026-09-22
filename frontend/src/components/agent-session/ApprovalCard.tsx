@@ -137,7 +137,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
                 key={opt.id}
                 type="button"
                 disabled={submitting}
-                onClick={() => handleSelect(opt.id)}
+                onClick={() => handleSelect(opt.kind || opt.id)}
                 className={btnClass}
               >
                 {opt.name}

@@ -139,126 +139,92 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', overflowY: 'auto' }}>
-      <div style={{
-        width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.08)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24,
-        fontSize: 28, fontWeight: 700, color: 'white'
-      }}>
-        O
-      </div>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Orchestrator</h1>
-      <p style={{ color: 'var(--text-sec)', maxWidth: 260, marginBottom: 20, fontSize: 14 }}>
-        Scan the QR code shown in Remote Access on your PC and you're in.
-      </p>
+    <div className="screen">
+      <div className="scroll">
+        <div className="pair">
+          <h1>Your agents, from your pocket</h1>
+          <p>On your PC open Settings, then Remote access, and scan the code shown there.</p>
 
-      {scanning ? (
-        <div style={{ width: '100%', maxWidth: 300 }}>
-          <video ref={videoRef} playsInline muted style={{ width: '100%', borderRadius: 12, background: 'black' }} />
-          <button
-            onClick={stopScan}
-            style={{ marginTop: 12, padding: '10px 18px', borderRadius: 10, background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: 14, cursor: 'pointer' }}
-          >
-            Cancel
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 300 }}>
-          {scanSupported && (
-            <button
-              onClick={() => void startScan()}
-              style={{ padding: '12px 18px', borderRadius: 10, background: 'var(--accent)', color: 'white', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
-            >
-              Scan QR code
-            </button>
-          )}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input
-              value={paste}
-              onChange={e => setPaste(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') void handleLink(paste) }}
-              placeholder="Or paste the link from your PC"
-              inputMode="url"
-              autoCapitalize="off"
-              autoCorrect="off"
-              style={{
-                flex: 1,
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 10,
-                padding: '10px 14px',
-                fontSize: 13,
-                color: 'white',
-                textAlign: 'center'
-              }}
-            />
-            <button
-              onClick={() => void handleLink(paste)}
-              disabled={busy || !paste.trim()}
-              style={{
-                padding: '10px 18px',
-                borderRadius: 10,
-                background: 'rgba(255,255,255,0.08)',
-                color: 'white',
-                fontWeight: 700,
-                fontSize: 14,
-                cursor: busy ? 'default' : 'pointer',
-                opacity: !paste.trim() ? 0.5 : 1
-              }}
-            >
-              {busy ? '...' : 'Go'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      {error && <div style={{ color: '#f87171', fontSize: 12, marginTop: 12, maxWidth: 300, wordBreak: 'break-word' }}>{error}</div>}
-
-      <div style={{ width: '100%', maxWidth: 300, marginTop: 16 }}>
-        <button
-          onClick={() => { setShowDiag(v => !v); if (!showDiag && !diagResults) void runDiag() }}
-          style={{ fontSize: 12, color: 'var(--text-mut)', cursor: 'pointer' }}
-        >
-          {showDiag ? 'Hide connection details ▲' : 'Show connection details ▼'}
-        </button>
-        {showDiag && (
-          <div style={{ marginTop: 8, textAlign: 'left', fontSize: 11, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10 }}>
-            <div style={{ marginBottom: 4, wordBreak: 'break-all' }}><b>Server:</b> {getBase() || '(none saved)'}</div>
-            <div style={{ marginBottom: 8 }}><b>Token:</b> {maskToken(getToken())}</div>
-            {diagRunning && <div style={{ color: 'var(--text-mut)' }}>Running tests...</div>}
-            {diagResults && diagResults.map((r, i) => (
-              <div key={i} style={{ marginBottom: 6, wordBreak: 'break-word' }}>
-                <span style={{ color: r.ok ? '#34d399' : '#f87171', fontWeight: 700 }}>{r.ok ? '✓' : '✗'} </span>
-                <b>{r.name}</b>
-                <div style={{ color: 'var(--text-sec)', paddingLeft: 16 }}>{r.detail}</div>
-              </div>
-            ))}
-            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-              <button
-                onClick={() => void runDiag()}
-                disabled={diagRunning}
-                style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: 12, cursor: 'pointer' }}
-              >
-                Re-run tests
+          {scanning ? (
+            <>
+              <video ref={videoRef} playsInline muted aria-label="Camera preview for scanning" />
+              <button className="btn" onClick={stopScan}>
+                Cancel scan
               </button>
-              {diagResults && (
-                <button
-                  onClick={() => void copyDiag()}
-                  style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: 12, cursor: 'pointer' }}
-                >
-                  {copied ? 'Copied!' : 'Copy results'}
+            </>
+          ) : (
+            <>
+              {scanSupported && (
+                <button className="btn primary" onClick={() => void startScan()}>
+                  Scan the code
                 </button>
               )}
+              <label className="label" htmlFor="pair-link" style={{ marginTop: 8 }}>
+                Or paste the link from your PC
+              </label>
+              <input
+                id="pair-link"
+                className="input"
+                value={paste}
+                onChange={(e) => setPaste(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleLink(paste)
+                }}
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
+                placeholder="https://…"
+              />
+              <button className="btn" onClick={() => void handleLink(paste)} disabled={busy || !paste.trim()}>
+                {busy ? 'Connecting' : 'Connect'}
+              </button>
+              {!scanSupported && <p style={{ fontSize: 14 }}>This browser cannot use the camera, so paste the link instead.</p>}
+            </>
+          )}
+
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          {error && (
+            <div className="err" role="alert">
+              {error}
             </div>
-          </div>
-        )}
+          )}
+
+          <button
+            className="btn"
+            style={{ background: 'none', border: 0, color: 'var(--text-3)', fontWeight: 500 }}
+            aria-expanded={showDiag}
+            onClick={() => {
+              setShowDiag((v) => !v)
+              if (!showDiag && !diagResults) void runDiag()
+            }}
+          >
+            {showDiag ? 'Hide connection check' : 'Check the connection'}
+          </button>
+          {showDiag && (
+            <div className="diag">
+              <div>Server: {getBase() || 'none saved'}</div>
+              <div>Token: {maskToken(getToken())}</div>
+              {diagRunning && <div className="when">Running checks</div>}
+              {diagResults?.map((r, i) => (
+                <div key={i}>
+                  <span style={{ color: r.ok ? 'var(--ok)' : 'var(--fault)', fontWeight: 700 }}>{r.ok ? 'Passed' : 'Failed'}</span> {r.name}
+                  <div className="when">{r.detail}</div>
+                </div>
+              ))}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn" onClick={() => void runDiag()} disabled={diagRunning}>
+                  Run again
+                </button>
+                {diagResults && (
+                  <button className="btn" onClick={() => void copyDiag()}>
+                    {copied ? 'Copied' : 'Copy results'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-      {!scanSupported && !scanning && (
-        <p style={{ color: 'var(--text-mut)', fontSize: 12, maxWidth: 280, marginTop: 16 }}>
-          This browser can't use the camera — paste the link from your PC above.
-        </p>
-      )}
     </div>
   )
 }

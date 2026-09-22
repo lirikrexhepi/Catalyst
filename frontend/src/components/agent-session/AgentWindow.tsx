@@ -118,6 +118,12 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
   const feedScrollRef = useRef<HTMLDivElement>(null);
   const [internalMode, setInternalMode] = useState<AgentCardMode>('chat');
   const activeMode = cardMode !== undefined ? cardMode : internalMode;
+  // Secondary tabs (browser iframe, git, servers) mount on first visit only,
+  // instead of every card running all five views at once.
+  const [visited, setVisited] = useState<ReadonlySet<AgentCardMode>>(() => new Set<AgentCardMode>(['chat']));
+  useEffect(() => {
+    setVisited((prev) => (prev.has(activeMode) ? prev : new Set([...prev, activeMode])));
+  }, [activeMode]);
 
   const [isDraggingResize, setIsDraggingResize] = useState(false);
 
@@ -581,11 +587,13 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
               }`}
               style={getTabStyle('tasklist')}
             >
-              <AgentTasklistView
-                threadId={id}
-                todos={todos}
-                isWorking={isWorking}
-              />
+              {visited.has('tasklist') && (
+                <AgentTasklistView
+                  threadId={id}
+                  todos={todos}
+                  isWorking={isWorking}
+                />
+              )}
             </div>
 
             {/* 3. Embedded Browser / Web Preview View */}
@@ -595,13 +603,15 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
               }`}
               style={getTabStyle('browser')}
             >
-              <AgentBrowserView
-                threadId={id}
-                detectedServers={detectedServers}
-                isFocused={isFocused && activeMode === 'browser' && !isGrid}
-                isAnimating={isAnimating}
-                onFocusCard={onFocus}
-              />
+              {visited.has('browser') && (
+                <AgentBrowserView
+                  threadId={id}
+                  detectedServers={detectedServers}
+                  isFocused={isFocused && activeMode === 'browser' && !isGrid}
+                  isAnimating={isAnimating}
+                  onFocusCard={onFocus}
+                />
+              )}
             </div>
 
             {/* 4. Embedded Servers View */}
@@ -611,12 +621,14 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
               }`}
               style={getTabStyle('servers')}
             >
-              <AgentServersView
-                threadId={id}
-                servers={detectedServers}
-                onStopServer={onStopServer}
-                onPreview={() => setMode('browser')}
-              />
+              {visited.has('servers') && (
+                <AgentServersView
+                  threadId={id}
+                  servers={detectedServers}
+                  onStopServer={onStopServer}
+                  onPreview={() => setMode('browser')}
+                />
+              )}
             </div>
 
             {/* 5. Embedded Git Changes View */}
@@ -626,11 +638,13 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
               }`}
               style={getTabStyle('changes')}
             >
-              <AgentGitView
-                threadId={id}
-                branch={subtitle}
-                git={git}
-              />
+              {visited.has('changes') && (
+                <AgentGitView
+                  threadId={id}
+                  branch={subtitle}
+                  git={git}
+                />
+              )}
             </div>
 
             {/* In Grid / Exposé mode, full shield prevents iframe/feed stealing click so card zooms smoothly */}

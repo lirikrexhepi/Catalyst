@@ -632,6 +632,7 @@ export namespace domain {
 	    instanceId?: string;
 	    driver?: string;
 	    seq: number;
+	    itemId?: string;
 	    at: number;
 	    text?: string;
 	    delta?: boolean;
@@ -658,6 +659,7 @@ export namespace domain {
 	        this.instanceId = source["instanceId"];
 	        this.driver = source["driver"];
 	        this.seq = source["seq"];
+	        this.itemId = source["itemId"];
 	        this.at = source["at"];
 	        this.text = source["text"];
 	        this.delta = source["delta"];
@@ -861,6 +863,7 @@ export namespace domain {
 	    models?: string[];
 	    options?: Record<string, any>;
 	    state: string;
+	    permission?: string;
 	    worktree?: Worktree;
 	    summary?: string;
 	    createdAt: number;
@@ -883,6 +886,7 @@ export namespace domain {
 	        this.models = source["models"];
 	        this.options = source["options"];
 	        this.state = source["state"];
+	        this.permission = source["permission"];
 	        this.worktree = this.convertValues(source["worktree"], Worktree);
 	        this.summary = source["summary"];
 	        this.createdAt = source["createdAt"];
@@ -1544,6 +1548,7 @@ export namespace session {
 	    model?: string;
 	    options?: Record<string, any>;
 	    cwd?: string;
+	    preamble?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new SpawnRequest(source);
@@ -1557,6 +1562,7 @@ export namespace session {
 	        this.model = source["model"];
 	        this.options = source["options"];
 	        this.cwd = source["cwd"];
+	        this.preamble = source["preamble"];
 	    }
 	}
 	export class SpawnResult {

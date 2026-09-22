@@ -3,7 +3,7 @@ import { ListServers, StopServer } from '../../../wailsjs/go/main/App';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 import { servers } from '../../../wailsjs/go/models';
 
-const POLL_MS = 4_000;
+const POLL_MS = 10_000;
 
 export interface Servers {
   groups: servers.Group[];

@@ -60,7 +60,7 @@ func startServer(ctx context.Context, settings domain.ProviderSettings, client *
 	}
 
 	args := append(
-		[]string{"serve", "--hostname=" + defaultHostname, fmt.Sprintf("--port=%d", port), "--print-logs", "--log-level=DEBUG"},
+		[]string{"serve", "--hostname=" + defaultHostname, fmt.Sprintf("--port=%d", port), "--print-logs", "--log-level=INFO"},
 		shell.TokenizeArgs(settings.LaunchArgs)...,
 	)
 	env := shell.Merge(shell.BaseEnvironment(), settings.Env)

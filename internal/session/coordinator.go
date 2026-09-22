@@ -124,6 +124,20 @@ func (c *Coordinator) SendWithFiles(
 	text string,
 	files []domain.FileRef,
 ) (string, error) {
+	return c.SendWithContext(ctx, cfg, text, "", files)
+}
+
+// SendWithContext sends text with a context preamble (project memory, agent
+// manifest) that the model sees but the transcript does not: the user's
+// bubble shows exactly what they typed, which is also what the UI's
+// optimistic bubble is matched against.
+func (c *Coordinator) SendWithContext(
+	ctx context.Context,
+	cfg Config,
+	text string,
+	preamble string,
+	files []domain.FileRef,
+) (string, error) {
 	if text == "" && len(files) == 0 {
 		return "", fmt.Errorf("message is empty")
 	}
@@ -138,6 +152,9 @@ func (c *Coordinator) SendWithFiles(
 	// (model switch) must re-establish the role.
 	c.mu.Lock()
 	body := text
+	if preamble != "" {
+		body = preamble + "\n\n--- Current request ---\n\n" + text
+	}
 	handoff := c.pendingHandoff
 	c.pendingHandoff = ""
 	if !c.primed {
@@ -210,6 +227,20 @@ func (c *Coordinator) ensureSession(ctx context.Context, cfg Config) error {
 	c.driver, c.model, c.options, c.permission, c.cwd, c.started = driver, cfg.Model, cfg.Options, cfg.Permission, cwd, true
 	c.primed = false
 	return nil
+}
+
+// CurrentConfig reports the selection the live coordinator session runs with,
+// so other surfaces (the phone) reuse it instead of forcing a restart.
+func (c *Coordinator) CurrentConfig() (Config, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.started {
+		return Config{}, false
+	}
+	return Config{
+		Driver: string(c.driver), Model: c.model, Options: c.options,
+		Cwd: c.cwd, Permission: c.permission,
+	}, true
 }
 
 func (c *Coordinator) matches(driver domain.DriverKind, cfg Config, cwd string) bool {

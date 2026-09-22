@@ -42,6 +42,10 @@ type RuntimeEvent struct {
 	InstanceID string     `json:"instanceId,omitempty"`
 	Driver     DriverKind `json:"driver,omitempty"`
 	Seq        uint64     `json:"seq"`
+	// ItemID identifies the content item (text block, reasoning part, tool) an
+	// event belongs to, so consumers merge streamed deltas into the right block
+	// and start a new one when the item changes. Empty for legacy events.
+	ItemID string `json:"itemId,omitempty"`
 	At         int64      `json:"at"`
 
 	Text       string           `json:"text,omitempty"`

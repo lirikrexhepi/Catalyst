@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { EventsOn } from '../../../wailsjs/runtime/runtime';
+import { onRuntimeEvents } from '../agent-session/runtimeEvents';
 import {
 	ActiveProject,
 	CoordinatorHistory,
@@ -19,7 +19,6 @@ function fileName(path: string): string {
   const parts = path.split(/[\\/]/);
   return parts[parts.length - 1] || path;
 }
-const RUNTIME_CHANNEL = 'agent:event';
 
 export interface Coordinator {
   blocks: AgentStreamBlock[];
@@ -72,25 +71,28 @@ export function useCoordinator(options: CoordinatorOptions = {}): Coordinator {
       })
       .catch(() => undefined);
 
-    const off = EventsOn(RUNTIME_CHANNEL, (event: RuntimeEvent) => {
-      if (event.threadId !== COORDINATOR_THREAD) return;
+    const off = onRuntimeEvents((batch) => {
+      const events = batch.filter((event) => event.threadId === COORDINATOR_THREAD);
+      if (events.length === 0) return;
 
-      setBlocks((previous) => reduceEvent(previous, event));
+      setBlocks((previous) => events.reduce<AgentStreamBlock[]>(reduceEvent, previous));
 
-      if (event.kind === 'agent.message' && event.text) {
-        replyText.current = event.delta ? replyText.current + event.text : event.text;
-      }
-
-      if (event.kind === 'turn.completed' || event.kind === 'turn.failed') {
-        if (event.kind === 'turn.completed' && replyText.current) {
-          onReply.current?.(replyText.current);
+      for (const event of events) {
+        if (event.kind === 'agent.message' && event.text) {
+          replyText.current = event.delta ? replyText.current + event.text : event.text;
         }
-        replyText.current = '';
-        if (!pendingTurn.current || pendingTurn.current === event.turnId) {
-          pendingTurn.current = null;
-          setIsBusy(false);
+
+        if (event.kind === 'turn.completed' || event.kind === 'turn.failed') {
+          if (event.kind === 'turn.completed' && replyText.current) {
+            onReply.current?.(replyText.current);
+          }
+          replyText.current = '';
+          if (!pendingTurn.current || pendingTurn.current === event.turnId) {
+            pendingTurn.current = null;
+            setIsBusy(false);
+          }
+          if (event.kind === 'turn.failed' && event.error) setError(event.error);
         }
-        if (event.kind === 'turn.failed' && event.error) setError(event.error);
       }
     });
 

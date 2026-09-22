@@ -33,7 +33,9 @@ type PromptRequest struct {
 	MessageID string    `json:"messageID,omitempty"`
 	Model     *ModelRef `json:"model,omitempty"`
 	Agent     string    `json:"agent,omitempty"`
-	Parts     []any     `json:"parts"`
+	// Variant selects a model variant (reasoning effort such as "high").
+	Variant string `json:"variant,omitempty"`
+	Parts   []any  `json:"parts"`
 }
 
 type PermissionReply struct {
@@ -95,6 +97,18 @@ type MessageUpdatedProperties struct {
 
 type PartUpdatedProperties struct {
 	Part Part `json:"part"`
+	// Delta is sent by older servers alongside the full part text.
+	Delta string `json:"delta,omitempty"`
+}
+
+// PartDeltaProperties is message.part.delta: an incremental append to one
+// field of a part, which newer servers use for streamed text.
+type PartDeltaProperties struct {
+	SessionID string `json:"sessionID"`
+	MessageID string `json:"messageID"`
+	PartID    string `json:"partID"`
+	Field     string `json:"field"`
+	Delta     string `json:"delta"`
 }
 
 type SessionIdleProperties struct {

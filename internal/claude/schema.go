@@ -15,6 +15,7 @@ type ContentBlock struct {
 }
 
 type Message struct {
+	ID         string         `json:"id,omitempty"`
 	Role       string         `json:"role"`
 	Content    []ContentBlock `json:"content"`
 	Model      string         `json:"model,omitempty"`
@@ -40,6 +41,9 @@ type Envelope struct {
 	Tools     []string        `json:"tools,omitempty"`
 	Cwd       string          `json:"cwd,omitempty"`
 	Event     json.RawMessage `json:"event,omitempty"`
+	// ParentToolUseID is set on frames produced inside a subagent (Task tool).
+	ParentToolUseID string `json:"parent_tool_use_id,omitempty"`
+	UUID            string `json:"uuid,omitempty"`
 
 	IsError    bool    `json:"is_error,omitempty"`
 	StopReason string  `json:"stop_reason,omitempty"`
@@ -70,40 +74,78 @@ type InputMessage struct {
 }
 
 type InputContent struct {
-	Role    string         `json:"role"`
-	Content []ContentBlock `json:"content"`
+	Role    string `json:"role"`
+	Content []any  `json:"content"`
+}
+
+type textInput struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+type imageInput struct {
+	Type   string      `json:"type"`
+	Source imageSource `json:"source"`
+}
+
+type imageSource struct {
+	Type      string `json:"type"`
+	MediaType string `json:"media_type"`
+	Data      string `json:"data"`
 }
 
 func UserText(text string) InputMessage {
 	return InputMessage{
 		Type:    "user",
-		Message: InputContent{Role: "user", Content: []ContentBlock{{Type: "text", Text: text}}},
+		Message: InputContent{Role: "user", Content: []any{textInput{Type: "text", Text: text}}},
 	}
 }
 
+// ControlPayload is the body of a control_request the CLI sends us. Only the
+// can_use_tool fields are decoded; other subtypes are answered with an error.
 type ControlPayload struct {
-	Subtype  string          `json:"subtype"`
-	ToolName string          `json:"tool_name,omitempty"`
-	Input    json.RawMessage `json:"input,omitempty"`
+	Subtype               string          `json:"subtype"`
+	ToolName              string          `json:"tool_name,omitempty"`
+	Input                 json.RawMessage `json:"input,omitempty"`
+	ToolUseID             string          `json:"tool_use_id,omitempty"`
+	PermissionSuggestions json.RawMessage `json:"permission_suggestions,omitempty"`
+	DecisionReason        string          `json:"decision_reason,omitempty"`
+	BlockedPath           string          `json:"blocked_path,omitempty"`
 }
 
-type ControlRequest struct {
-	Type      string          `json:"type"`
-	RequestID string          `json:"request_id"`
-	Request   *ControlPayload `json:"request"`
-}
-
+// ControlResponse answers a CLI control_request. The request id lives inside
+// `response`, matching what the Agent SDK writes; a top-level id is ignored.
 type ControlResponse struct {
-	Type      string                 `json:"type"`
-	RequestID string                 `json:"request_id"`
-	Response  ControlResponsePayload `json:"response"`
+	Type     string              `json:"type"`
+	Response ControlResponseBody `json:"response"`
 }
 
-type ControlResponsePayload struct {
-	Subtype  string                  `json:"subtype"`
-	Response ControlResponseDecision `json:"response"`
+type ControlResponseBody struct {
+	Subtype   string `json:"subtype"`
+	RequestID string `json:"request_id"`
+	Response  any    `json:"response,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
-type ControlResponseDecision struct {
-	Behavior string `json:"behavior"`
+// ControlRequestOut is a control_request we send to the CLI (interrupt,
+// set_model, set_permission_mode).
+type ControlRequestOut struct {
+	Type      string `json:"type"`
+	RequestID string `json:"request_id"`
+	Request   any    `json:"request"`
+}
+
+// streamEvent is the Messages API streaming event carried by stream_event
+// frames under --include-partial-messages.
+type streamEvent struct {
+	Type    string `json:"type"`
+	Index   int    `json:"index"`
+	Message *struct {
+		ID string `json:"id"`
+	} `json:"message,omitempty"`
+	Delta *struct {
+		Type     string `json:"type"`
+		Text     string `json:"text,omitempty"`
+		Thinking string `json:"thinking,omitempty"`
+	} `json:"delta,omitempty"`
 }

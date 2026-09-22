@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EventsOn } from '../../../wailsjs/runtime/runtime';
+import { onRuntimeEvents } from '../agent-session/runtimeEvents';
 import {
   ActiveProject,
   InterruptTurn,
@@ -8,7 +8,7 @@ import {
   OrchestratorLatest,
   OrchestratorMessageAgent,
   ParseTasks,
-  ResumeHistory,
+  ResumeHistoryThread,
   SendTurn,
   SpawnTasks,
   StopSession,
@@ -181,7 +181,50 @@ function lastTurnDuration(events: RuntimeEvent[] | undefined): number | undefine
   return last;
 }
 
-const RUNTIME_CHANNEL = 'agent:event';
+
+/** Folds one runtime event into a task card's state. */
+function applyEvent(task: SpawnedTask, event: RuntimeEvent): SpawnedTask {
+  const blocks = reduceEvent(task.blocks, event);
+  if (event.kind === 'turn.started') {
+    return { ...task, blocks, isBusy: true, isLive: true, workStartedAt: event.at || Date.now() };
+  }
+  const finished = event.kind === 'turn.completed' || event.kind === 'turn.failed';
+  if (!finished) return blocks === task.blocks ? task : { ...task, blocks };
+  return {
+    ...task,
+    blocks,
+    isBusy: false,
+    lastTurnMs: task.workStartedAt ? Math.max(0, (event.at || Date.now()) - task.workStartedAt) : task.lastTurnMs,
+    workStartedAt: undefined,
+  };
+}
+
+/** Applies a batch to a list of tasks, touching only the threads it names. */
+function applyBatch(
+  list: SpawnedTask[],
+  byThread: Map<string, RuntimeEvent[]>,
+  onFinished?: (task: SpawnedTask) => void,
+): SpawnedTask[] {
+  let changed = false;
+  const next = list.map((task) => {
+    const events = byThread.get(task.threadId);
+    if (!events) return task;
+    changed = true;
+    let updated = task;
+    for (const event of events) {
+      updated = applyEvent(updated, event);
+      if (onFinished && (event.kind === 'turn.completed' || event.kind === 'turn.failed')) {
+        onFinished(updated);
+      }
+    }
+    return updated;
+  });
+  return changed ? next : list;
+}
+
+/** How long events for a not-yet-registered thread are held for it. */
+const EARLY_EVENT_TTL_MS = 60_000;
+const EARLY_EVENT_LIMIT = 500;
 
 /** Stable key for a plan so the card can show launched status, not confirm. */
 export function planKey(titles: string[]): string {
@@ -208,10 +251,25 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
   const [launchedKeys, setLaunchedKeys] = useState<string[]>([]);
   const currentWorkspaceId = useRef<string | null>(null);
   const threads = useRef<Set<string>>(new Set());
-  const threadReplies = useRef<Record<string, string>>({});
+  // Events for threads the UI has not registered yet. Spawning starts the
+  // session and sends the first turn before the call returns, so its first
+  // events can arrive before the card exists; they are replayed on adoption.
+  const early = useRef<Map<string, { at: number; events: RuntimeEvent[] }>>(new Map());
+  const tasksRef = useRef<SpawnedTask[]>([]);
+  const backgroundRef = useRef<SpawnedTask[]>([]);
   const lastSentOptions = useRef<Record<string, string>>({});
   const onBackgroundCompleteRef = useRef(options?.onBackgroundComplete);
   onBackgroundCompleteRef.current = options?.onBackgroundComplete;
+  tasksRef.current = tasks;
+  backgroundRef.current = backgroundTasks;
+
+  /** Registers a thread and folds in any events that arrived before it. */
+  const withEarlyEvents = useCallback((task: SpawnedTask): SpawnedTask => {
+    threads.current.add(task.threadId);
+    const held = early.current.get(task.threadId);
+    early.current.delete(task.threadId);
+    return held ? held.events.reduce(applyEvent, task) : task;
+  }, []);
 
   useEffect(() => {
     IsGitRepo('').then(setCanUseWorktree).catch(() => false);
@@ -234,98 +292,38 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
   }, []);
 
   useEffect(() => {
-    const off = EventsOn(RUNTIME_CHANNEL, (event: RuntimeEvent) => {
-      if (!threads.current.has(event.threadId)) return;
-
-      if (event.kind === 'agent.message' && event.text) {
-        threadReplies.current[event.threadId] = event.delta
-          ? (threadReplies.current[event.threadId] || '') + event.text
-          : event.text;
+    const off = onRuntimeEvents((batch) => {
+      const byThread = new Map<string, RuntimeEvent[]>();
+      const now = Date.now();
+      for (const event of batch) {
+        if (!threads.current.has(event.threadId)) {
+          if (!event.threadId || event.threadId === 'coordinator') continue;
+          const held = early.current.get(event.threadId) ?? { at: now, events: [] };
+          if (held.events.length < EARLY_EVENT_LIMIT) held.events.push(event);
+          early.current.set(event.threadId, held);
+          continue;
+        }
+        const list = byThread.get(event.threadId);
+        if (list) list.push(event);
+        else byThread.set(event.threadId, [event]);
       }
+      for (const [threadId, held] of early.current) {
+        if (now - held.at > EARLY_EVENT_TTL_MS) early.current.delete(threadId);
+      }
+      if (byThread.size === 0) return;
 
-      setTasks((previous) =>
-        previous.map((task) => {
-          if (task.threadId !== event.threadId) return task;
-          if (event.kind === 'turn.started') {
-            return {
-              ...task,
-              blocks: reduceEvent(task.blocks, event),
-              isBusy: true,
-              isLive: true,
-              workStartedAt: event.at || Date.now(),
-            };
-          }
-          const isBusy =
-            event.kind === 'turn.completed' || event.kind === 'turn.failed'
-              ? false
-              : task.isBusy;
-          const finished =
-            event.kind === 'turn.completed' || event.kind === 'turn.failed';
-          const lastTurnMs =
-            finished && task.workStartedAt
-              ? Math.max(0, (event.at || Date.now()) - task.workStartedAt)
-              : task.lastTurnMs;
-          return {
-            ...task,
-            blocks: reduceEvent(task.blocks, event),
-            isBusy,
-            lastTurnMs,
-            workStartedAt: finished ? undefined : task.workStartedAt,
-          };
-        }),
-      );
-
+      setTasks((previous) => applyBatch(previous, byThread));
       setBackgroundTasks((previous) => {
-        let finishedTask: SpawnedTask | null = null;
-        const next = previous.map((task) => {
-          if (task.threadId !== event.threadId) return task;
-          if (event.kind === 'turn.started') {
-            return {
-              ...task,
-              blocks: reduceEvent(task.blocks, event),
-              isBusy: true,
-              isLive: true,
-              workStartedAt: event.at || Date.now(),
-            };
-          }
-          const isBusy =
-            event.kind === 'turn.completed' || event.kind === 'turn.failed'
-              ? false
-              : task.isBusy;
-          const finished =
-            event.kind === 'turn.completed' || event.kind === 'turn.failed';
-          const lastTurnMs =
-            finished && task.workStartedAt
-              ? Math.max(0, (event.at || Date.now()) - task.workStartedAt)
-              : task.lastTurnMs;
-          const updated = {
-            ...task,
-            blocks: reduceEvent(task.blocks, event),
-            isBusy,
-            lastTurnMs,
-            workStartedAt: finished ? undefined : task.workStartedAt,
-          };
-          if (finished) finishedTask = updated;
-          return updated;
-        });
-
-        if (finishedTask) {
-          const t = finishedTask;
-          setTimeout(() => onBackgroundCompleteRef.current?.(t), 0);
+        const finished: SpawnedTask[] = [];
+        const next = applyBatch(previous, byThread, (task) => finished.push(task));
+        for (const task of finished) {
+          setTimeout(() => onBackgroundCompleteRef.current?.(task), 0);
         }
         return next;
       });
-
-      if (event.kind === 'turn.completed') {
-        const reply = threadReplies.current[event.threadId];
-        if (reply) {
-          void inspect(reply);
-        }
-        delete threadReplies.current[event.threadId];
-      }
     });
     return off;
-  }, [inspect]);
+  }, []);
 
   const confirmTasks = useCallback(
     async (
@@ -434,7 +432,6 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
           }
 
           for (const task of result.tasks) {
-            threads.current.add(task.threadId);
             const returned = store.models.find((m) => m.id === task.model);
             if (returned) {
               lastSentOptions.current[task.threadId] = JSON.stringify(
@@ -442,25 +439,23 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
               );
             }
           }
-          setTasks((previous) => [
-            ...previous,
-            ...result.tasks.map((task, index) => {
-              const initialPrompt = spawnTasks[index]?.prompt || task.prompt;
-              return {
-                threadId: task.threadId,
-                title: task.title,
-                branch: task.worktree?.branch,
-                model: task.model,
-                driver: task.driver,
-                blocks: initialPrompt
-                  ? [userBlock(initialPrompt, `orch-prompt-${task.threadId}`, [], task.createdAt || Date.now())]
-                  : ([] as AgentStreamBlock[]),
-                isBusy: true,
-                projectName: currentProj?.name,
-                projectPath: currentProj?.path,
-              };
-            }),
-          ]);
+          const created = result.tasks.map((task, index) => {
+            const initialPrompt = spawnTasks[index]?.prompt || task.prompt;
+            return withEarlyEvents({
+              threadId: task.threadId,
+              title: task.title,
+              branch: task.worktree?.branch,
+              model: task.model,
+              driver: task.driver,
+              blocks: initialPrompt
+                ? [userBlock(initialPrompt, `orch-prompt-${task.threadId}`, [], task.createdAt || Date.now())]
+                : ([] as AgentStreamBlock[]),
+              isBusy: true,
+              projectName: currentProj?.name,
+              projectPath: currentProj?.path,
+            });
+          });
+          setTasks((previous) => [...previous, ...created]);
 
           if (result.errors?.length) setError(result.errors.join('\n'));
         }
@@ -468,7 +463,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     },
-    [],
+    [withEarlyEvents],
   );
 
   const confirm = useCallback(
@@ -511,11 +506,12 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
       if (!trimmed && files.length === 0) return undefined;
 
       const store = useOrchestratorStore.getState();
-      const currentTask = tasks.find((t) => t.threadId === threadId);
+      const currentTask = tasksRef.current.find((t) => t.threadId === threadId);
 
       if (currentTask && currentTask.workspaceId && currentTask.isLive === false) {
         try {
-          await ResumeHistory(currentTask.workspaceId);
+          // Only this chat's agent is started, not every task of its session.
+          await ResumeHistoryThread(currentTask.workspaceId, threadId);
           threads.current.add(threadId);
           setTasks((prev) =>
             prev.map((t) =>
@@ -768,7 +764,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
       }
       return threadId;
     },
-    [tasks],
+    [],
   );
 
   const send = useCallback(
@@ -860,16 +856,12 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
           setWorkspaceId(result.workspace.id);
         }
 
-        for (const task of result.tasks) {
-          threads.current.add(task.threadId);
-        }
         lastSentOptions.current[result.tasks[0].threadId] = JSON.stringify(
           toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
         );
 
-        setTasks((previous) => [
-          ...previous,
-          ...result.tasks.map((task) => ({
+        const created = result.tasks.map((task) =>
+          withEarlyEvents({
             threadId: task.threadId,
             title: task.title,
             branch: task.worktree?.branch,
@@ -879,15 +871,16 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
             isBusy: true,
             projectName: currentProj?.name,
             projectPath: currentProj?.path,
-          })),
-        ]);
+          }),
+        );
+        setTasks((previous) => [...previous, ...created]);
 
         return result.tasks[0]?.threadId;
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     },
-    [],
+    [withEarlyEvents],
   );
 
   const openHistorySession = useCallback(
@@ -899,6 +892,8 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
           ? targetThreadId.split('-cont-')[0]
           : targetThreadId;
 
+        const tasks = tasksRef.current;
+        const backgroundTasks = backgroundRef.current;
         if (rootTargetId) {
           const existingIdx = tasks.findIndex(
             (t) => t.threadId === rootTargetId || t.threadId === targetThreadId,
@@ -1021,7 +1016,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
         return -1;
       }
     },
-    [tasks],
+    [],
   );
 
   const clear = useCallback(() => {
@@ -1063,7 +1058,6 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
     });
     if (result.errors?.length) setError(result.errors.join('\n'));
     for (const task of result.tasks) {
-      threads.current.add(task.threadId);
       const storedOptions = (task as any).options;
       if (storedOptions) {
         lastSentOptions.current[task.threadId] = JSON.stringify(storedOptions);
@@ -1075,46 +1069,55 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
       if (fresh.length === 0) return previous;
       return [
         ...previous,
-        ...fresh.map((task) => ({
-          threadId: task.threadId,
-          title: task.title,
-          branch: task.worktree?.branch,
-          model: task.model,
-          driver: task.driver,
-          blocks: task.prompt
-            ? [userBlock(task.prompt, `orch-prompt-${task.threadId}`, [], task.createdAt || Date.now())]
-            : ([] as AgentStreamBlock[]),
-          isBusy: true,
-          workspaceId: result.workspace?.id,
-          isLive: true,
-          projectName: undefined,
-          projectPath: result.workspace?.cwd,
-        })),
+        ...fresh.map((task) =>
+          withEarlyEvents({
+            threadId: task.threadId,
+            title: task.title,
+            branch: task.worktree?.branch,
+            model: task.model,
+            driver: task.driver,
+            blocks: task.prompt
+              ? [userBlock(task.prompt, `orch-prompt-${task.threadId}`, [], task.createdAt || Date.now())]
+              : ([] as AgentStreamBlock[]),
+            isBusy: true,
+            workspaceId: result.workspace?.id,
+            isLive: true,
+            projectName: undefined,
+            projectPath: result.workspace?.cwd,
+          }),
+        ),
       ];
     });
-  }, []);
+  }, [withEarlyEvents]);
 
-  return {
-    plan,
-    tasks,
-    backgroundTasks,
-    allActiveTasks,
-    error,
-    workspaceId,
-    canUseWorktree,
-    launchedKeys,
-    inspect,
-    confirm,
-    confirmTasks,
-    adoptSpawned,
-    dismiss,
-    send,
-    sendWithModel,
-    interrupt,
-    close,
-    terminate,
-    spawnAgent,
-    openHistorySession,
-    clear,
-  };
+  return useMemo(
+    () => ({
+      plan,
+      tasks,
+      backgroundTasks,
+      allActiveTasks,
+      error,
+      workspaceId,
+      canUseWorktree,
+      launchedKeys,
+      inspect,
+      confirm,
+      confirmTasks,
+      adoptSpawned,
+      dismiss,
+      send,
+      sendWithModel,
+      interrupt,
+      close,
+      terminate,
+      spawnAgent,
+      openHistorySession,
+      clear,
+    }),
+    [
+      plan, tasks, backgroundTasks, allActiveTasks, error, workspaceId, canUseWorktree, launchedKeys,
+      inspect, confirm, confirmTasks, adoptSpawned, dismiss, send, sendWithModel, interrupt, close,
+      terminate, spawnAgent, openHistorySession, clear,
+    ],
+  );
 }

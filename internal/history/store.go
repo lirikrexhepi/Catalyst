@@ -37,8 +37,9 @@ const (
 	metaFile      = "meta.json"
 	transcriptExt = ".jsonl"
 	// Long transcripts are read back in full, so a ceiling keeps a runaway
-	// session from becoming unloadable. Generous: a busy agent produces a few
-	// thousand events in a long task.
+	// stream from becoming unloadable. It applies to streamed deltas only:
+	// user messages, tool calls and turn boundaries are always written, and
+	// deltas are already merged per item by the recorder.
 	maxEventsPerThread = 20000
 )
 
@@ -286,7 +287,7 @@ func (s *Store) Append(workspaceID, threadID string, event domain.RuntimeEvent) 
 	defer s.mu.Unlock()
 
 	key := workspaceID + "/" + threadID
-	if s.counts[key] >= maxEventsPerThread {
+	if event.Delta && s.counts[key] >= maxEventsPerThread {
 		return nil
 	}
 

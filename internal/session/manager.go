@@ -22,6 +22,9 @@ type Manager struct {
 
 	mu       sync.RWMutex
 	adapters map[domain.DriverKind]provider.Adapter
+	// retired adapters were replaced after a settings change but may still own
+	// live sessions; they are stopped on shutdown.
+	retired  []provider.Adapter
 	threads  map[string]*record
 	history  map[string][]domain.RuntimeEvent
 
@@ -52,6 +55,11 @@ func (m *Manager) SetRecorder(recorder Recorder) {
 type record struct {
 	session domain.Session
 	adapter provider.Adapter
+	// input is how the session was started, kept so a session whose process
+	// died (interrupt fallback, crash) can be revived on the next send.
+	input domain.SessionStartInput
+	// lastAt is the timestamp of the thread's latest event.
+	lastAt int64
 }
 
 const historyLimit = 2000
@@ -130,7 +138,22 @@ func (m *Manager) record(event domain.RuntimeEvent) {
 		return
 	}
 	m.mu.Lock()
-	transcript := append(m.history[published.ThreadID], published)
+	if entry, ok := m.threads[published.ThreadID]; ok {
+		entry.lastAt = published.At
+	}
+	transcript := m.history[published.ThreadID]
+	// Consecutive deltas of the same item are stored as one event, so the
+	// bounded transcript covers whole turns instead of a few hundred tokens.
+	if n := len(transcript); n > 0 && published.Delta && sameStream(transcript[n-1], published) {
+		merged := transcript[n-1]
+		merged.Text += published.Text
+		// The merged event carries the newest seq, so a snapshot's highest
+		// seq marks exactly what it already contains.
+		merged.Seq = published.Seq
+		transcript[n-1] = merged
+	} else {
+		transcript = append(transcript, published)
+	}
 	if len(transcript) > historyLimit {
 		transcript = transcript[len(transcript)-historyLimit:]
 	}
@@ -149,6 +172,34 @@ func (m *Manager) record(event domain.RuntimeEvent) {
 		case domain.EventSessionStarted, domain.EventTurnCompleted, domain.EventTurnFailed:
 			go m.refreshProviderSession(published.ThreadID)
 		}
+	}
+}
+
+// sameStream reports whether next continues prev's streamed item.
+func sameStream(prev, next domain.RuntimeEvent) bool {
+	return prev.Delta && prev.Kind == next.Kind && prev.ThreadID == next.ThreadID &&
+		prev.TurnID == next.TurnID && prev.ItemID == next.ItemID &&
+		(next.Kind == domain.EventAgentMessage || next.Kind == domain.EventAgentThought)
+}
+
+// LastActivity reports when the thread last produced an event.
+func (m *Manager) LastActivity(threadID string) int64 {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	if entry, ok := m.threads[threadID]; ok {
+		return entry.lastAt
+	}
+	return 0
+}
+
+// ResetAdapter drops the cached adapter for a driver so the next session is
+// built with the current settings. Sessions already running keep their adapter.
+func (m *Manager) ResetAdapter(kind domain.DriverKind) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if adapter, ok := m.adapters[kind]; ok {
+		m.retired = append(m.retired, adapter)
+		delete(m.adapters, kind)
 	}
 }
 
@@ -176,6 +227,7 @@ func (m *Manager) Start(ctx context.Context, kind domain.DriverKind, in domain.S
 	m.threads[in.ThreadID] = &record{
 		session: domain.Session{ThreadID: in.ThreadID, Driver: kind, Cwd: in.Cwd, Model: in.Model},
 		adapter: adapter,
+		input:   in,
 	}
 	m.mu.Unlock()
 
@@ -192,7 +244,7 @@ func (m *Manager) Start(ctx context.Context, kind domain.DriverKind, in domain.S
 	}
 
 	m.mu.Lock()
-	m.threads[in.ThreadID] = &record{session: session, adapter: adapter}
+	m.threads[in.ThreadID] = &record{session: session, adapter: adapter, input: in, lastAt: time.Now().UnixMilli()}
 	recorder := m.recorder
 	m.mu.Unlock()
 
@@ -244,7 +296,38 @@ func (m *Manager) Send(ctx context.Context, in domain.SendTurnInput) error {
 		logger.Errorf("Manager", "Send failed (lookup): %v", err)
 		return err
 	}
+	// The CLI process can be gone while the thread is still registered: an
+	// interrupt that had to kill it, or a crash. Revive it with its resume id
+	// instead of failing every later message.
+	if !entry.adapter.HasSession(in.ThreadID) {
+		if err := m.revive(ctx, in.ThreadID, entry); err != nil {
+			logger.Errorf("Manager", "Send failed (revive): %v", err)
+			return err
+		}
+		if entry, err = m.lookup(in.ThreadID); err != nil {
+			return err
+		}
+	}
 	return entry.adapter.SendTurn(ctx, in)
+}
+
+func (m *Manager) revive(ctx context.Context, threadID string, entry *record) error {
+	in := entry.input
+	in.ThreadID = threadID
+	if resume := entry.session.ProviderSessionID; resume != "" {
+		in.Resume = resume
+	}
+	if in.Model == "" {
+		in.Model = entry.session.Model
+	}
+	logger.Infof("Manager", "Reviving thread %s (driver=%s resume=%s)", threadID, entry.session.Driver, in.Resume)
+	m.mu.Lock()
+	if current, ok := m.threads[threadID]; ok && current == entry {
+		delete(m.threads, threadID)
+	}
+	m.mu.Unlock()
+	_, err := m.Start(ctx, entry.session.Driver, in)
+	return err
 }
 
 // RecordUserMessage injects a user.message event into the thread's history so
@@ -322,10 +405,16 @@ func (m *Manager) UpdateModel(threadID, model string, options domain.ModelOption
 		return false
 	}
 	applied := updater.UpdateModel(threadID, model, options)
-	if applied && model != "" {
+	if applied {
 		m.mu.Lock()
 		if current, live := m.threads[threadID]; live {
-			current.session.Model = model
+			if model != "" {
+				current.session.Model = model
+				current.input.Model = model
+			}
+			if options != nil {
+				current.input.Options = options
+			}
 		}
 		m.mu.Unlock()
 	}
@@ -346,7 +435,7 @@ func (m *Manager) Respond(ctx context.Context, threadID, requestID string, decis
 	if err != nil {
 		return err
 	}
-	return entry.adapter.RespondToApproval(ctx, threadID, requestID, decision)
+	return entry.adapter.RespondToApproval(ctx, threadID, requestID, domain.NormalizeDecision(decision))
 }
 
 func (m *Manager) RespondQuestion(ctx context.Context, threadID, requestID string, answers []string) error {
@@ -372,10 +461,12 @@ func (m *Manager) Stop(ctx context.Context, threadID string) error {
 // outlives the window.
 func (m *Manager) StopAll(ctx context.Context) {
 	m.mu.Lock()
-	adapters := make([]provider.Adapter, 0, len(m.adapters))
+	adapters := make([]provider.Adapter, 0, len(m.adapters)+len(m.retired))
 	for _, adapter := range m.adapters {
 		adapters = append(adapters, adapter)
 	}
+	adapters = append(adapters, m.retired...)
+	m.retired = nil
 	m.adapters = make(map[domain.DriverKind]provider.Adapter)
 	m.threads = make(map[string]*record)
 	m.mu.Unlock()
@@ -410,6 +501,23 @@ func (m *Manager) History(threadID string) []domain.RuntimeEvent {
 	out := make([]domain.RuntimeEvent, len(transcript))
 	copy(out, transcript)
 	return out
+}
+
+// HistorySnapshot returns the thread's transcript and the highest event seq
+// it contains, so a client can apply only live events that come after it.
+func (m *Manager) HistorySnapshot(threadID string) ([]domain.RuntimeEvent, uint64) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	transcript := m.history[threadID]
+	out := make([]domain.RuntimeEvent, len(transcript))
+	copy(out, transcript)
+	var last uint64
+	for _, event := range out {
+		if event.Seq > last {
+			last = event.Seq
+		}
+	}
+	return out, last
 }
 
 func (m *Manager) lookup(threadID string) (*record, error) {

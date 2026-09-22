@@ -43,6 +43,7 @@ type Server struct {
 	history      *history.Store
 	cancelFeed   func()
 	running      bool
+	hooks        Hooks
 }
 
 func NewServer(
@@ -197,6 +198,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/approve", s.requireAuth(s.handleApprove))
 	mux.HandleFunc("/api/question/answer", s.requireAuth(s.handleAnswerQuestion))
 	mux.HandleFunc("/api/plan/execute", s.requireAuth(s.handleExecutePlan))
+	mux.HandleFunc("/api/threads", s.requireAuth(s.handleThreads))
+	mux.HandleFunc("/api/thread/", s.requireAuth(s.handleThread))
+	mux.HandleFunc("/api/models", s.requireAuth(s.handleModels))
+	mux.HandleFunc("/api/send", s.requireAuth(s.handleThreadSend))
+	mux.HandleFunc("/api/interrupt", s.requireAuth(s.handleThreadInterrupt))
+	mux.HandleFunc("/api/agent/new", s.requireAuth(s.handleNewAgent))
+	mux.HandleFunc("/api/upload", s.requireAuth(s.handleUpload))
 	mux.HandleFunc("/api/ws", s.handleWebSocket)
 }
 
@@ -333,10 +341,8 @@ func (s *Server) handleProjects(w http.ResponseWriter, r *http.Request) {
 				if a.Live && a.State == domain.TaskRunning {
 					e.RunningAgents++
 				}
-				for _, ev := range s.manager.History(a.ThreadID) {
-					if ev.At > e.LastActivity {
-						e.LastActivity = ev.At
-					}
+				if at := s.manager.LastActivity(a.ThreadID); at > e.LastActivity {
+					e.LastActivity = at
 				}
 			}
 			out = append(out, e)
@@ -387,6 +393,7 @@ func (s *Server) handleSendCoordinator(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := s.currentCoordinatorConfig()
+	s.orchestrator.Remember(cfg)
 	turnID, err := s.coordinator.Send(context.Background(), cfg, body.Text)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
@@ -428,13 +435,8 @@ func (s *Server) handleSendAgent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"threadId and text required"}`, http.StatusBadRequest)
 		return
 	}
-	turnID := fmt.Sprintf("%s-turn-%d", body.ThreadID, time.Now().UnixMilli()%100000)
-	s.manager.RecordUserMessage(body.ThreadID, turnID, body.Text)
-	if err := s.manager.Send(context.Background(), domain.SendTurnInput{
-		ThreadID: body.ThreadID,
-		TurnID:   turnID,
-		Text:     body.Text,
-	}); err != nil {
+	turnID, err := s.sendAgent(context.Background(), body.ThreadID, body.Text)
+	if err != nil {
 		if strings.Contains(err.Error(), "no active session") {
 			http.Error(w, `{"error":"session_ended"}`, http.StatusGone)
 			return
@@ -577,7 +579,10 @@ func (s *Server) handleClientAction(msg ClientMessage) {
 			if msg.Driver != "" {
 				cfg.Driver = msg.Driver
 			}
-			_, _ = s.coordinator.Send(ctx, cfg, msg.Text)
+			s.orchestrator.Remember(cfg)
+			if _, err := s.coordinator.Send(ctx, cfg, msg.Text); err != nil {
+				s.publishSendError(session.CoordinatorThreadID, err)
+			}
 		}
 	case "interrupt_coordinator":
 		_ = s.coordinator.Interrupt(ctx)
@@ -587,13 +592,7 @@ func (s *Server) handleClientAction(msg ClientMessage) {
 		}
 	case "send_agent":
 		if msg.ThreadID != "" && msg.Text != "" {
-			turnID := fmt.Sprintf("%s-turn-%d", msg.ThreadID, time.Now().UnixMilli()%100000)
-			s.manager.RecordUserMessage(msg.ThreadID, turnID, msg.Text)
-			if err := s.manager.Send(ctx, domain.SendTurnInput{
-				ThreadID: msg.ThreadID,
-				TurnID:   turnID,
-				Text:     msg.Text,
-			}); err != nil {
+			if _, err := s.sendAgent(ctx, msg.ThreadID, msg.Text); err != nil {
 				s.publishSendError(msg.ThreadID, err)
 			}
 		}
@@ -620,6 +619,24 @@ func (s *Server) handleClientAction(msg ClientMessage) {
 			}
 		}
 	}
+}
+
+// sendAgent delivers a message to a worker, starting its CLI first (resuming
+// the stored conversation) when it is not running, the same as the desktop.
+func (s *Server) sendAgent(ctx context.Context, threadID, text string) (string, error) {
+	if err := s.orchestrator.EnsureLive(ctx, threadID); err != nil {
+		return "", err
+	}
+	turnID := fmt.Sprintf("%s-turn-%d", threadID, time.Now().UnixMilli())
+	s.manager.RecordUserMessage(threadID, turnID, text)
+	if err := s.manager.Send(ctx, domain.SendTurnInput{
+		ThreadID: threadID,
+		TurnID:   turnID,
+		Text:     text,
+	}); err != nil {
+		return "", err
+	}
+	return turnID, nil
 }
 
 func (s *Server) publishSendError(threadID string, err error) {
@@ -683,7 +700,15 @@ func (s *Server) dispatchPlanTasks(tasks []PlanTaskItem) {
 	}
 }
 
+// currentCoordinatorConfig reuses the desktop's live coordinator selection
+// so a message from the phone never restarts that session with another model.
 func (s *Server) currentCoordinatorConfig() session.Config {
+	if cfg, ok := s.coordinator.CurrentConfig(); ok {
+		return cfg
+	}
+	if cfg := s.orchestrator.LastConfig(); cfg.Driver != "" {
+		return cfg
+	}
 	cwd := ""
 	if s.projects != nil {
 		cwd = s.projects.ActivePath()
@@ -695,29 +720,76 @@ func (s *Server) currentCoordinatorConfig() session.Config {
 	}
 	return session.Config{
 		Driver:     string(domain.DriverClaude),
-		Model:      "claude-haiku-4-5",
 		Cwd:        cwd,
 		Permission: domain.PermissionPlan,
 	}
 }
 
+// broadcastEvents fans events out to phones in batches (every
+// broadcastInterval, consecutive deltas of one item pre-merged). Writes
+// happen outside the server lock with a deadline, so one stalled phone can
+// neither block Stop nor back the event bus up; a client that cannot keep
+// up is dropped and reconnects on its own.
 func (s *Server) broadcastEvents(events <-chan domain.RuntimeEvent) {
-	for event := range events {
-		msg := ServerMessage{
-			Type:  "event",
-			Event: &event,
-		}
-		payload, err := json.Marshal(msg)
-		if err != nil {
-			continue
-		}
+	ticker := time.NewTicker(broadcastInterval)
+	defer ticker.Stop()
+	batch := make([]domain.RuntimeEvent, 0, 128)
 
+	flush := func() {
+		if len(batch) == 0 {
+			return
+		}
+		payload, err := json.Marshal(ServerMessage{Type: "events", Events: batch})
+		batch = make([]domain.RuntimeEvent, 0, 128)
+		if err != nil {
+			return
+		}
 		s.mu.RLock()
+		clients := make([]*websocket.Conn, 0, len(s.clients))
 		for client := range s.clients {
-			_ = client.WriteMessage(websocket.TextMessage, payload)
+			clients = append(clients, client)
 		}
 		s.mu.RUnlock()
+
+		for _, client := range clients {
+			_ = client.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if err := client.WriteMessage(websocket.TextMessage, payload); err != nil {
+				s.mu.Lock()
+				delete(s.clients, client)
+				s.mu.Unlock()
+				_ = client.Close()
+			}
+		}
 	}
+
+	for {
+		select {
+		case event, ok := <-events:
+			if !ok {
+				flush()
+				return
+			}
+			if n := len(batch); n > 0 && event.Delta && continuesItem(batch[n-1], event) {
+				batch[n-1].Text += event.Text
+				batch[n-1].Seq = event.Seq
+			} else {
+				batch = append(batch, event)
+			}
+			if len(batch) >= 256 {
+				flush()
+			}
+		case <-ticker.C:
+			flush()
+		}
+	}
+}
+
+const broadcastInterval = 40 * time.Millisecond
+
+func continuesItem(prev, next domain.RuntimeEvent) bool {
+	return prev.Delta && prev.Kind == next.Kind && prev.ThreadID == next.ThreadID &&
+		prev.TurnID == next.TurnID && prev.ItemID == next.ItemID &&
+		(next.Kind == domain.EventAgentMessage || next.Kind == domain.EventAgentThought)
 }
 
 func (s *Server) Info() RemoteInfo {

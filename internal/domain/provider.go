@@ -176,3 +176,21 @@ const (
 	ApprovalDeny        ApprovalDecision = "deny"
 	ApprovalCancel      ApprovalDecision = "cancel"
 )
+
+// NormalizeDecision maps the option ids UIs send ("once", "always",
+// "reject") onto canonical decisions, so a Deny button can never be read as
+// an approval by an adapter that only recognises the canonical names.
+func NormalizeDecision(raw ApprovalDecision) ApprovalDecision {
+	switch raw {
+	case "once", "allow", "approve", "approved", ApprovalAllowOnce:
+		return ApprovalAllowOnce
+	case "always", "allow_always", ApprovalAllowAlways:
+		return ApprovalAllowAlways
+	case "reject", "denied", ApprovalDeny:
+		return ApprovalDeny
+	case "abort", ApprovalCancel:
+		return ApprovalCancel
+	default:
+		return ApprovalDeny
+	}
+}

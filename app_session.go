@@ -65,7 +65,14 @@ func (a *App) RespondToQuestion(threadID, requestID string, answers []string) er
 
 func (a *App) StopSession(threadID string) error {
 	logger.Infof("App", "StopSession: threadID=%s", threadID)
-	return a.manager.Stop(a.ctx, threadID)
+	err := a.manager.Stop(a.ctx, threadID)
+	// A closed card is a closed task: without this the coordinator's agent
+	// manifest keeps offering it as a routing target.
+	if _, ok := a.workspaces.TaskByThread(threadID); ok {
+		a.workspaces.SetState(threadID, domain.TaskClosed)
+		a.recorder.UpdateTaskState(threadID, domain.TaskClosed, "")
+	}
+	return err
 }
 
 func (a *App) ListSessions() []domain.Session {
@@ -118,7 +125,9 @@ func (a *App) SpawnTasks(requests []session.SpawnRequest, opts session.SpawnOpti
 		if cwd == "" {
 			cwd = opts.Cwd
 		}
-		requests[i].Prompt = a.withProjectContext(cwd, requests[i].Prompt)
+		if mem := a.projectMemory(cwd); mem != "" {
+			requests[i].Preamble = "Project context (long-lived, applies to all work here):\n" + mem
+		}
 	}
 	res, err := a.spawner.Spawn(a.ctx, requests, opts)
 	if a.sessionService != nil && len(res.Tasks) > 0 {
@@ -189,7 +198,7 @@ func (a *App) SwitchTaskProviderWithOptions(oldThreadID, driver, model string, o
 		Cwd:        cwd,
 		Model:      model,
 		Options:    options,
-		Permission: domain.PermissionBypass,
+		Permission: session.TaskPermission(oldTask.Permission),
 	}); err != nil {
 		a.workspaces.SetState(oldThreadID, domain.TaskFailed)
 		a.recorder.UpdateTaskState(oldThreadID, domain.TaskFailed, "")
@@ -302,7 +311,7 @@ func (a *App) UpdateTaskModel(threadID, driver, model string, options domain.Mod
 		Cwd:        cwd,
 		Model:      model,
 		Options:    options,
-		Permission: domain.PermissionBypass,
+		Permission: session.TaskPermission(task.Permission),
 		Resume:     resume,
 	}); err != nil {
 		return *task, err

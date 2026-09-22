@@ -1,67 +1,101 @@
-import { RuntimeEvent } from './types'
+import type { ModelChoice, OptionDescriptor, ProviderInfo } from './types'
 
-export function stripXml(raw: string): string {
-  if (!raw) return ''
-  return raw
-    .replace(/<\/?[a-zA-Z][^<>]*>/g, ' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
+/** 9s, 3:04, 1:02:07 — compact running time. */
+export function elapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(total / 3600)
+  const m = Math.floor((total % 3600) / 60)
+  const s = total % 60
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+  if (m > 0) return `${m}:${String(s).padStart(2, '0')}`
+  return `${s}s`
 }
 
-export function summarizeToolInput(input: unknown): string {
-  if (input == null) return ''
-  if (typeof input === 'string') return stripXml(input).slice(0, 160)
-  if (typeof input !== 'object') return String(input).slice(0, 160)
-  const obj = input as Record<string, unknown>
-  for (const key of ['command', 'cmd', 'pattern', 'path', 'file', 'query', 'prompt', 'text']) {
-    const v = obj[key]
-    if (typeof v === 'string' && v.trim()) {
-      return stripXml(v).slice(0, 160)
-    }
-  }
-  try {
-    return stripXml(JSON.stringify(obj)).slice(0, 160)
-  } catch {
-    return ''
-  }
+/** "took 1m 32s" style duration for finished turns. */
+export function duration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000))
+  if (total < 60) return `${total}s`
+  const m = Math.floor(total / 60)
+  if (m < 60) return `${m}m ${String(total % 60).padStart(2, '0')}s`
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`
 }
 
-export function cleanOutput(raw: string, limit = 600): string {
-  const text = stripXml(raw)
-  if (text.length <= limit) return text
-  return text.slice(0, limit) + '…'
+export function relative(at?: number): string {
+  if (!at) return ''
+  const diff = Math.floor((Date.now() - at) / 1000)
+  if (diff < 45) return 'now'
+  if (diff < 3600) return `${Math.max(1, Math.round(diff / 60))}m`
+  if (diff < 86400) return `${Math.round(diff / 3600)}h`
+  if (diff < 86400 * 7) return `${Math.round(diff / 86400)}d`
+  return new Date(at).toLocaleDateString([], { day: 'numeric', month: 'short' })
 }
 
-export function isNoiseResult(text: string): boolean {
-  const t = text.trim().toLowerCase()
-  return t === '' || t === 'done' || t === 'ok' || t === 'success' || t === '{}'
+export function clock(at?: number): string {
+  if (!at) return ''
+  return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-// collapseFeed removes back-to-back empty "Done" tool results while keeping
-// failures, real output, and the final result of a burst.
-export function collapseFeed(events: RuntimeEvent[]): RuntimeEvent[] {
-  const out: RuntimeEvent[] = []
-  let pendingDone: RuntimeEvent | null = null
-  const flush = () => {
-    if (pendingDone) {
-      out.push(pendingDone)
-      pendingDone = null
+const PROVIDER_NAMES: Record<string, string> = {
+  claude: 'Claude',
+  codex: 'Codex',
+  antigravity: 'Antigravity',
+  opencode: 'OpenCode',
+}
+
+export function providerName(driver?: string, providers: ProviderInfo[] = []): string {
+  if (!driver) return ''
+  return providers.find((p) => p.driver === driver)?.name || PROVIDER_NAMES[driver] || driver
+}
+
+function modelOptions(choice: ModelChoice, providers: ProviderInfo[]): OptionDescriptor[] {
+  return providers.find((p) => p.driver === choice.driver)?.models.find((m) => m.id === choice.model)?.options ?? []
+}
+
+/** "Sonnet 4.5, high" — model name plus the non-default effort. */
+export function choiceLabel(choice: ModelChoice | undefined, providers: ProviderInfo[]): string {
+  if (!choice?.driver) return 'Choose a model'
+  const model = providers.find((p) => p.driver === choice.driver)?.models.find((m) => m.id === choice.model)
+  const name = model?.name || prettyModel(choice.model) || providerName(choice.driver, providers)
+  const effort = choice.options?.effort
+  if (typeof effort === 'string' && effort) {
+    const label = modelOptions(choice, providers)
+      .find((o) => o.id === 'effort')
+      ?.choices?.find((c) => c.id === effort)?.label
+    return `${name}, ${(label || effort).toLowerCase()}`
+  }
+  return name
+}
+
+export function prettyModel(id?: string): string {
+  if (!id) return ''
+  const last = id.split('/').pop() || id
+  return last
+    .split('-')
+    .filter(Boolean)
+    .map((w) => (/^\d/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join(' ')
+}
+
+/** Default option values for a model, as the desktop sends them. */
+export function defaultOptions(options: OptionDescriptor[] = []): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const o of options) {
+    if (o.type === 'boolean') {
+      if (typeof o.default === 'boolean') out[o.id] = o.default
+    } else {
+      const d = o.choices?.find((c) => c.default) ?? (o.default !== undefined ? o.choices?.find((c) => c.id === o.default) : undefined)
+      if (d) out[o.id] = d.id
     }
   }
-  for (const ev of events) {
-    if (ev.kind === 'tool.result' && isNoiseResult(ev.tool?.output ?? ev.text ?? '')) {
-      pendingDone = ev
-      continue
-    }
-    if (ev.kind === 'tool.call' || ev.kind === 'tool.result') {
-      flush()
-      out.push(ev)
-      continue
-    }
-    flush()
-    out.push(ev)
-  }
-  flush()
   return out
+}
+
+export function basename(path: string): string {
+  return path.replace(/\\/g, '/').split('/').filter(Boolean).pop() || path
+}
+
+export function dirname(path: string): string {
+  const parts = path.replace(/\\/g, '/').split('/').filter(Boolean)
+  parts.pop()
+  return parts.join('/')
 }

@@ -3,22 +3,34 @@ package claude
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"composer/internal/domain"
+	"composer/internal/logger"
 	"composer/internal/process"
 	"composer/internal/provider"
 	"composer/internal/shell"
 )
 
 const defaultBinary = "claude"
+
+// interruptGrace is how long an in-band interrupt may take before the process
+// is killed as a fallback. The manager revives a killed session on next send.
+const interruptGrace = 6 * time.Second
+
+// maxInlineImageBytes caps images sent as base64 content blocks; larger files
+// fall back to an @path mention the CLI reads itself.
+const maxInlineImageBytes = 5 * 1024 * 1024
 
 type Adapter struct {
 	settings domain.ProviderSettings
@@ -35,7 +47,15 @@ func NewAdapter(settings domain.ProviderSettings, emit provider.Emitter) *Adapte
 func (a *Adapter) Driver() domain.DriverKind { return domain.DriverClaude }
 
 func (a *Adapter) Capabilities() provider.Capabilities {
-	return provider.Capabilities{Resume: true, Plans: true, Approvals: true}
+	return provider.Capabilities{Resume: true, Plans: true, Approvals: true, SessionModelSwitch: true}
+}
+
+// pendingControl is a can_use_tool request waiting for the user.
+type pendingControl struct {
+	toolName    string
+	toolUseID   string
+	input       map[string]any
+	suggestions json.RawMessage
 }
 
 type session struct {
@@ -51,6 +71,20 @@ type session struct {
 	writeMu   sync.Mutex
 	turnID    string
 	sessionID string
+
+	// interrupting marks a turn the user stopped, so its result maps to a
+	// cancelled completion rather than an error.
+	interrupting bool
+	// streamedMsgs holds assistant message ids whose text already arrived as
+	// stream_event deltas; the full block that follows is then skipped.
+	streamedMsgs map[string]bool
+	currentMsgID string
+	// hiddenTools are tool_use ids rendered through another surface
+	// (AskUserQuestion becomes a question card), whose results are skipped.
+	hiddenTools map[string]bool
+	pending     map[string]*pendingControl
+	badFrames   int
+	ctrlSeq     atomic.Uint64
 }
 
 func (s *session) providerSessionID() string {
@@ -72,6 +106,11 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 		"--input-format", "stream-json",
 		"--output-format", "stream-json",
 		"--verbose",
+		// Token-level text and thinking deltas arrive as stream_event frames.
+		"--include-partial-messages",
+		// Permission prompts (and AskUserQuestion) come back to us as
+		// can_use_tool control requests instead of being auto-denied.
+		"--permission-prompt-tool", "stdio",
 	}
 
 	if model := firstNonEmpty(in.Model, a.settings.Model); model != "" {
@@ -155,13 +194,17 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	}
 
 	s := &session{
-		threadID:   in.ThreadID,
-		permission: in.Permission,
-		proc:       proc,
-		cancel:     cancel,
-		encoder:    json.NewEncoder(proc.Stdin()),
-		model:      in.Model,
-		options:    in.Options,
+		threadID:     in.ThreadID,
+		permission:   in.Permission,
+		proc:         proc,
+		cancel:       cancel,
+		encoder:      json.NewEncoder(proc.Stdin()),
+		model:        in.Model,
+		options:      in.Options,
+		sessionID:    in.Resume,
+		streamedMsgs: make(map[string]bool),
+		hiddenTools:  make(map[string]bool),
+		pending:      make(map[string]*pendingControl),
 	}
 
 	a.mu.Lock()
@@ -196,6 +239,14 @@ func (a *Adapter) readLoop(s *session) {
 		}
 		var envelope Envelope
 		if err := json.Unmarshal(line, &envelope); err != nil {
+			// Protocol drift shows up here first; log a few, not every line.
+			s.mu.Lock()
+			s.badFrames++
+			n := s.badFrames
+			s.mu.Unlock()
+			if n <= 5 {
+				logger.Errorf("Claude", "unreadable frame on thread %s: %v (%s)", s.threadID, err, snippet(line))
+			}
 			continue
 		}
 		a.handleEnvelope(s, &envelope)
@@ -204,33 +255,66 @@ func (a *Adapter) readLoop(s *session) {
 	a.finish(s, scanner.Err())
 }
 
+func snippet(line []byte) string {
+	if len(line) > 300 {
+		return string(line[:300]) + "..."
+	}
+	return string(line)
+}
+
 func (a *Adapter) finish(s *session, err error) {
 	<-s.proc.Done()
 
 	a.mu.Lock()
-	delete(a.sessions, s.threadID)
+	if current, ok := a.sessions[s.threadID]; ok && current == s {
+		delete(a.sessions, s.threadID)
+	}
 	a.mu.Unlock()
 
 	s.mu.Lock()
 	turnID := s.turnID
+	interrupting := s.interrupting
 	s.turnID = ""
+	s.interrupting = false
+	s.pending = make(map[string]*pendingControl)
 	s.mu.Unlock()
 
 	if turnID != "" {
-		detail := s.proc.StderrTail()
-		if detail == "" && err != nil && !errors.Is(err, io.EOF) {
-			detail = err.Error()
+		if interrupting {
+			a.emit.Emit(domain.RuntimeEvent{
+				Kind: domain.EventTurnCompleted, ThreadID: s.threadID, TurnID: turnID,
+				Driver: domain.DriverClaude, StopReason: domain.StopCancelled,
+			})
+		} else {
+			detail := s.proc.StderrTail()
+			if detail == "" && err != nil && !errors.Is(err, io.EOF) {
+				detail = err.Error()
+			}
+			a.emit.Emit(domain.RuntimeEvent{
+				Kind: domain.EventTurnFailed, ThreadID: s.threadID, TurnID: turnID,
+				Driver: domain.DriverClaude, Error: a.binary() + " exited: " + detail,
+			})
 		}
-		a.emit.Emit(domain.RuntimeEvent{
-			Kind: domain.EventTurnFailed, ThreadID: s.threadID, TurnID: turnID,
-			Driver: domain.DriverClaude, Error: a.binary() + " exited: " + detail,
-		})
 	}
 
 	a.emit.Emit(domain.RuntimeEvent{
 		Kind: domain.EventSessionStopped, ThreadID: s.threadID, Driver: domain.DriverClaude,
 	})
 	s.cancel()
+}
+
+// write serialises one JSON line onto the CLI's stdin.
+func (s *session) write(value any) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.encoder.Encode(value)
+}
+
+// control sends a control_request (interrupt, set_model, …). Responses are
+// not awaited; the CLI's resulting frames carry the outcome.
+func (s *session) control(request any) error {
+	id := "composer-" + strconv.FormatUint(s.ctrlSeq.Add(1), 10)
+	return s.write(ControlRequestOut{Type: "control_request", RequestID: id, Request: request})
 }
 
 func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
@@ -241,27 +325,72 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 
 	s.mu.Lock()
 	s.turnID = in.TurnID
+	s.interrupting = false
 	s.mu.Unlock()
 
 	a.emit.Emit(domain.RuntimeEvent{
 		Kind: domain.EventTurnStarted, ThreadID: in.ThreadID, TurnID: in.TurnID, Driver: domain.DriverClaude,
 	})
 
-	text := in.Text
-	for _, file := range in.Files {
-		text += "\n@" + file.Path
-	}
-
-	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
-	if err := s.encoder.Encode(UserText(text)); err != nil {
+	if err := s.write(buildUserMessage(in.Text, in.Files)); err != nil {
 		return fmt.Errorf("write turn: %w", err)
 	}
 	return nil
 }
 
-// InterruptTurn stops the child. The CLI has no in-band cancel on the stdin
-// stream, so the session is torn down and the caller resumes by session id.
+// buildUserMessage sends images as image content blocks so they do not depend
+// on @-mention expansion; other files are referenced by path.
+func buildUserMessage(text string, files []domain.FileRef) InputMessage {
+	content := make([]any, 0, len(files)+1)
+	mentions := text
+	for _, file := range files {
+		if block, ok := imageBlock(file); ok {
+			content = append(content, block)
+			continue
+		}
+		mentions += "\n@" + file.Path
+	}
+	if strings.TrimSpace(mentions) != "" || len(content) == 0 {
+		content = append(content, textInput{Type: "text", Text: mentions})
+	}
+	return InputMessage{Type: "user", Message: InputContent{Role: "user", Content: content}}
+}
+
+func imageBlock(file domain.FileRef) (imageInput, bool) {
+	mime := strings.ToLower(file.MIME)
+	if mime == "" {
+		switch strings.ToLower(file.Path[strings.LastIndex(file.Path, ".")+1:]) {
+		case "png":
+			mime = "image/png"
+		case "jpg", "jpeg":
+			mime = "image/jpeg"
+		case "gif":
+			mime = "image/gif"
+		case "webp":
+			mime = "image/webp"
+		}
+	}
+	switch mime {
+	case "image/png", "image/jpeg", "image/gif", "image/webp":
+	default:
+		return imageInput{}, false
+	}
+	info, err := os.Stat(file.Path)
+	if err != nil || info.Size() > maxInlineImageBytes {
+		return imageInput{}, false
+	}
+	data, err := os.ReadFile(file.Path)
+	if err != nil {
+		return imageInput{}, false
+	}
+	return imageInput{Type: "image", Source: imageSource{
+		Type: "base64", MediaType: mime, Data: base64.StdEncoding.EncodeToString(data),
+	}}, true
+}
+
+// InterruptTurn cancels the running turn in-band, keeping the process (and
+// its prompt cache) alive. If the CLI does not settle within the grace period
+// the process is killed; the manager revives it on the next send.
 func (a *Adapter) InterruptTurn(ctx context.Context, threadID string) error {
 	s, ok := a.lookup(threadID)
 	if !ok {
@@ -269,17 +398,51 @@ func (a *Adapter) InterruptTurn(ctx context.Context, threadID string) error {
 	}
 	s.mu.Lock()
 	turnID := s.turnID
-	s.turnID = ""
+	if turnID == "" {
+		s.mu.Unlock()
+		return nil
+	}
+	s.interrupting = true
 	s.mu.Unlock()
 
-	if turnID != "" {
-		a.emit.Emit(domain.RuntimeEvent{
-			Kind: domain.EventTurnCompleted, ThreadID: threadID, TurnID: turnID,
-			Driver: domain.DriverClaude, StopReason: domain.StopCancelled,
-		})
+	if err := s.control(map[string]any{"subtype": "interrupt"}); err != nil {
+		s.cancel()
+		return s.proc.Shutdown(time.Second)
 	}
-	s.cancel()
-	return s.proc.Shutdown(time.Second)
+
+	go func() {
+		timer := time.NewTimer(interruptGrace)
+		defer timer.Stop()
+		select {
+		case <-s.proc.Done():
+			return
+		case <-timer.C:
+		}
+		s.mu.Lock()
+		stuck := s.turnID == turnID
+		s.mu.Unlock()
+		if stuck {
+			logger.Infof("Claude", "interrupt did not settle on %s; killing process", threadID)
+			s.cancel()
+			_ = s.proc.Shutdown(time.Second)
+		}
+	}()
+	return nil
+}
+
+func (a *Adapter) respond(s *session, requestID string, response any) error {
+	return s.write(ControlResponse{
+		Type:     "control_response",
+		Response: ControlResponseBody{Subtype: "success", RequestID: requestID, Response: response},
+	})
+}
+
+func (s *session) takePending(requestID string) *pendingControl {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pending := s.pending[requestID]
+	delete(s.pending, requestID)
+	return pending
 }
 
 func (a *Adapter) RespondToApproval(ctx context.Context, threadID, requestID string, decision domain.ApprovalDecision) error {
@@ -287,75 +450,118 @@ func (a *Adapter) RespondToApproval(ctx context.Context, threadID, requestID str
 	if !ok {
 		return errors.New("no active session for thread " + threadID)
 	}
+	pending := s.takePending(requestID)
+	if pending == nil {
+		return errors.New("unknown approval request " + requestID)
+	}
 
 	behavior := "allow"
-	if decision == domain.ApprovalDeny || decision == domain.ApprovalCancel {
+	var response map[string]any
+	switch decision {
+	case domain.ApprovalDeny, domain.ApprovalCancel:
 		behavior = "deny"
+		response = map[string]any{
+			"behavior":  "deny",
+			"message":   "The user denied permission for this action.",
+			"interrupt": decision == domain.ApprovalCancel,
+		}
+	default:
+		response = map[string]any{"behavior": "allow", "updatedInput": inputOrEmpty(pending.input)}
+		if decision == domain.ApprovalAllowAlways && len(pending.suggestions) > 0 && string(pending.suggestions) != "null" {
+			response["updatedPermissions"] = pending.suggestions
+		}
 	}
 
-	resp := ControlResponse{
-		Type:      "control_response",
-		RequestID: requestID,
-		Response: ControlResponsePayload{
-			Subtype: "success",
-			Response: ControlResponseDecision{
-				Behavior: behavior,
-			},
-		},
-	}
-
-	s.writeMu.Lock()
-	err := s.encoder.Encode(resp)
-	s.writeMu.Unlock()
-	if err != nil {
+	if err := a.respond(s, requestID, response); err != nil {
 		return fmt.Errorf("write control response: %w", err)
 	}
 
 	a.emit.Emit(domain.RuntimeEvent{
-		Kind:      domain.EventApprovalResolved,
-		ThreadID:  threadID,
-		Driver:    domain.DriverClaude,
-		Approval:  &domain.ApprovalRequest{RequestID: requestID},
-		Text:      behavior,
+		Kind:     domain.EventApprovalResolved,
+		ThreadID: threadID,
+		TurnID:   a.event(s, "").TurnID,
+		Driver:   domain.DriverClaude,
+		Approval: &domain.ApprovalRequest{RequestID: requestID},
+		Text:     behavior,
 	})
 	return nil
 }
 
+func inputOrEmpty(input map[string]any) map[string]any {
+	if input == nil {
+		return map[string]any{}
+	}
+	return input
+}
+
+// RespondToQuestion answers an AskUserQuestion permission request. The CLI
+// reads the answers from updatedInput.answers, keyed by question text; an
+// empty answer list denies the tool so the model continues without it.
 func (a *Adapter) RespondToQuestion(ctx context.Context, threadID, requestID string, answers []string) error {
 	s, ok := a.lookup(threadID)
 	if !ok {
 		return errors.New("no active session for thread " + threadID)
 	}
-
-	reply := strings.Join(answers, "\n")
-
-	resp := ControlResponse{
-		Type:      "control_response",
-		RequestID: requestID,
-		Response: ControlResponsePayload{
-			Subtype: "success",
-			Response: ControlResponseDecision{
-				Behavior: "allow",
-			},
-		},
+	pending := s.takePending(requestID)
+	if pending == nil {
+		return errors.New("unknown question " + requestID)
 	}
-	data, err := json.Marshal(resp)
-	if err == nil {
-		s.writeMu.Lock()
-		if s.proc != nil && s.proc.Stdin() != nil {
-			_, _ = s.proc.Stdin().Write(append(data, '\n'))
-			_, _ = s.proc.Stdin().Write([]byte(reply + "\n"))
+
+	var response map[string]any
+	if len(answers) == 0 {
+		response = map[string]any{"behavior": "deny", "message": "The user skipped this question."}
+	} else {
+		input := inputOrEmpty(pending.input)
+		keyed := map[string]string{}
+		questions, _ := input["questions"].([]any)
+		for i, raw := range questions {
+			if i >= len(answers) {
+				break
+			}
+			q, _ := raw.(map[string]any)
+			text, _ := q["question"].(string)
+			if text == "" {
+				continue
+			}
+			keyed[text] = matchOptionLabel(q, answers[i])
 		}
-		s.writeMu.Unlock()
+		updated := make(map[string]any, len(input)+1)
+		for k, v := range input {
+			updated[k] = v
+		}
+		updated["answers"] = keyed
+		response = map[string]any{"behavior": "allow", "updatedInput": updated}
+	}
+
+	if err := a.respond(s, requestID, response); err != nil {
+		return fmt.Errorf("write control response: %w", err)
 	}
 
 	a.emit.Emit(domain.RuntimeEvent{
 		Kind:     domain.EventQuestionAnswered,
 		ThreadID: threadID,
 		Driver:   domain.DriverClaude,
-		Text:     reply,
+		Text:     strings.Join(answers, " / "),
+		Question: &domain.QuestionRequest{RequestID: requestID},
 	})
 	return nil
+}
+
+// matchOptionLabel maps a displayed choice ("Label — description") back to
+// the option label the model offered; free text passes through unchanged.
+func matchOptionLabel(question map[string]any, answer string) string {
+	options, _ := question["options"].([]any)
+	for _, raw := range options {
+		option, _ := raw.(map[string]any)
+		label, _ := option["label"].(string)
+		if label == "" {
+			continue
+		}
+		if answer == label || strings.HasPrefix(answer, label+" — ") {
+			return label
+		}
+	}
+	return answer
 }
 
 func (a *Adapter) StopSession(ctx context.Context, threadID string) error {
@@ -397,20 +603,44 @@ func (a *Adapter) HasSession(threadID string) bool {
 	return ok
 }
 
+// UpdateModel switches the model in place via set_model. Option changes
+// (effort, thinking, context window) are launch flags, so those report false
+// and the caller restarts the session with --resume.
 func (a *Adapter) UpdateModel(threadID, model string, options domain.ModelOptions) bool {
 	s, ok := a.lookup(threadID)
 	if !ok {
 		return false
 	}
 	s.mu.Lock()
-	if model != "" {
-		s.model = model
-	}
-	if options != nil {
-		s.options = options
-	}
+	sameOpts := sameOptions(s.options, options)
+	current := s.model
 	s.mu.Unlock()
-	return false
+	if options != nil && !sameOpts {
+		return false
+	}
+	if model == "" || model == current {
+		return true
+	}
+	if err := s.control(map[string]any{"subtype": "set_model", "model": ResolveModelID(model, options)}); err != nil {
+		return false
+	}
+	s.mu.Lock()
+	s.model = model
+	s.mu.Unlock()
+	return true
+}
+
+func sameOptions(a, b domain.ModelOptions) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, valueA := range a {
+		valueB, ok := b[key]
+		if !ok || fmt.Sprint(valueA) != fmt.Sprint(valueB) {
+			return false
+		}
+	}
+	return true
 }
 
 // SessionPID reports the CLI process backing a thread, so servers it spawns can

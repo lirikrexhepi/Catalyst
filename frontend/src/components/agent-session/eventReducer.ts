@@ -1,6 +1,7 @@
 import { domain } from '../../../wailsjs/go/models';
 import { AgentStreamBlock, UserMessageFile } from './types';
 import { ToolGroupItem } from './ToolGroup';
+import { DiffLine } from './EditTool';
 
 export type RuntimeEvent = domain.RuntimeEvent;
 
@@ -192,6 +193,7 @@ function appendNotice(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStr
 function upsertApproval(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStreamBlock[] {
   const req = event.approval;
   if (!req) return blocks;
+  blocks = closeThinking(blocks);
 
   const reqID = (req as any).requestId || (req as any).requestID || '';
   const id = `approval-${reqID || event.seq}`;
@@ -308,20 +310,26 @@ function resolveQuestion(blocks: AgentStreamBlock[], event: RuntimeEvent): Agent
   const reqID = (event as any).question?.requestId || (event as any).question?.requestID || '';
   const isSkip = !answer || answer.trim() === '';
 
-  return blocks.map((b) => {
-    if (b.type === 'tool_question') {
-      // If we have a requestID, only resolve the matching block
-      if (reqID && b.id !== `question-${reqID}` && !b.id.includes(reqID)) {
-        return b;
-      }
-      return {
-        ...b,
-        answered: true,
-        selectedAnswer: isSkip ? 'Skipped' : (answer || b.selectedAnswer || 'Answered'),
-      };
+  // With a request id only that card resolves; without one, only the most
+  // recent open question does — never every question in the feed.
+  let target = -1;
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const b = blocks[i];
+    if (b.type !== 'tool_question') continue;
+    if (reqID ? b.id === `question-${reqID}` || b.id.includes(reqID) : !b.answered) {
+      target = i;
+      break;
     }
-    return b;
-  });
+  }
+  if (target < 0) return blocks;
+  const next = [...blocks];
+  const b = next[target] as Extract<AgentStreamBlock, { type: 'tool_question' }>;
+  next[target] = {
+    ...b,
+    answered: true,
+    selectedAnswer: isSkip ? 'Skipped' : answer || b.selectedAnswer || 'Answered',
+  };
+  return next;
 }
 
 export function userBlock(
@@ -346,6 +354,7 @@ export function userBlock(
     content: text,
     files: normalizedFiles.length > 0 ? normalizedFiles : undefined,
     timestamp: timestamp || Date.now(),
+    pending: true,
   };
 }
 
@@ -372,32 +381,24 @@ function appendUserMessage(blocks: AgentStreamBlock[], event: RuntimeEvent): Age
     return blocks;
   }
 
-  // The client-side send() already adds a user block optimistically. If a user
-  // block with matching content or turnId already exists near the end, preserve/update it.
-  for (let i = blocks.length - 1; i >= Math.max(0, blocks.length - 8); i--) {
+  // The client adds a user block optimistically on send (marked pending).
+  // Only such a pending block may absorb the backend echo; a replayed
+  // transcript has none, so repeated messages ("yes", "continue") all stay.
+  for (let i = blocks.length - 1; i >= Math.max(0, blocks.length - 16); i--) {
     const b = blocks[i];
-    if (b.type === 'user') {
-      const cleanBlockText = normalize(b.content);
-      const isSameText = cleanBlockText === cleanEventText;
-      const isSameTurn = !!(event.turnId && b.id.includes(event.turnId));
-
-      if (isSameText || isSameTurn) {
-        const updated = [...blocks];
-        const mergedFiles =
-          b.files && b.files.length > 0
-            ? b.files
-            : eventFiles.length > 0
-            ? eventFiles
-            : undefined;
-
-        updated[i] = {
-          ...b,
-          content: b.content || text,
-          files: mergedFiles,
-          timestamp: b.timestamp || atTime,
-        };
-        return updated;
-      }
+    if (b.type !== 'user' || !b.pending) continue;
+    const isSameText = normalize(b.content) === cleanEventText;
+    const isSameTurn = Boolean(event.turnId && b.turnId === event.turnId);
+    if (isSameText || isSameTurn) {
+      const updated = [...blocks];
+      updated[i] = {
+        ...b,
+        pending: false,
+        turnId: event.turnId || b.turnId,
+        files: b.files && b.files.length > 0 ? b.files : eventFiles.length > 0 ? eventFiles : undefined,
+        timestamp: b.timestamp || atTime,
+      };
+      return updated;
     }
   }
 
@@ -410,10 +411,22 @@ function appendUserMessage(blocks: AgentStreamBlock[], event: RuntimeEvent): Age
       content: text,
       files: eventFiles.length > 0 ? eventFiles : undefined,
       timestamp: atTime,
+      turnId: event.turnId,
     },
   ];
 }
 
+function itemOf(event: RuntimeEvent): string {
+  return (event as { itemId?: string }).itemId || '';
+}
+
+/**
+ * Streams text into the block for the event's content item. With an item id
+ * (all current adapters send one) a delta only ever extends that item's block
+ * and a new item always starts a new block, so consecutive replies, parallel
+ * blocks and diagnostics never overwrite one another. Events without an id
+ * fall back to extending the streaming block of the same turn.
+ */
 function appendText(
   blocks: AgentStreamBlock[],
   event: RuntimeEvent,
@@ -421,40 +434,89 @@ function appendText(
 ): AgentStreamBlock[] {
   const text = event.text ?? '';
   if (!text) return blocks;
-
-  const last = blocks[blocks.length - 1];
+  const itemId = itemOf(event);
+  const turnId = event.turnId || '';
   const atTime = event.at || Date.now();
 
-  if (kind === 'text' && last?.type === 'text') {
-    const merged: AgentStreamBlock = {
-      ...last,
-      content: event.delta ? last.content + text : text,
-      isStreaming: true,
-      timestamp: last.timestamp || atTime,
-    };
-    return [...blocks.slice(0, -1), merged];
+  // Find the block this event continues.
+  let index = -1;
+  if (itemId) {
+    for (let i = blocks.length - 1; i >= Math.max(0, blocks.length - 12); i--) {
+      const b = blocks[i];
+      if ((b.type === 'text' || b.type === 'thinking') && b.type === kind && b.itemId === itemId) {
+        index = i;
+        break;
+      }
+      if (b.type === 'user') break;
+    }
+  } else {
+    const last = blocks[blocks.length - 1];
+    if (
+      last &&
+      last.type === kind &&
+      !last.itemId &&
+      (last.turnId || '') === turnId &&
+      (kind === 'text' ? (last as { isStreaming?: boolean }).isStreaming && !(last as { variant?: string }).variant : (last as { isThinking?: boolean }).isThinking)
+    ) {
+      index = blocks.length - 1;
+    }
   }
 
-  if (kind === 'thinking' && last?.type === 'thinking' && last.isThinking) {
-    const merged: AgentStreamBlock = {
-      ...last,
-      thoughtText: event.delta ? last.thoughtText + text : text,
-    };
-    return [...blocks.slice(0, -1), merged];
+  if (index >= 0) {
+    const existing = blocks[index];
+    const next = [...blocks];
+    if (existing.type === 'text') {
+      next[index] = {
+        ...existing,
+        content: event.delta ? existing.content + text : text,
+        isStreaming: true,
+        timestamp: existing.timestamp || atTime,
+      };
+    } else if (existing.type === 'thinking') {
+      next[index] = { ...existing, thoughtText: event.delta ? existing.thoughtText + text : text };
+    }
+    return next;
   }
 
-  const id = `${kind}-${event.seq}`;
+  // A new block: whatever was streaming before it is finished.
+  const settled = kind === 'text' ? closeThinking(closeStreaming(blocks)) : closeStreaming(blocks);
+  const id = `${kind}-${itemId || event.seq}`;
   return [
-    ...blocks,
+    ...settled,
     kind === 'text'
-      ? { type: 'text', id, content: text, isStreaming: true, timestamp: atTime }
-      : { type: 'thinking', id, isThinking: true, thoughtText: text },
+      ? { type: 'text', id, content: text, isStreaming: true, timestamp: atTime, itemId: itemId || undefined, turnId }
+      : { type: 'thinking', id, isThinking: true, thoughtText: text, itemId: itemId || undefined, turnId },
   ];
+}
+
+/** Marks open thinking blocks finished once the agent moves on. */
+function closeThinking(blocks: AgentStreamBlock[]): AgentStreamBlock[] {
+  let changed = false;
+  const next = blocks.map((b) => {
+    if (b.type === 'thinking' && b.isThinking) {
+      changed = true;
+      return { ...b, isThinking: false };
+    }
+    return b;
+  });
+  return changed ? next : blocks;
+}
+
+/** Tools that always render as their own card, never folded into a group. */
+function isStandaloneTool(name: string, tool: domain.ToolCall): boolean {
+  return (
+    EDIT_TOOLS.has(name) ||
+    tool.kind === 'fileChange' ||
+    TODO_TOOLS.has(name) ||
+    isQuestionTool(name) ||
+    Boolean(tool.diffs?.length)
+  );
 }
 
 function upsertTool(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStreamBlock[] {
   const tool = event.tool;
   if (!tool) return blocks;
+  blocks = closeThinking(blocks);
 
   const id = `tool-${tool.id}`;
   const index = blocks.findIndex(
@@ -468,16 +530,27 @@ function upsertTool(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStrea
   // rather than rebuilt, which would drop the command being displayed.
   if (index >= 0) {
     const merged = [...blocks];
-    merged[index] = mergeToolBlock(blocks[index], tool);
+    merged[index] = mergeToolBlock(blocks[index], tool, Boolean(event.delta));
     return merged;
   }
 
-  // Git commands and consecutive read/bash/search activities collapse into
-  // a clean tool group so repetitive commands don't bury the feed.
-  const name = tool.name || tool.kind || 'tool';
+  const name = tool.name || tool.kind || '';
+  // A result whose call never rendered (dropped, or shown through another
+  // surface such as a question card) must not become a nameless ghost row.
+  if (event.kind === 'tool.result' && !tool.name) return blocks;
+
   const input = asRecord(tool.input);
-  const cmd = field(input, COMMAND_KEYS);
-  const isGit = isGitCommand(name, cmd);
+
+  // Todo lists: one live list, moved to where the agent currently is.
+  if (TODO_TOOLS.has(name)) {
+    const todos = toTodos(input);
+    if (todos.length > 0) {
+      return [
+        ...blocks.filter((b) => b.type !== 'tool_todo'),
+        { type: 'tool_todo', id: 'session-tasklist', title: 'Tasklist', todos },
+      ];
+    }
+  }
 
   // Question tools are interactive prompts that must never be collapsed into a tool group
   if (isQuestionTool(name)) {
@@ -494,9 +567,18 @@ function upsertTool(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStrea
     return [...blocks, qBlock];
   }
 
+  if (isStandaloneTool(name, tool)) {
+    const block = toToolBlock(tool);
+    return block ? [...blocks, block] : blocks;
+  }
+
+  // Consecutive read/bash/search activity collapses into one group so
+  // repetitive commands don't bury the feed. Every member keeps its id so a
+  // result that arrives later still finds its row.
+  const newItem = toGroupItem(name || 'tool', tool, input);
   const last = blocks[blocks.length - 1];
   if (last?.type === 'tool_group') {
-    const items = [...last.items, toGroupItem(name, tool, input)];
+    const items = [...last.items, newItem];
     const next: AgentStreamBlock = {
       ...last,
       title: groupTitle(items),
@@ -507,46 +589,34 @@ function upsertTool(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStrea
     return [...blocks.slice(0, -1), next];
   }
 
-  // If the preceding block was a standalone bash command, coalesce with incoming tool activity
-  if (last?.type === 'tool_bash') {
-    const prevItem: ToolGroupItem = {
-      type: isGitCommand('bash', last.command) ? 'git' : 'bash',
-      action: isGitCommand('bash', last.command) ? 'Git' : (isInspectionCommand(last.command) ? 'Inspect' : 'Ran'),
-      target: last.command && last.command !== 'bash' && last.command !== 'powershell' && last.command !== 'cmd' ? last.command : '',
-      details: last.output,
-      status: last.status,
-    };
-    const newItem = toGroupItem(name, tool, input);
+  if (last?.type === 'tool_bash' || last?.type === 'tool_search') {
+    const prevId = last.id.replace(/^tool-/, '');
+    const prevItem: ToolGroupItem =
+      last.type === 'tool_bash'
+        ? {
+            id: prevId,
+            type: isGitCommand('bash', last.command) ? 'git' : 'bash',
+            action: isGitCommand('bash', last.command) ? 'Git' : isInspectionCommand(last.command) ? 'Inspect' : 'Ran',
+            target: last.command && !/^(bash|powershell|cmd)$/i.test(last.command) ? last.command : '',
+            details: last.output,
+            status: last.status,
+          }
+        : {
+            id: prevId,
+            type: 'search',
+            action: last.query ? 'Search' : 'Glob',
+            target: last.query || (last.files?.length ? `${last.files.length} files` : ''),
+            details: last.files?.join('\n'),
+            status: last.isSearching ? 'running' : 'completed',
+          };
     const items = [prevItem, newItem];
     const group: AgentStreamBlock = {
       type: 'tool_group',
-      id: `group-${Date.now()}`,
+      id: `group-${prevId}`,
       title: groupTitle(items),
       summary: groupSummary(items),
       items,
-      memberIds: [tool.id],
-    };
-    return [...blocks.slice(0, -1), group];
-  }
-
-  // If the preceding block was a standalone search/glob, coalesce into a unified group
-  if (last?.type === 'tool_search') {
-    const prevItem: ToolGroupItem = {
-      type: 'search',
-      action: last.query ? 'Search' : 'Glob',
-      target: last.query || (last.files?.length ? `${last.files.length} files` : ''),
-      details: last.files?.join('\n'),
-      status: last.isSearching ? 'running' : 'completed',
-    };
-    const newItem = toGroupItem(name, tool, input);
-    const items = [prevItem, newItem];
-    const group: AgentStreamBlock = {
-      type: 'tool_group',
-      id: `group-${Date.now()}`,
-      title: groupTitle(items),
-      summary: groupSummary(items),
-      items,
-      memberIds: [tool.id],
+      memberIds: [prevId, tool.id],
     };
     return [...blocks.slice(0, -1), group];
   }
@@ -595,8 +665,10 @@ function groupSummary(items: ToolGroupItem[]): string {
   return parts.length > 0 ? parts.join(', ') : `${items.length} actions`;
 }
 
-function mergeToolBlock(existing: AgentStreamBlock, tool: domain.ToolCall): AgentStreamBlock {
+function mergeToolBlock(existing: AgentStreamBlock, tool: domain.ToolCall, delta = false): AgentStreamBlock {
   const status = toStatus(tool.status);
+  const output = (previous?: string) =>
+    delta && tool.output ? (previous || '') + tool.output : tool.output || previous;
 
   switch (existing.type) {
     case 'tool_bash': {
@@ -606,7 +678,7 @@ function mergeToolBlock(existing: AgentStreamBlock, tool: domain.ToolCall): Agen
         ...existing,
         command: cmd && (existing.command === 'bash' || existing.command === 'powershell' || existing.command === existing.id) ? cmd : existing.command,
         status,
-        output: tool.output || existing.output,
+        output: output(existing.output),
         exitCode: existing.exitCode,
       };
     }
@@ -621,15 +693,12 @@ function mergeToolBlock(existing: AgentStreamBlock, tool: domain.ToolCall): Agen
       };
     }
     case 'tool_edit': {
-      const diff = tool.diffs?.[0];
-      return diff
-        ? {
-            ...existing,
-            filePath: diff.path || existing.filePath,
-            additions: countLines(diff.newText) ?? existing.additions,
-            deletions: countLines(diff.oldText) ?? existing.deletions,
-          }
-        : existing;
+      const next = { ...existing, status };
+      if (tool.diffs?.length || tool.input) {
+        const computed = editBlockFields(tool.name || existing.toolName || '', asRecord(tool.input), tool.diffs);
+        if (computed.diffLines.length > 0) Object.assign(next, computed);
+      }
+      return next;
     }
     case 'tool_group': {
       const items = existing.items.map((item) => {
@@ -647,7 +716,7 @@ function mergeToolBlock(existing: AgentStreamBlock, tool: domain.ToolCall): Agen
           ...item,
           status,
           target: nextTarget,
-          details: tool.output || item.details,
+          details: output(item.details),
         };
       });
       const summary = groupSummary(items);
@@ -692,14 +761,17 @@ function toToolBlock(tool: domain.ToolCall): AgentStreamBlock | null {
     };
   }
 
-  if (EDIT_TOOLS.has(name) || tool.kind === 'fileChange') {
-    const diff = tool.diffs?.[0];
+  if (EDIT_TOOLS.has(name) || tool.kind === 'fileChange' || tool.diffs?.length) {
+    const computed = editBlockFields(name, input, tool.diffs);
     return {
       type: 'tool_edit',
       id,
-      filePath: diff?.path || extractTarget(name, input) || name,
-      additions: countLines(diff?.newText),
-      deletions: countLines(diff?.oldText),
+      filePath: computed.filePath || extractTarget(name, input) || name,
+      additions: computed.additions,
+      deletions: computed.deletions,
+      diffLines: computed.diffLines,
+      status: toStatus(tool.status),
+      toolName: name,
     };
   }
 
@@ -823,11 +895,7 @@ function upsertPlan(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStrea
     })),
   };
 
-  const index = blocks.findIndex((candidate) => candidate.type === 'tool_todo' || candidate.id === id);
-  if (index === -1) return [...blocks, block];
-  const merged = [...blocks];
-  merged[index] = block;
-  return merged;
+  return [...blocks.filter((candidate) => candidate.type !== 'tool_todo'), block];
 }
 
 function friendlyError(raw?: string): string | null {
@@ -849,7 +917,7 @@ function appendDiagnostic(
   if (event.error && event.text && !friendly) lines.push('', '```', event.text, '```');
   return [
     ...closeStreaming(blocks),
-    { type: 'text', id: `diagnostic-${event.seq}`, content: lines.join('\n'), timestamp: event.at || Date.now() },
+    { type: 'text', id: `diagnostic-${event.seq}`, content: lines.join('\n'), timestamp: event.at || Date.now(), variant: 'error' },
   ];
 }
 
@@ -873,7 +941,7 @@ function settle(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStreamBlo
 
   if (event.kind === 'turn.failed' && event.error) {
     if (friendlyError(event.error)) return cleaned;
-    return [...cleaned, { type: 'text', id: `error-${event.seq}`, content: `⚠ ${event.error}`, timestamp: event.at || Date.now() }];
+    return [...cleaned, { type: 'text', id: `error-${event.seq}`, content: `⚠ ${event.error}`, timestamp: event.at || Date.now(), variant: 'error' }];
   }
   return cleaned;
 }
@@ -925,4 +993,116 @@ function countLines(text?: string): number | undefined {
 
 function str(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+// ---------------------------------------------------------------------------
+// Edit diffs
+// ---------------------------------------------------------------------------
+
+interface EditFields {
+  filePath: string;
+  additions: number;
+  deletions: number;
+  diffLines: DiffLine[];
+}
+
+function str2(input: Record<string, unknown>, keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = input[key];
+    if (typeof value === 'string') return value;
+  }
+  return undefined;
+}
+
+/**
+ * Builds the diff for an edit tool from whatever the provider sends: Claude
+ * (Edit old_string/new_string, MultiEdit edits[], Write content), OpenCode
+ * (oldString/newString, content), Antigravity (TargetContent /
+ * ReplacementContent, ReplacementChunks[], CodeContent) or explicit diffs.
+ */
+export function editBlockFields(
+  name: string,
+  input: Record<string, unknown>,
+  diffs?: domain.FileDiff[],
+): EditFields {
+  const pairs: Array<{ oldText: string; newText: string }> = [];
+  let filePath = field(input, PATH_KEYS);
+
+  if (diffs?.length) {
+    for (const d of diffs) pairs.push({ oldText: d.oldText || '', newText: d.newText || '' });
+    filePath = diffs[0].path || filePath;
+  } else if (Array.isArray(input.edits)) {
+    for (const raw of input.edits as Array<Record<string, unknown>>) {
+      const e = asRecord(raw);
+      pairs.push({
+        oldText: str2(e, ['old_string', 'oldString', 'TargetContent']) || '',
+        newText: str2(e, ['new_string', 'newString', 'ReplacementContent']) || '',
+      });
+    }
+  } else if (Array.isArray(input.ReplacementChunks)) {
+    for (const raw of input.ReplacementChunks as Array<Record<string, unknown>>) {
+      const e = asRecord(raw);
+      pairs.push({ oldText: str2(e, ['TargetContent']) || '', newText: str2(e, ['ReplacementContent']) || '' });
+    }
+  } else {
+    const oldText = str2(input, ['old_string', 'oldString', 'TargetContent', 'old_str']);
+    const newText = str2(input, ['new_string', 'newString', 'ReplacementContent', 'new_str']);
+    const content = str2(input, ['content', 'CodeContent', 'new_source', 'file_text', 'text']);
+    if (oldText !== undefined || newText !== undefined) {
+      pairs.push({ oldText: oldText || '', newText: newText || '' });
+    } else if (content !== undefined) {
+      pairs.push({ oldText: '', newText: content });
+    }
+  }
+
+  const diffLines: DiffLine[] = [];
+  let additions = 0;
+  let deletions = 0;
+  pairs.forEach((pair, i) => {
+    if (i > 0) diffLines.push({ type: 'context', lineNum: 0, content: '⋯' });
+    for (const line of lineDiff(pair.oldText, pair.newText)) {
+      if (line.type === 'add') additions++;
+      if (line.type === 'delete') deletions++;
+      diffLines.push(line);
+    }
+  });
+  return { filePath: filePath || name, additions, deletions, diffLines };
+}
+
+const MAX_LCS_CELLS = 250_000;
+
+/** Line diff via LCS; very large inputs degrade to delete-all/add-all. */
+function lineDiff(oldText: string, newText: string): DiffLine[] {
+  const a = oldText ? oldText.replace(/\r\n/g, '\n').split('\n') : [];
+  const b = newText ? newText.replace(/\r\n/g, '\n').split('\n') : [];
+  const out: DiffLine[] = [];
+  if (a.length * b.length > MAX_LCS_CELLS) {
+    a.forEach((content, i) => out.push({ type: 'delete', lineNum: i + 1, content }));
+    b.forEach((content, i) => out.push({ type: 'add', lineNum: i + 1, content }));
+    return out;
+  }
+  const n = a.length;
+  const m = b.length;
+  const dp: Uint32Array[] = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+    }
+  }
+  let i = 0;
+  let j = 0;
+  while (i < n || j < m) {
+    if (i < n && j < m && a[i] === b[j]) {
+      out.push({ type: 'context', lineNum: j + 1, content: a[i] });
+      i++;
+      j++;
+    } else if (i < n && (j >= m || dp[i + 1][j] >= dp[i][j + 1])) {
+      out.push({ type: 'delete', lineNum: i + 1, content: a[i] });
+      i++;
+    } else {
+      out.push({ type: 'add', lineNum: j + 1, content: b[j] });
+      j++;
+    }
+  }
+  return out;
 }

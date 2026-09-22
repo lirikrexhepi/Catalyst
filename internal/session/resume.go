@@ -20,6 +20,17 @@ type ResumeRequest struct {
 	// ProviderSessionID is the CLI's own id for the conversation. Empty means the
 	// provider never reported one, so only a fresh session is possible.
 	ProviderSessionID string `json:"providerSessionId,omitempty"`
+	// Permission is the mode the task originally ran with.
+	Permission domain.PermissionMode `json:"permission,omitempty"`
+}
+
+// TaskPermission returns the mode a task should run with. Tasks recorded
+// before permissions were stored ran in bypass, which is kept for them.
+func TaskPermission(mode domain.PermissionMode) domain.PermissionMode {
+	if mode == "" {
+		return domain.PermissionBypass
+	}
+	return mode
 }
 
 // ResumeOutcome reports what happened to one task, including why it could not
@@ -87,7 +98,7 @@ func (s *Spawner) resumeOne(ctx context.Context, request ResumeRequest) ResumeOu
 		Cwd:        cwd,
 		Model:      request.Model,
 		Options:    request.Options,
-		Permission: domain.PermissionBypass,
+		Permission: TaskPermission(request.Permission),
 		Resume:     request.ProviderSessionID,
 	}
 

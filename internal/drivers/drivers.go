@@ -2,6 +2,9 @@ package drivers
 
 import (
 	"context"
+	"encoding/json"
+	"regexp"
+	"sort"
 	"strings"
 
 	"composer/internal/antigravity"
@@ -122,21 +125,105 @@ func (d *openCodeDriver) Probe(ctx context.Context, settings domain.ProviderSett
 }
 
 func (d *openCodeDriver) models(ctx context.Context, settings domain.ProviderSettings) []domain.Model {
-	result := provider.RunCommand(ctx, binaryFor(settings, "opencode"), []string{"models"}, nil, "")
+	binary := binaryFor(settings, "opencode")
+	// --verbose prints each model's JSON after its id, which carries the
+	// variants (reasoning effort levels) the prompt API accepts.
+	if result := provider.RunCommand(ctx, binary, []string{"models", "--verbose"}, nil, ""); result.Err == nil {
+		if models := parseOpenCodeModels(result.Stdout); len(models) > 0 {
+			return models
+		}
+	}
+	result := provider.RunCommand(ctx, binary, []string{"models"}, nil, "")
 	if result.Err != nil {
 		return nil
 	}
+	return parseOpenCodeModels(result.Stdout)
+}
 
+var openCodeModelLine = regexp.MustCompile(`^[^\s{}\[\]"]+/[^\s]+$`)
+
+// parseOpenCodeModels reads `opencode models [--verbose]`: one providerID/
+// modelID per line, each optionally followed by that model's JSON.
+func parseOpenCodeModels(output string) []domain.Model {
 	var models []domain.Model
-	for _, line := range strings.Split(result.Stdout, "\n") {
-		id := strings.TrimSpace(line)
-		if id == "" || strings.HasPrefix(id, "#") {
+	var id string
+	var body strings.Builder
+	flush := func() {
+		if id == "" {
+			return
+		}
+		model := domain.Model{ID: id, DisplayName: formatOpenCodeModelName(id)}
+		if raw := strings.TrimSpace(body.String()); raw != "" {
+			var meta struct {
+				Variants map[string]openCodeVariant `json:"variants"`
+			}
+			if json.Unmarshal([]byte(raw), &meta) == nil {
+				if option, ok := variantOption(meta.Variants); ok {
+					model.Options = []domain.OptionDescriptor{option}
+				}
+			}
+		}
+		models = append(models, model)
+		id = ""
+		body.Reset()
+	}
+	for _, line := range strings.Split(strings.ReplaceAll(output, "\r\n", "\n"), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
-		displayName := formatOpenCodeModelName(id)
-		models = append(models, domain.Model{ID: id, DisplayName: displayName})
+		if line == trimmed && openCodeModelLine.MatchString(trimmed) {
+			flush()
+			id = trimmed
+			continue
+		}
+		if id != "" {
+			body.WriteString(line)
+			body.WriteString("\n")
+		}
 	}
+	flush()
 	return models
+}
+
+// variantOrder ranks common effort names; unknown ones sort after, by name.
+var variantOrder = map[string]int{"none": 0, "minimal": 1, "low": 2, "medium": 3, "high": 4, "xhigh": 5, "max": 6}
+
+type openCodeVariant struct {
+	Disabled bool `json:"disabled"`
+}
+
+func variantOption(variants map[string]openCodeVariant) (domain.OptionDescriptor, bool) {
+	names := make([]string, 0, len(variants))
+	for name, variant := range variants {
+		if variant.Disabled {
+			continue
+		}
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return domain.OptionDescriptor{}, false
+	}
+	sort.Slice(names, func(i, j int) bool {
+		ri, iok := variantOrder[names[i]]
+		rj, jok := variantOrder[names[j]]
+		if iok && jok {
+			return ri < rj
+		}
+		if iok != jok {
+			return iok
+		}
+		return names[i] < names[j]
+	})
+	choices := make([]domain.OptionChoice, 0, len(names)+1)
+	// "Default" sends no variant, leaving the model's own default in effect.
+	choices = append(choices, domain.OptionChoice{ID: "", Label: "Default", Default: true})
+	for _, name := range names {
+		choices = append(choices, domain.OptionChoice{ID: name, Label: strings.ToUpper(name[:1]) + name[1:]})
+	}
+	return domain.OptionDescriptor{
+		ID: domain.OptionEffort, Label: "Effort", Type: domain.OptionSelect, Choices: choices, Default: "",
+	}, true
 }
 
 func formatOpenCodeModelName(id string) string {

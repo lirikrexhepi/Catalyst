@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { EventsOn } from '../../../wailsjs/runtime/runtime';
+import { onRuntimeEvents } from '../agent-session/runtimeEvents';
 import {
   GitCommitDiff,
   GitFileDiff,
@@ -9,7 +9,6 @@ import {
 } from '../../../wailsjs/go/main/App';
 import { domain } from '../../../wailsjs/go/models';
 
-const RUNTIME_CHANNEL = 'agent:event';
 const IDLE_REFRESH_MS = 6_000;
 const SETTLE_MS = 1_200;
 
@@ -98,7 +97,7 @@ export function useGit(isOpen: boolean): GitState {
   // them, so a burst of activity costs one refresh.
   useEffect(() => {
     if (!isOpen) return;
-    const off = EventsOn(RUNTIME_CHANNEL, () => {
+    const off = onRuntimeEvents(() => {
       dirty.current = true;
     });
     const settle = window.setInterval(() => {

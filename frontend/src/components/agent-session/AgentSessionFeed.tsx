@@ -38,31 +38,257 @@ export interface AgentSessionFeedProps {
   onDismissPlan?: () => void;
 }
 
+/** extractPlanFromText parses every text block on every render; cache it. */
+const planCache = new Map<string, ReturnType<typeof extractPlanFromText>>();
+function planOf(content: string) {
+  if (planCache.has(content)) return planCache.get(content)!;
+  const plan = extractPlanFromText(content);
+  if (planCache.size > 300) planCache.clear();
+  planCache.set(content, plan);
+  return plan;
+}
+
+type Handlers = Omit<AgentSessionFeedProps, 'blocks' | 'className' | 'isActive' | 'launchedKeys' | 'canUseWorktree'>;
+
+interface FeedBlockProps {
+  block: AgentStreamBlock;
+  isLatestText: boolean;
+  isLatestPlan: boolean;
+  launched: boolean;
+  canUseWorktree?: boolean;
+  isActive: boolean;
+  handlers: React.MutableRefObject<Handlers>;
+}
+
+/**
+ * One feed entry. Memoised on the block object itself, so a streaming token
+ * re-renders only the block it lands in, not the whole transcript. Callbacks
+ * are read through a ref so their identity never defeats the memo.
+ */
+const FeedBlock = React.memo(function FeedBlock({
+  block,
+  isLatestText,
+  isLatestPlan,
+  launched,
+  canUseWorktree,
+  isActive,
+  handlers,
+}: FeedBlockProps) {
+  const h = handlers.current;
+  switch (block.type) {
+    case 'user':
+      return <UserChatBubble message={block.content} timestamp={block.timestamp} files={block.files} />;
+
+    case 'notice':
+      return <NoticeDivider label={block.label} icon={block.icon} />;
+
+    case 'text': {
+      const tone = block.variant === 'error' ? 'text-rose-300' : 'text-current';
+      const plan = block.variant ? null : planOf(block.content);
+      const cursor = block.isStreaming && (
+        <span className="inline-block w-1.5 h-3 bg-current ml-1 animate-pulse align-middle opacity-70" />
+      );
+      const stamp = !block.isStreaming && isLatestText && (
+        <MessageTimestamp timestamp={block.timestamp} content={block.content} />
+      );
+      if (plan) {
+        if (launched && !(plan.proseBefore || plan.proseAfter) && !block.isStreaming) {
+          return (
+            <div className="flex flex-col gap-1.5">
+              <InlinePlanCard
+                tasks={plan.tasks}
+                canUseWorktree={canUseWorktree}
+                isLatest={isLatestPlan}
+                isActive={isActive}
+                isStreaming={block.isStreaming}
+                isDispatched
+                onConfirm={() => undefined}
+                onDismiss={() => handlers.current.onDismissPlan?.()}
+              />
+              {isLatestText && <MessageTimestamp timestamp={block.timestamp} />}
+            </div>
+          );
+        }
+        return (
+          <div className={`text-[12.5px] font-normal font-['Geist'] ${tone} leading-relaxed pl-0.5 select-text`}>
+            {plan.proseBefore && <MarkdownText content={plan.proseBefore} />}
+            <InlinePlanCard
+              tasks={plan.tasks}
+              canUseWorktree={canUseWorktree}
+              isLatest={isLatestPlan}
+              isActive={isActive}
+              isStreaming={block.isStreaming}
+              isDispatched={launched}
+              onConfirm={
+                launched
+                  ? () => undefined
+                  : (useWorktree, modelIds) => handlers.current.onConfirmPlan?.(plan.tasks, useWorktree, modelIds)
+              }
+              onDismiss={() => handlers.current.onDismissPlan?.()}
+            />
+            {plan.proseAfter && <MarkdownText content={plan.proseAfter} />}
+            {cursor}
+            {stamp}
+          </div>
+        );
+      }
+      return (
+        <div className={`text-[12.5px] font-normal font-['Geist'] ${tone} leading-relaxed pl-0.5 select-text`}>
+          <MarkdownText content={block.content} />
+          {cursor}
+          {stamp}
+        </div>
+      );
+    }
+
+    case 'thinking':
+      return (
+        <ThinkingBlock
+          isThinking={block.isThinking}
+          thoughtText={block.thoughtText}
+          durationSeconds={block.durationSeconds}
+        />
+      );
+
+    case 'tool_group':
+      return <ToolGroup title={block.title} summary={block.summary} items={block.items} />;
+
+    case 'tool_bash':
+      return (
+        <BashTool
+          command={block.command}
+          summary={block.summary}
+          output={block.output}
+          status={block.status}
+          exitCode={block.exitCode}
+        />
+      );
+
+    case 'tool_search':
+      return (
+        <SearchTool
+          files={block.files}
+          query={block.query}
+          summary={block.summary}
+          isSearching={block.isSearching}
+          onFileClick={(path) => handlers.current.onFileClick?.(path)}
+        />
+      );
+
+    case 'tool_edit':
+      return (
+        <EditTool
+          filePath={block.filePath}
+          additions={block.additions}
+          deletions={block.deletions}
+          diffLines={block.diffLines}
+          toolName={block.toolName}
+          status={block.status}
+          defaultExpanded={Boolean(block.diffLines?.length) && (block.diffLines?.length ?? 0) <= 40}
+        />
+      );
+
+    case 'tool_todo':
+      return <TodoTool title={block.title} todos={block.todos} />;
+
+    case 'tool_plan':
+      return (
+        <PlanTool
+          planFile={block.planFile}
+          title={block.title}
+          summary={block.summary}
+          approved={block.approved}
+          blockId={block.id}
+          onApproveBlock={(id) => handlers.current.onApprovePlan?.(id)}
+        />
+      );
+
+    case 'tool_question':
+      return (
+        <QuestionTool
+          questionNumber={block.questionNumber}
+          totalQuestions={block.totalQuestions}
+          question={block.question}
+          options={block.options}
+          items={block.items}
+          answered={block.answered}
+          selectedAnswer={block.selectedAnswer}
+          blockId={block.id}
+          onAnswerBlock={async (blockId, answers) => {
+            const { onAnswerQuestion, threadId } = handlers.current;
+            if (onAnswerQuestion) {
+              onAnswerQuestion(blockId, answers);
+            } else if (threadId) {
+              try {
+                await RespondToQuestion(threadId, blockId.replace(/^question-/, ''), answers);
+              } catch (err) {
+                console.error('Failed to respond to question:', err);
+              }
+            }
+          }}
+          onSkipBlock={async (blockId) => {
+            const { onSkipQuestion, threadId } = handlers.current;
+            if (onSkipQuestion) {
+              onSkipQuestion(blockId);
+            } else if (threadId) {
+              try {
+                await RespondToQuestion(threadId, blockId.replace(/^question-/, ''), []);
+              } catch (err) {
+                console.error('Failed to skip question:', err);
+              }
+            }
+          }}
+        />
+      );
+
+    case 'approval_request':
+      return (
+        <ApprovalCard
+          requestID={block.requestID}
+          title={block.title}
+          detail={block.detail}
+          options={block.options}
+          status={block.status}
+          decision={block.decision}
+          onRespond={async (decision) => {
+            const { onRespondApproval, threadId } = handlers.current;
+            if (onRespondApproval) {
+              onRespondApproval(block.requestID, decision);
+            } else if (threadId) {
+              try {
+                await RespondToApproval(threadId, block.requestID, decision);
+              } catch (err) {
+                console.error('Failed to respond to approval:', err);
+              }
+            }
+          }}
+        />
+      );
+
+    default:
+      return null;
+  }
+});
+
 /**
  * AgentSessionFeed Component
  * Dynamic dispatcher that renders a stream of CLI / AI SDK events into their respective glass UI components.
  */
 const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
   blocks,
-  threadId,
   className = '',
-  onApprovePlan,
-  onAnswerQuestion,
-  onSkipQuestion,
-  onRespondApproval,
-  onFileClick,
   canUseWorktree,
   isActive = true,
   launchedKeys,
-  onConfirmPlan,
-  onDismissPlan,
+  ...handlerProps
 }) => {
+  const handlers = React.useRef<Handlers>(handlerProps);
+  handlers.current = handlerProps;
+
   const latestPlanBlockId = React.useMemo(() => {
     for (let i = blocks.length - 1; i >= 0; i--) {
       const b = blocks[i];
-      if (b.type === 'text' && extractPlanFromText(b.content)) {
-        return b.id;
-      }
+      if (b.type === 'text' && !b.variant && planOf(b.content)) return b.id;
     }
     return null;
   }, [blocks]);
@@ -77,266 +303,28 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
     return -1;
   }, [blocks]);
 
+  const launchedSet = React.useMemo(() => new Set(launchedKeys ?? []), [launchedKeys]);
+
   return (
     <div className={`flex flex-col gap-3.5 ${className}`}>
       {blocks.map((block, index) => {
-        const isLatestText = index === lastTextIndex;
-        switch (block.type) {
-          case 'user':
-            return (
-              <UserChatBubble
-                key={block.id}
-                message={block.content}
-                timestamp={block.timestamp}
-                files={block.files}
-              />
-            );
-
-          case 'notice':
-            return <NoticeDivider key={block.id} label={block.label} icon={block.icon} />;
-
-          case 'text': {
-            const plan = extractPlanFromText(block.content);
-            if (plan) {
-              // The Orchestrator backend launched this plan itself: show prose
-              // plus launched status, not a confirm gate. Unlaunched plans keep
-              // the card as an override (different models / worktree choice).
-              const launched = (launchedKeys ?? []).includes(
-                plan.tasks.map((task) => task.title).join('\n'),
-              );
-              if (launched) {
-                const hasContent = Boolean(plan.proseBefore || plan.proseAfter);
-                if (!hasContent && !block.isStreaming) {
-                  return (
-                    <div key={block.id} className="flex flex-col gap-1.5">
-                      <InlinePlanCard
-                        tasks={plan.tasks}
-                        canUseWorktree={canUseWorktree}
-                        isLatest={block.id === latestPlanBlockId}
-                        isActive={isActive}
-                        isStreaming={block.isStreaming}
-                        isDispatched
-                        onConfirm={() => undefined}
-                        onDismiss={onDismissPlan}
-                      />
-                      {isLatestText && <MessageTimestamp timestamp={block.timestamp} />}
-                    </div>
-                  );
-                }
-                return (
-                  <div
-                    key={block.id}
-                    className="text-[12.5px] font-normal font-['Geist'] text-current leading-relaxed pl-0.5 select-text"
-                  >
-                    {plan.proseBefore && <MarkdownText content={plan.proseBefore} />}
-                    <InlinePlanCard
-                      tasks={plan.tasks}
-                      canUseWorktree={canUseWorktree}
-                      isLatest={block.id === latestPlanBlockId}
-                      isActive={isActive}
-                      isStreaming={block.isStreaming}
-                      isDispatched
-                      onConfirm={() => undefined}
-                      onDismiss={onDismissPlan}
-                    />
-                    {plan.proseAfter && <MarkdownText content={plan.proseAfter} />}
-                    {block.isStreaming && (
-                      <span className="inline-block w-1.5 h-3 bg-current ml-1 animate-pulse align-middle opacity-70" />
-                    )}
-                    {!block.isStreaming && isLatestText && (
-                      <MessageTimestamp timestamp={block.timestamp} content={block.content} />
-                    )}
-                  </div>
-                );
-              }
-
-              return (
-                <div
-                  key={block.id}
-                  className="text-[12.5px] font-normal font-['Geist'] text-current leading-relaxed pl-0.5 select-text"
-                >
-                  {plan.proseBefore && <MarkdownText content={plan.proseBefore} />}
-                  <InlinePlanCard
-                    tasks={plan.tasks}
-                    canUseWorktree={canUseWorktree}
-                    isLatest={block.id === latestPlanBlockId}
-                    isActive={isActive}
-                    isStreaming={block.isStreaming}
-                    onConfirm={(useWorktree, modelIds) =>
-                      onConfirmPlan?.(plan.tasks, useWorktree, modelIds)
-                    }
-                    onDismiss={onDismissPlan}
-                  />
-                  {plan.proseAfter && <MarkdownText content={plan.proseAfter} />}
-                  {block.isStreaming && (
-                    <span className="inline-block w-1.5 h-3 bg-current ml-1 animate-pulse align-middle opacity-70" />
-                  )}
-                  {!block.isStreaming && isLatestText && (
-                    <MessageTimestamp timestamp={block.timestamp} content={block.content} />
-                  )}
-                </div>
-              );
-            }
-
-            return (
-              <div
-                key={block.id}
-                className="text-[12.5px] font-normal font-['Geist'] text-current leading-relaxed pl-0.5 select-text"
-              >
-                <MarkdownText content={block.content} />
-                {block.isStreaming && (
-                  <span className="inline-block w-1.5 h-3 bg-current ml-1 animate-pulse align-middle opacity-70" />
-                )}
-                {!block.isStreaming && isLatestText && (
-                  <MessageTimestamp timestamp={block.timestamp} content={block.content} />
-                )}
-              </div>
-            );
-          }
-
-          case 'thinking':
-            return (
-              <ThinkingBlock
-                key={block.id}
-                isThinking={block.isThinking}
-                thoughtText={block.thoughtText}
-                durationSeconds={block.durationSeconds}
-              />
-            );
-
-          case 'tool_group':
-            return (
-              <ToolGroup
-                key={block.id}
-                title={block.title}
-                summary={block.summary}
-                items={block.items}
-              />
-            );
-
-          case 'tool_bash':
-            return (
-              <BashTool
-                key={block.id}
-                command={block.command}
-                summary={block.summary}
-                output={block.output}
-                status={block.status}
-                exitCode={block.exitCode}
-              />
-            );
-
-          case 'tool_search':
-            return (
-              <SearchTool
-                key={block.id}
-                files={block.files}
-                query={block.query}
-                summary={block.summary}
-                isSearching={block.isSearching}
-                onFileClick={onFileClick}
-              />
-            );
-
-          case 'tool_edit':
-            return (
-              <EditTool
-                key={block.id}
-                filePath={block.filePath}
-                additions={block.additions}
-                deletions={block.deletions}
-                diffLines={block.diffLines}
-              />
-            );
-
-          case 'tool_todo':
-            return (
-              <TodoTool
-                key={block.id}
-                title={block.title}
-                todos={block.todos}
-              />
-            );
-
-          case 'tool_plan':
-            return (
-              <PlanTool
-                key={block.id}
-                planFile={block.planFile}
-                title={block.title}
-                summary={block.summary}
-                approved={block.approved}
-                blockId={block.id}
-                onApproveBlock={onApprovePlan}
-              />
-            );
-
-          case 'tool_question':
-            return (
-              <QuestionTool
-                key={block.id}
-                questionNumber={block.questionNumber}
-                totalQuestions={block.totalQuestions}
-                question={block.question}
-                options={block.options}
-                items={block.items}
-                answered={block.answered}
-                selectedAnswer={block.selectedAnswer}
-                blockId={block.id}
-                onAnswerBlock={async (blockId, answers) => {
-                  if (onAnswerQuestion) {
-                    onAnswerQuestion(blockId, answers);
-                  } else if (threadId) {
-                    const qId = blockId.replace(/^question-/, '');
-                    try {
-                      await RespondToQuestion(threadId, qId, answers);
-                    } catch (err) {
-                      console.error('Failed to respond to question:', err);
-                    }
-                  }
-                }}
-                onSkipBlock={async (blockId) => {
-                  if (onSkipQuestion) {
-                    onSkipQuestion(blockId);
-                  } else if (threadId) {
-                    const qId = blockId.replace(/^question-/, '');
-                    try {
-                      await RespondToQuestion(threadId, qId, []);
-                    } catch (err) {
-                      console.error('Failed to skip question:', err);
-                    }
-                  }
-                }}
-              />
-            );
-
-          case 'approval_request':
-            return (
-              <ApprovalCard
-                key={block.id}
-                requestID={block.requestID}
-                title={block.title}
-                detail={block.detail}
-                options={block.options}
-                status={block.status}
-                decision={block.decision}
-                onRespond={async (decision) => {
-                  if (onRespondApproval) {
-                    onRespondApproval(block.requestID, decision);
-                  } else if (threadId) {
-                    try {
-                      await RespondToApproval(threadId, block.requestID, decision);
-                    } catch (err) {
-                      console.error('Failed to respond to approval:', err);
-                    }
-                  }
-                }}
-              />
-            );
-
-          default:
-            return null;
+        let launched = false;
+        if (block.type === 'text' && launchedSet.size > 0) {
+          const plan = planOf(block.content);
+          launched = Boolean(plan && launchedSet.has(plan.tasks.map((task) => task.title).join('\n')));
         }
+        return (
+          <FeedBlock
+            key={block.id}
+            block={block}
+            isLatestText={index === lastTextIndex}
+            isLatestPlan={block.id === latestPlanBlockId}
+            launched={launched}
+            canUseWorktree={canUseWorktree}
+            isActive={isActive}
+            handlers={handlers}
+          />
+        );
       })}
     </div>
   );

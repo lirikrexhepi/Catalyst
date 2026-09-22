@@ -1,29 +1,27 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { api, getToken } from './api'
-import { Project } from './types'
-import { useWebSocket } from './ws'
+import { startSync } from './store'
 import AuthScreen from './screens/Auth'
-import ProjectView from './screens/ProjectList'
-import AgentChat from './screens/AgentChat'
-import CoordinatorChat from './screens/CoordinatorChat'
-import SettingsScreen from './screens/SettingsScreen'
-import TopBar from './components/TopBar'
-import Drawer, { Selection } from './components/Drawer'
+import Inbox from './screens/Inbox'
+import Thread from './screens/Thread'
+
+/** #/t/<threadId> opens a conversation; anything else is the inbox. */
+function routeFromHash(): string | null {
+  const m = window.location.hash.match(/^#\/t\/(.+)$/)
+  return m ? decodeURIComponent(m[1]) : null
+}
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [selection, setSelection] = useState<Selection>({ kind: 'coordinator' })
-  const [projects, setProjects] = useState<Project[]>([])
-  const [chatKey, setChatKey] = useState(0)
-  const ws = useWebSocket()
+  const [threadId, setThreadId] = useState<string | null>(routeFromHash())
 
   const checkAuth = useCallback(() => {
     setAuthenticated(null)
     getToken()
-    api.status().then(s => {
-      setAuthenticated(s.authenticated !== false)
-    }).catch(() => setAuthenticated(false))
+    api
+      .status()
+      .then((s) => setAuthenticated(s.authenticated !== false))
+      .catch(() => setAuthenticated(false))
   }, [])
 
   useEffect(() => {
@@ -31,94 +29,26 @@ export default function App() {
   }, [checkAuth])
 
   useEffect(() => {
-    if (authenticated !== true) return
-    let mounted = true
-    const load = async () => {
-      try {
-        const projs = await api.projects()
-        if (mounted) setProjects(Array.isArray(projs) ? projs : [])
-      } catch { /* retry next poll */ }
-    }
-    load()
-    const interval = setInterval(load, 4000)
-    return () => {
-      mounted = false
-      clearInterval(interval)
-    }
+    if (authenticated) startSync()
   }, [authenticated])
 
-  const newChat = useCallback(async () => {
-    try {
-      await api.newCoordinator()
-    } catch { /* local reset still applies */ }
-    setSelection({ kind: 'coordinator' })
-    setChatKey(k => k + 1)
+  // The hash drives navigation so iOS back swipes and the back button work.
+  useEffect(() => {
+    const onHash = () => setThreadId(routeFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
-  if (authenticated === null) return <div style={{ background: 'var(--bg-main)', height: '100dvh' }} />
+  const open = useCallback((id: string) => {
+    window.location.hash = `#/t/${encodeURIComponent(id)}`
+  }, [])
+  const back = useCallback(() => {
+    if (window.history.length > 1 && routeFromHash()) window.history.back()
+    else window.location.hash = ''
+  }, [])
+
+  if (authenticated === null) return <div className="screen" />
   if (authenticated === false) return <AuthScreen onDone={checkAuth} />
-
-  const title =
-    selection.kind === 'coordinator' ? 'Orchestrator' :
-    selection.kind === 'project' ? selection.name :
-    selection.kind === 'agent' ? selection.title :
-    'Settings'
-
-  const inChat = selection.kind === 'coordinator' || selection.kind === 'agent'
-
-  return (
-    <div className="screen-stack" style={{ overflowX: 'clip' }}>
-      <div className="screen current" style={{ display: 'flex', flexDirection: 'column' }}>
-        <TopBar
-          title={title}
-          onMenu={() => setDrawerOpen(true)}
-          onNewChat={selection.kind === 'coordinator' ? () => void newChat() : undefined}
-          live={inChat ? ws.connected : undefined}
-        />
-
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {selection.kind === 'coordinator' && (
-            <CoordinatorChat
-              key={chatKey}
-              pop={() => setDrawerOpen(true)}
-              wsLastMessage={ws.lastMessage}
-              wsSend={ws.send}
-              wsConnected={ws.connected}
-              hideBack
-              bare
-            />
-          )}
-          {selection.kind === 'project' && (
-            <ProjectView
-              projectPath={selection.path}
-              projectName={selection.name}
-              onOpenAgent={(threadId, agentTitle) => setSelection({ kind: 'agent', threadId, title: agentTitle })}
-              onOpenCoordinator={() => setSelection({ kind: 'coordinator' })}
-            />
-          )}
-          {selection.kind === 'agent' && (
-            <AgentChat
-              pop={() => setDrawerOpen(true)}
-              wsLastMessage={ws.lastMessage}
-              wsSend={ws.send}
-              wsConnected={ws.connected}
-              threadId={selection.threadId}
-              title={selection.title}
-              bare
-            />
-          )}
-          {selection.kind === 'settings' && <SettingsScreen bare />}
-        </div>
-
-        <Drawer
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          projects={projects}
-          selection={selection}
-          onSelect={setSelection}
-          onNewChat={() => void newChat()}
-        />
-      </div>
-    </div>
-  )
+  if (threadId) return <Thread key={threadId} threadId={threadId} back={back} />
+  return <Inbox open={open} />
 }

@@ -1,42 +1,14 @@
 export type TaskState = 'pending' | 'running' | 'complete' | 'failed' | 'closed'
 
-export interface RemoteAgentView {
-  threadId: string
-  title: string
-  driver: string
-  model: string
-  state: TaskState
-  cwd: string
-  projectCwd?: string
-  branch?: string
-  live: boolean
+export interface FileRef {
+  path: string
+  mime?: string
 }
 
-export interface RemoteStatus {
-  project: string
-  activeModel: string
-  activeDriver: string
-  totalAgents: number
-  runningAgents: number
-}
-
-export interface RuntimeEvent {
-  kind: string
-  threadId: string
-  turnId?: string
-  instanceId?: string
-  driver?: string
-  seq: number
-  at: number
-  text?: string
-  delta?: boolean
-  icon?: string
-  tool?: ToolCall
-  plan?: PlanEntry[]
-  approval?: ApprovalRequest
-  question?: QuestionRequest
-  stopReason?: string
-  error?: string
+export interface FileDiff {
+  path: string
+  oldText?: string
+  newText?: string
 }
 
 export interface ToolCall {
@@ -46,6 +18,7 @@ export interface ToolCall {
   status: string
   input?: Record<string, unknown>
   output?: string
+  diffs?: FileDiff[]
 }
 
 export interface PlanEntry {
@@ -54,11 +27,17 @@ export interface PlanEntry {
   priority?: string
 }
 
+export interface ApprovalOption {
+  id: string
+  name: string
+  kind: string
+}
+
 export interface ApprovalRequest {
   requestId: string
   title: string
   detail?: string
-  options?: Array<{ id: string; name: string; kind: string }>
+  options?: ApprovalOption[]
 }
 
 export interface QuestionRequest {
@@ -70,27 +49,96 @@ export interface QuestionRequest {
   }>
 }
 
+export interface RuntimeEvent {
+  kind: string
+  threadId: string
+  turnId?: string
+  instanceId?: string
+  driver?: string
+  seq: number
+  itemId?: string
+  at: number
+  text?: string
+  delta?: boolean
+  icon?: string
+  files?: FileRef[]
+  tool?: ToolCall
+  plan?: PlanEntry[]
+  approval?: ApprovalRequest
+  question?: QuestionRequest
+  stopReason?: string
+  error?: string
+  rateLimits?: Array<{ window: string; status?: string; usedPercent?: number; resetsAt?: number }>
+}
+
 export interface ServerMessage {
-  type: 'event' | 'agents' | 'status' | 'pong' | 'error'
+  type: 'event' | 'events' | 'agents' | 'status' | 'pong' | 'error'
   event?: RuntimeEvent
-  agents?: RemoteAgentView[]
-  status?: RemoteStatus
+  events?: RuntimeEvent[]
   error?: string
 }
 
-export type Screen =
-  | { id: 'auth' }
-  | { id: 'projects' }
-  | { id: 'coordinator'; projectPath?: string; projectName?: string }
-  | { id: 'agents'; projectPath: string; projectName: string }
-  | { id: 'agent-chat'; threadId: string; title: string; cwd: string }
+export type ModelOptions = Record<string, unknown>
+
+export interface ThreadSummary {
+  threadId: string
+  title: string
+  kind: 'coordinator' | 'agent'
+  driver: string
+  model: string
+  options?: ModelOptions
+  state?: TaskState
+  cwd?: string
+  projectCwd?: string
+  projectName?: string
+  branch?: string
+  live: boolean
+  busy: boolean
+  turnStartedAt?: number
+  lastTurnMs?: number
+  lastActivity?: number
+  preview?: string
+  attention?: 'approval' | 'question' | ''
+}
+
+export interface OptionChoice {
+  id: string
+  label: string
+  default?: boolean
+}
+
+export interface OptionDescriptor {
+  id: string
+  label: string
+  type: 'select' | 'boolean'
+  choices?: OptionChoice[]
+  default?: unknown
+}
+
+export interface ModelInfo {
+  id: string
+  name: string
+  default?: boolean
+  options?: OptionDescriptor[]
+}
+
+export interface ProviderInfo {
+  driver: string
+  name: string
+  models: ModelInfo[]
+}
+
+export interface ModelChoice {
+  driver: string
+  model: string
+  options?: ModelOptions
+}
 
 export interface Project {
   id?: string
   path: string
   name: string
-  agents: RemoteAgentView[]
   totalAgents: number
-  runningCount: number
+  runningAgents: number
   lastActivity: number
 }

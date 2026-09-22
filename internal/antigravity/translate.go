@@ -54,6 +54,7 @@ func (a *Adapter) handleStep(s *session, turnID string, step *StepUpdate) {
 			event := a.event(s, turnID, domain.EventAgentMessage)
 			event.Text = step.TextDelta
 			event.Delta = true
+			event.ItemID = stepItem(turnID, step)
 			a.emit.Emit(event)
 		}
 	case "thinking", "reasoning":
@@ -61,6 +62,7 @@ func (a *Adapter) handleStep(s *session, turnID string, step *StepUpdate) {
 			event := a.event(s, turnID, domain.EventAgentThought)
 			event.Text = step.TextDelta
 			event.Delta = true
+			event.ItemID = stepItem(turnID, step)
 			a.emit.Emit(event)
 		}
 	case "tool", "tool_call", "tool_result", "function_call":
@@ -77,6 +79,7 @@ func (a *Adapter) handleStep(s *session, turnID string, step *StepUpdate) {
 			event := a.event(s, turnID, domain.EventAgentMessage)
 			event.Text = step.TextDelta
 			event.Delta = true
+			event.ItemID = stepItem(turnID, step)
 			a.emit.Emit(event)
 		} else {
 			logger.Debugf("Antigravity", "ignoring step_type %q with no text or tool payload", step.StepType)
@@ -179,7 +182,14 @@ func (a *Adapter) handleTool(s *session, turnID string, step *StepUpdate) {
 	}
 	event := a.event(s, turnID, kind)
 	event.Tool = tool
+	event.ItemID = tool.ID
 	a.emit.Emit(event)
+}
+
+// stepItem keys streamed text by turn and step, so text from separate steps
+// (narration before and after a tool) lands in separate blocks.
+func stepItem(turnID string, step *StepUpdate) string {
+	return turnID + ":step:" + itoa(step.StepIndex)
 }
 
 func toolID(step *StepUpdate) string {
@@ -232,6 +242,7 @@ func (a *Adapter) handleResult(s *session, turnID string, result *Result) {
 			(!cut && (strings.Contains(streamed, resp) || strings.Contains(resp, streamed))))
 		if !duplicate {
 			message := a.event(s, turnID, domain.EventAgentMessage)
+			message.ItemID = turnID + ":response"
 			message.Text = result.Response
 			a.emit.Emit(message)
 		}

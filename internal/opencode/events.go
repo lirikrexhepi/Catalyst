@@ -14,6 +14,8 @@ func (a *Adapter) handleEvent(event Event) {
 	switch event.Type {
 	case "message.part.created", "message.part.updated":
 		a.onPartUpdated(event.Properties)
+	case "message.part.delta":
+		a.onPartDelta(event.Properties)
 	case "message.created", "message.updated":
 		a.onMessageUpdated(event.Properties)
 	case "session.idle":
@@ -83,26 +85,81 @@ func (a *Adapter) onPartUpdated(raw json.RawMessage) {
 		}
 	}
 
+	t.mu.Lock()
+	t.partTypes[part.ID] = part.Type
+	t.mu.Unlock()
+
 	switch part.Type {
 	case "text":
-		if part.Text == "" {
-			return
-		}
-		event := a.base(t, domain.EventAgentMessage)
-		event.Text = part.Text
-		a.emit.Emit(event)
+		a.emitPartText(t, part.ID, domain.EventAgentMessage, part.Text)
 
 	case "reasoning":
-		if part.Text == "" {
-			return
-		}
-		event := a.base(t, domain.EventAgentThought)
-		event.Text = part.Text
-		a.emit.Emit(event)
+		a.emitPartText(t, part.ID, domain.EventAgentThought, part.Text)
 
 	case "tool":
 		a.onToolPart(t, part)
 	}
+}
+
+// emitPartText turns OpenCode's cumulative part text into deltas: only the
+// suffix beyond what was already sent is emitted, keyed by the part id. A
+// rewrite that does not extend the previous text replaces the block.
+func (a *Adapter) emitPartText(t *thread, partID string, kind domain.EventKind, full string) {
+	if full == "" {
+		return
+	}
+	t.mu.Lock()
+	sent := t.partText[partID]
+	t.partText[partID] = full
+	t.mu.Unlock()
+
+	event := a.base(t, kind)
+	event.ItemID = partID
+	switch {
+	case full == sent:
+		return
+	case strings.HasPrefix(full, sent):
+		event.Text = full[len(sent):]
+		event.Delta = true
+	default:
+		event.Text = full
+	}
+	a.emit.Emit(event)
+}
+
+// onPartDelta handles message.part.delta, the incremental stream newer
+// servers send for text and reasoning parts.
+func (a *Adapter) onPartDelta(raw json.RawMessage) {
+	var props PartDeltaProperties
+	if json.Unmarshal(raw, &props) != nil || props.Delta == "" {
+		return
+	}
+	if props.Field != "" && props.Field != "text" {
+		return
+	}
+	t := a.lookupBySession(props.SessionID)
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	role := t.messageRoles[props.MessageID]
+	partType := t.partTypes[props.PartID]
+	if role == "user" {
+		t.mu.Unlock()
+		return
+	}
+	t.partText[props.PartID] += props.Delta
+	t.mu.Unlock()
+
+	kind := domain.EventAgentMessage
+	if partType == "reasoning" {
+		kind = domain.EventAgentThought
+	}
+	event := a.base(t, kind)
+	event.ItemID = props.PartID
+	event.Text = props.Delta
+	event.Delta = true
+	a.emit.Emit(event)
 }
 
 // onToolPart emits a call the first time a tool id is seen and results
@@ -152,6 +209,7 @@ func (a *Adapter) onToolPart(t *thread, part Part) {
 
 	event := a.base(t, kind)
 	event.Tool = tool
+	event.ItemID = id
 	a.emit.Emit(event)
 }
 
@@ -225,6 +283,8 @@ func (a *Adapter) onSessionIdle(raw json.RawMessage) {
 	t.turnID = ""
 	t.lastUserText = ""
 	t.tools = make(map[string]string)
+	t.partText = make(map[string]string)
+	t.partTypes = make(map[string]string)
 	t.mu.Unlock()
 	if turnID == "" {
 		return

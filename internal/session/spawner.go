@@ -25,6 +25,9 @@ type SpawnRequest struct {
 	// Cwd overrides the plan-wide directory, so a task naming another project
 	// starts there instead of in the orchestrator's own folder.
 	Cwd string `json:"cwd,omitempty"`
+	// Preamble is context sent to the agent ahead of the prompt (project
+	// memory) but not recorded as part of the user's message.
+	Preamble string `json:"preamble,omitempty"`
 }
 
 // SpawnOptions carries the choices the user makes once per plan.
@@ -184,7 +187,13 @@ func (s *Spawner) spawnOne(
 		worktree, workdir = created, created.Path
 	}
 
+	permission := opts.Permission
+	if permission == "" {
+		permission = domain.PermissionBypass
+	}
+
 	task, ok := s.workspaces.AddTask(workspace.ID, domain.Task{
+		Permission: permission,
 		ThreadID: threadID,
 		Title:    request.Title,
 		Prompt:   request.Prompt,
@@ -205,11 +214,6 @@ func (s *Spawner) spawnOne(
 		s.tracker.TrackTask(*task)
 	}
 
-	permission := opts.Permission
-	if permission == "" {
-		permission = domain.PermissionBypass
-	}
-
 	if _, err := s.manager.Start(ctx, driver, domain.SessionStartInput{
 		ThreadID:   threadID,
 		Cwd:        workdir,
@@ -224,10 +228,14 @@ func (s *Spawner) spawnOne(
 	turnID := threadID + "-turn-1"
 	s.manager.RecordUserMessage(threadID, turnID, request.Prompt)
 
+	body := request.Prompt
+	if request.Preamble != "" {
+		body = request.Preamble + "\n\n--- Current request ---\n\n" + request.Prompt
+	}
 	if err := s.manager.Send(ctx, domain.SendTurnInput{
 		ThreadID: threadID,
 		TurnID:   turnID,
-		Text:     request.Prompt,
+		Text:     body,
 	}); err != nil {
 		s.workspaces.SetState(threadID, domain.TaskFailed)
 		return nil, err

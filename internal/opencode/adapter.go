@@ -19,6 +19,9 @@ type serverEntry struct {
 	server   *server
 	api      *httpClient
 	streamed context.CancelFunc
+	// threads counts sessions using this server; the server is stopped when
+	// the last one ends, so worktrees do not leave resident servers behind.
+	threads int
 }
 
 // Adapter talks to managed (or external) OpenCode HTTP servers. Servers are
@@ -42,14 +45,20 @@ type thread struct {
 	threadID   string
 	sessionID  string
 	model      string
+	options    domain.ModelOptions
 	permission domain.PermissionMode
 	api        *httpClient
+	serverKey  string
 
 	mu           sync.Mutex
 	turnID       string
 	tools        map[string]string
 	messageRoles map[string]string
 	lastUserText string
+	// partText is the text already emitted per part, used to turn
+	// cumulative part updates into deltas; partTypes maps part id to type.
+	partText  map[string]string
+	partTypes map[string]string
 }
 
 func NewAdapter(settings domain.ProviderSettings, emit provider.Emitter) *Adapter {
@@ -71,32 +80,51 @@ func (a *Adapter) Capabilities() provider.Capabilities {
 	return provider.Capabilities{SessionModelSwitch: true, Resume: true, Approvals: true}
 }
 
-func (a *Adapter) ensureServer(ctx context.Context, cwd string) (*httpClient, error) {
+func serverKey(cwd string) string {
 	clean := filepath.Clean(cwd)
 	if clean == "" || clean == "." {
 		if wd, err := os.Getwd(); err == nil {
 			clean = filepath.Clean(wd)
 		}
 	}
+	return clean
+}
 
-	a.mu.RLock()
-	if entry, ok := a.servers[clean]; ok && entry.api != nil {
-		api := entry.api
-		a.mu.RUnlock()
+// liveServer returns the cached server for key unless its process died.
+func (a *Adapter) liveServer(key string) (*httpClient, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	entry, ok := a.servers[key]
+	if !ok || entry.api == nil {
+		return nil, false
+	}
+	if entry.server != nil && entry.server.proc != nil {
+		select {
+		case <-entry.server.proc.Done():
+			logger.Errorf("OpenCode", "server for %s exited; restarting", key)
+			if entry.streamed != nil {
+				entry.streamed()
+			}
+			delete(a.servers, key)
+			return nil, false
+		default:
+		}
+	}
+	return entry.api, true
+}
+
+func (a *Adapter) ensureServer(ctx context.Context, cwd string) (*httpClient, error) {
+	clean := serverKey(cwd)
+	if api, ok := a.liveServer(clean); ok {
 		return api, nil
 	}
-	a.mu.RUnlock()
 
 	a.starting.Lock()
 	defer a.starting.Unlock()
 
-	a.mu.RLock()
-	if entry, ok := a.servers[clean]; ok && entry.api != nil {
-		api := entry.api
-		a.mu.RUnlock()
+	if api, ok := a.liveServer(clean); ok {
 		return api, nil
 	}
-	a.mu.RUnlock()
 
 	srv, err := startServer(ctx, a.settings, a.client, clean)
 	if err != nil {
@@ -153,10 +181,14 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	t := &thread{
 		threadID:     in.ThreadID,
 		model:        model,
+		options:      in.Options,
 		permission:   in.Permission,
 		api:          api,
+		serverKey:    serverKey(cwd),
 		tools:        make(map[string]string),
 		messageRoles: make(map[string]string),
+		partText:     make(map[string]string),
+		partTypes:    make(map[string]string),
 	}
 
 	if in.Resume != "" {
@@ -176,6 +208,9 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	a.mu.Lock()
 	a.threads[in.ThreadID] = t
 	a.bySession[t.sessionID] = t
+	if entry, ok := a.servers[t.serverKey]; ok {
+		entry.threads++
+	}
 	a.mu.Unlock()
 
 	logger.Infof("OpenCode", "Session started: thread=%s sessionID=%s model=%s", in.ThreadID, t.sessionID, model)
@@ -228,7 +263,11 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 		Kind: domain.EventTurnStarted, ThreadID: in.ThreadID, TurnID: in.TurnID, Driver: domain.DriverOpenCode,
 	})
 
-	request := PromptRequest{Model: parseModelRef(t.model), Parts: parts}
+	t.mu.Lock()
+	variant := t.options.String(domain.OptionEffort)
+	model := t.model
+	t.mu.Unlock()
+	request := PromptRequest{Model: parseModelRef(model), Variant: variant, Parts: parts}
 	if err := api.do(ctx, http.MethodPost, "/session/"+t.sessionID+"/prompt_async", request, nil); err != nil {
 		t.mu.Lock()
 		t.turnID = ""
@@ -340,8 +379,16 @@ func (a *Adapter) StopSession(ctx context.Context, threadID string) error {
 	a.mu.Lock()
 	t := a.threads[threadID]
 	delete(a.threads, threadID)
+	var idle *serverEntry
 	if t != nil {
 		delete(a.bySession, t.sessionID)
+		if entry, ok := a.servers[t.serverKey]; ok {
+			entry.threads--
+			if entry.threads <= 0 {
+				idle = entry
+				delete(a.servers, t.serverKey)
+			}
+		}
 	}
 	a.mu.Unlock()
 	if t == nil {
@@ -349,6 +396,14 @@ func (a *Adapter) StopSession(ctx context.Context, threadID string) error {
 	}
 	if t.api != nil {
 		_ = t.api.do(ctx, http.MethodPost, "/session/"+t.sessionID+"/abort", nil, nil)
+	}
+	if idle != nil {
+		if idle.streamed != nil {
+			idle.streamed()
+		}
+		if idle.server != nil {
+			go idle.server.stop()
+		}
 	}
 	a.emit.Emit(domain.RuntimeEvent{
 		Kind: domain.EventSessionStopped, ThreadID: threadID, Driver: domain.DriverOpenCode,
@@ -395,6 +450,10 @@ func (a *Adapter) UpdateModel(threadID, model string, options domain.ModelOption
 	defer t.mu.Unlock()
 	if model != "" {
 		t.model = model
+	}
+	// Model and variant are sent with every prompt, so both apply in place.
+	if options != nil {
+		t.options = options
 	}
 	return true
 }
