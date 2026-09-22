@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // prefsFile is where per-CLI settings live between runs.

@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/git"
+	"composer/internal/domain"
+	"composer/internal/git"
 )
 
 // SpawnRequest is one task the orchestrator asked for. Driver and model are
@@ -29,14 +29,15 @@ type SpawnRequest struct {
 
 // SpawnOptions carries the choices the user makes once per plan.
 type SpawnOptions struct {
-	Driver      domain.DriverKind   `json:"driver"`
-	Model       string              `json:"model,omitempty"`
-	Options     domain.ModelOptions `json:"options,omitempty"`
-	Cwd         string              `json:"cwd"`
-	UseWorktree bool                `json:"useWorktree"`
-	WorkspaceID string              `json:"workspaceId,omitempty"`
-	Title       string              `json:"title,omitempty"`
-	Prompt      string              `json:"prompt,omitempty"`
+	Driver      domain.DriverKind     `json:"driver"`
+	Model       string                `json:"model,omitempty"`
+	Options     domain.ModelOptions   `json:"options,omitempty"`
+	Cwd         string                `json:"cwd"`
+	UseWorktree bool                  `json:"useWorktree"`
+	WorkspaceID string                `json:"workspaceId,omitempty"`
+	Title       string                `json:"title,omitempty"`
+	Prompt      string                `json:"prompt,omitempty"`
+	Permission  domain.PermissionMode `json:"permissionMode,omitempty"`
 }
 
 // Spawner turns a plan into running agent sessions, each optionally isolated in
@@ -99,13 +100,18 @@ func (s *Spawner) Spawn(ctx context.Context, requests []SpawnRequest, opts Spawn
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	workspace := s.workspaces.Create(firstNonEmpty(opts.Title, requests[0].Title), opts.Prompt, cwd)
-
-	// Recorded before any agent starts: a crash mid-spawn should still leave a
-	// reopenable session containing the plan that caused it.
-	if s.tracker != nil {
-		coordinatorThreadID := s.tracker.BindCoordinator(workspace.ID)
-		s.tracker.OpenWorkspace(*workspace, coordinatorThreadID)
+	var workspace *domain.Workspace
+	if opts.WorkspaceID != "" {
+		workspace = s.workspaces.Get(opts.WorkspaceID)
+	}
+	if workspace == nil {
+		workspace = s.workspaces.Create(firstNonEmpty(opts.Title, requests[0].Title), opts.Prompt, cwd)
+		// Recorded before any agent starts: a crash mid-spawn should still leave a
+		// reopenable session containing the plan that caused it.
+		if s.tracker != nil {
+			coordinatorThreadID := s.tracker.BindCoordinator(workspace.ID)
+			s.tracker.OpenWorkspace(*workspace, coordinatorThreadID)
+		}
 	}
 
 	var repo *git.Repo
@@ -184,6 +190,7 @@ func (s *Spawner) spawnOne(
 		Prompt:   request.Prompt,
 		Driver:   driver,
 		Model:    model,
+		Options:  options,
 		State:    domain.TaskRunning,
 		Worktree: worktree,
 	})
@@ -191,20 +198,35 @@ func (s *Spawner) spawnOne(
 		return nil, fmt.Errorf("workspace %s is gone", workspace.ID)
 	}
 
+	// Register task with history tracker before starting the session or recording
+	// user messages, so r.workspaceOf[threadID] is set and the initial turn prompt
+	// is recorded in the transcript rather than dropped.
+	if s.tracker != nil {
+		s.tracker.TrackTask(*task)
+	}
+
+	permission := opts.Permission
+	if permission == "" {
+		permission = domain.PermissionBypass
+	}
+
 	if _, err := s.manager.Start(ctx, driver, domain.SessionStartInput{
 		ThreadID:   threadID,
 		Cwd:        workdir,
 		Model:      model,
 		Options:    options,
-		Permission: domain.PermissionBypass,
+		Permission: permission,
 	}); err != nil {
 		s.workspaces.SetState(threadID, domain.TaskFailed)
 		return nil, err
 	}
 
+	turnID := threadID + "-turn-1"
+	s.manager.RecordUserMessage(threadID, turnID, request.Prompt)
+
 	if err := s.manager.Send(ctx, domain.SendTurnInput{
 		ThreadID: threadID,
-		TurnID:   threadID + "-turn-1",
+		TurnID:   turnID,
 		Text:     request.Prompt,
 	}); err != nil {
 		s.workspaces.SetState(threadID, domain.TaskFailed)
@@ -226,7 +248,7 @@ func (s *Spawner) makeWorktree(ctx context.Context, repo *git.Repo, title string
 	}
 
 	slug := git.Slug(title)
-	branch := repo.UniqueBranch("catalyst/", slug)
+	branch := repo.UniqueBranch("composer/", slug)
 	path := filepath.Join(root, filepath.Base(branch))
 
 	// A leftover directory from a previous run would make `worktree add` fail.

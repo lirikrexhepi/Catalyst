@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // Adapter translates one provider CLI's native protocol into canonical runtime
@@ -17,6 +17,7 @@ type Adapter interface {
 	SendTurn(ctx context.Context, in domain.SendTurnInput) error
 	InterruptTurn(ctx context.Context, threadID string) error
 	RespondToApproval(ctx context.Context, threadID, requestID string, decision domain.ApprovalDecision) error
+	RespondToQuestion(ctx context.Context, threadID, requestID string, answers []string) error
 	StopSession(ctx context.Context, threadID string) error
 	StopAll(ctx context.Context) error
 	HasSession(threadID string) bool
@@ -46,6 +47,10 @@ type Capabilities struct {
 	Resume             bool `json:"resume"`
 	Approvals          bool `json:"approvals"`
 	Plans              bool `json:"plans"`
+}
+
+type ModelUpdater interface {
+	UpdateModel(threadID, model string, options domain.ModelOptions) bool
 }
 
 // Emitter is how adapters publish canonical events. The session manager

@@ -11,9 +11,10 @@ function getVariantDefaults(variant?: LiquidGlassVariant): Partial<LiquidGlassPr
         glassThickness: 35,
         refractionScale: 1.0,
         blur: 0.5,
-        frost: 6,
+        frost: 16,
         specularOpacity: 0.45,
-        tint: 'rgba(255, 255, 255, 0.08)',
+        tint: 'rgba(18, 20, 26, 0.85)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
         shadow: 'apple',
       };
     case 'button':
@@ -23,9 +24,10 @@ function getVariantDefaults(variant?: LiquidGlassVariant): Partial<LiquidGlassPr
         glassThickness: 28,
         refractionScale: 0.9,
         blur: 0.4,
-        frost: 5,
-        specularOpacity: 0.5,
-        tint: 'rgba(255, 255, 255, 0.12)',
+        frost: 12,
+        specularOpacity: 0.4,
+        tint: 'rgba(255, 255, 255, 0.06)',
+        border: '1px solid rgba(255, 255, 255, 0.10)',
         shadow: 'subtle',
         interactive: true,
       };
@@ -36,9 +38,10 @@ function getVariantDefaults(variant?: LiquidGlassVariant): Partial<LiquidGlassPr
         glassThickness: 38,
         refractionScale: 1.0,
         blur: 0.6,
-        frost: 7,
+        frost: 16,
         specularOpacity: 0.4,
-        tint: 'rgba(255, 255, 255, 0.07)',
+        tint: 'rgba(18, 20, 26, 0.85)',
+        border: '1px solid rgba(255, 255, 255, 0.10)',
         shadow: 'elevated',
       };
     case 'card':
@@ -48,9 +51,10 @@ function getVariantDefaults(variant?: LiquidGlassVariant): Partial<LiquidGlassPr
         glassThickness: 40,
         refractionScale: 0.95,
         blur: 0.5,
-        frost: 6,
+        frost: 14,
         specularOpacity: 0.35,
-        tint: 'rgba(255, 255, 255, 0.06)',
+        tint: 'rgba(20, 22, 28, 0.70)',
+        border: '1px solid rgba(255, 255, 255, 0.08)',
         shadow: 'apple',
       };
     case 'input':
@@ -60,9 +64,10 @@ function getVariantDefaults(variant?: LiquidGlassVariant): Partial<LiquidGlassPr
         glassThickness: 24,
         refractionScale: 0.8,
         blur: 0.4,
-        frost: 5,
+        frost: 14,
         specularOpacity: 0.3,
-        tint: 'rgba(255, 255, 255, 0.09)',
+        tint: 'rgba(18, 20, 26, 0.90)',
+        border: '1px solid rgba(255, 255, 255, 0.12)',
         shadow: 'subtle',
       };
     case 'panel':
@@ -73,9 +78,10 @@ function getVariantDefaults(variant?: LiquidGlassVariant): Partial<LiquidGlassPr
         glassThickness: 45,
         refractionScale: 1.0,
         blur: 0.5,
-        frost: 7,
+        frost: 16,
         specularOpacity: 0.4,
-        tint: 'rgba(255, 255, 255, 0.08)',
+        tint: 'rgba(18, 20, 26, 0.85)',
+        border: '1px solid rgba(255, 255, 255, 0.10)',
         shadow: 'apple',
       };
   }

@@ -25,11 +25,15 @@ type Server struct {
 	// OwnerThreadID is the agent session whose process tree contains this
 	// listener. Empty when it was not started by an agent.
 	OwnerThreadID string `json:"ownerThreadId,omitempty"`
-	// Ours marks a listener Catalyst can attribute to one of its own agents.
+	// Ours marks a listener Composer can attribute to one of its own agents.
 	Ours bool `json:"ours"`
 	// Agent marks the agent CLI's own socket rather than something it started.
 	// Not a web server, so it is never a preview destination.
-	Agent bool `json:"agent,omitempty"`
+	Agent   bool   `json:"agent,omitempty"`
+	Cwd     string `json:"cwd,omitempty"`
+	ID      string `json:"id,omitempty"`
+	Managed bool   `json:"managed,omitempty"`
+	Status  string `json:"status,omitempty"`
 }
 
 // Owner identifies an agent whose spawned processes should be attributed.
@@ -53,6 +57,12 @@ type Group struct {
 }
 
 // Grouped folds a scan into per-agent buckets, agents first and unattributed
+// ComposerDevPort is Composer's internal GUI dev server port (in wails dev mode).
+// It must never be shown or counted as a user project dev server.
+const ComposerDevPort = 9245
+
+// Grouped sorts servers into one bucket per agent, keeping agent-started
+// servers above everything else and leaving ambient (system or user-started)
 // servers last.
 func Grouped(found []Server, owners []Owner) []Group {
 	titles := make(map[string]string, len(owners))
@@ -69,14 +79,28 @@ func Grouped(found []Server, owners []Owner) []Group {
 		byThread[server.OwnerThreadID] = append(byThread[server.OwnerThreadID], server)
 	}
 
+	seenThreads := make(map[string]bool, len(order))
 	groups := make([]Group, 0, len(order)+1)
 	for _, threadID := range order {
+		seenThreads[threadID] = true
 		servers := byThread[threadID]
 		if len(servers) == 0 {
 			continue
 		}
 		groups = append(groups, Group{ThreadID: threadID, Title: titles[threadID], Servers: servers})
 	}
+
+	for threadID, srvs := range byThread {
+		if threadID == "" || seenThreads[threadID] || len(srvs) == 0 {
+			continue
+		}
+		title := titles[threadID]
+		if title == "" {
+			title = "Agent " + threadID
+		}
+		groups = append(groups, Group{ThreadID: threadID, Title: title, Servers: srvs})
+	}
+
 	if others := byThread[""]; len(others) > 0 {
 		groups = append(groups, Group{Title: "Not started by an agent", Servers: others})
 	}
@@ -148,6 +172,11 @@ func (s *Scanner) Scan(ctx context.Context, owners []Owner) ([]Server, error) {
 	seen := make(map[int]bool)
 	out := make([]Server, 0, len(sockets))
 	for _, socket := range sockets {
+		// Never surface Composer's internal GUI dev server
+		if socket.port == ComposerDevPort {
+			continue
+		}
+
 		// One process can hold several sockets (IPv4 + IPv6, or many ports);
 		// the panel lists a process once, on its lowest port.
 		if seen[socket.pid] {
@@ -168,6 +197,7 @@ func (s *Scanner) Scan(ctx context.Context, owners []Owner) ([]Server, error) {
 			Command: info.command,
 			Kind:    classify(info),
 			Ours:    owned,
+			Cwd:     InferWorkdir(info.command),
 		}
 		if owned {
 			server.OwnerThreadID = owner.ThreadID
@@ -297,4 +327,33 @@ var systemProcesses = map[string]bool{
 
 func isSystemProcess(info processInfo) bool {
 	return systemProcesses[strings.ToLower(info.name)] || info.pid <= 4
+}
+
+func OwnerOfPID(ctx context.Context, pid int, owners []Owner) (Owner, bool) {
+	if pid <= 0 {
+		return Owner{}, false
+	}
+	table, err := processTable(ctx)
+	if err != nil {
+		return Owner{}, false
+	}
+	byPID := make(map[int]Owner, len(owners))
+	for _, owner := range owners {
+		if owner.PID > 0 {
+			byPID[owner.PID] = owner
+		}
+	}
+	return findOwner(pid, table, byPID)
+}
+
+func ParentMap(ctx context.Context) (map[int]int, error) {
+	table, err := processTable(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[int]int, len(table))
+	for pid, info := range table {
+		out[pid] = info.parent
+	}
+	return out, nil
 }

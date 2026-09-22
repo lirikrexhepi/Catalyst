@@ -13,7 +13,11 @@ import {
  * the controls are drawn. Everything else in the strip is a drag region, which
  * is what replaces the title bar the OS no longer provides.
  */
-export const TitleBar: React.FC = () => {
+export interface TitleBarProps {
+  children?: React.ReactNode;
+}
+
+export const TitleBar: React.FC<TitleBarProps> = ({ children }) => {
   const [isMaximised, setMaximised] = useState(false);
 
   const syncMaximised = useCallback(() => {
@@ -39,33 +43,39 @@ export const TitleBar: React.FC = () => {
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 h-8 z-[60] flex items-center pointer-events-none"
+      className="fixed top-0 left-0 right-0 h-[52px] z-[60] flex items-center pointer-events-none"
       // Wails turns any element carrying this attribute into a drag handle.
       style={{ ['--wails-draggable' as string]: 'drag' }}
     >
       {/* Full-width drag surface. Double-click matches the native title bar.
           It sits behind the controls and above the scene, so anything the app
-          places under 32px would be unreachable — which is why the orchestrator
-          bar starts below it. */}
+          places under 52px would be unreachable unless opting into pointer-events. */}
       <div
         className="absolute inset-0 pointer-events-auto"
         style={{ ['--wails-draggable' as string]: 'drag' }}
         onDoubleClick={toggleMaximise}
       />
 
-      {/* Traffic lights: left-aligned, close first, in macOS order. Colour is
-          the whole affordance — no glyphs at any point, since the positions are
-          already universally known and three symbols would be noise on a window
-          that is mostly wallpaper.
+      {/* Center: Top Project Pill or other top-center chrome */}
+      {children && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 top-3 z-10 pointer-events-auto flex items-center justify-center"
+          style={{ ['--wails-draggable' as string]: 'no-drag' }}
+        >
+          {children}
+        </div>
+      )}
+
+      {/* Traffic lights: right-aligned and horizontally centered with the 34px pill (center: 29px from top).
           Must opt out of dragging, or the click is swallowed by the window move. */}
       <div
-        className="relative flex items-center gap-2 pl-3 pointer-events-auto"
+        className="absolute right-3.5 top-[23px] flex items-center gap-2 pointer-events-auto z-10"
         style={{ ['--wails-draggable' as string]: 'no-drag' }}
       >
         <TrafficLight
-          label="Close"
-          onClick={Quit}
-          className="bg-[#ff5f57] hover:bg-[#ff6f68]"
+          label={isMaximised ? 'Restore' : 'Maximise'}
+          onClick={toggleMaximise}
+          className="bg-[#28c840] hover:bg-[#34d94c]"
         />
         <TrafficLight
           label="Minimise"
@@ -73,9 +83,9 @@ export const TitleBar: React.FC = () => {
           className="bg-[#febc2e] hover:bg-[#ffc846]"
         />
         <TrafficLight
-          label={isMaximised ? 'Restore' : 'Maximise'}
-          onClick={toggleMaximise}
-          className="bg-[#28c840] hover:bg-[#34d94c]"
+          label="Close"
+          onClick={Quit}
+          className="bg-[#ff5f57] hover:bg-[#ff6f68]"
         />
       </div>
     </div>

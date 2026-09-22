@@ -9,6 +9,22 @@ const (
 	DriverOpenCode    DriverKind = "opencode"
 )
 
+// DriverLabel is the human-facing provider name used in switch dividers.
+func DriverLabel(d DriverKind) string {
+	switch d {
+	case DriverAntigravity:
+		return "Antigravity"
+	case DriverOpenCode:
+		return "OpenCode"
+	case DriverClaude:
+		return "Claude Code"
+	case DriverCodex:
+		return "Codex"
+	default:
+		return string(d)
+	}
+}
+
 type Transport string
 
 const (
@@ -28,13 +44,14 @@ const (
 )
 
 type ProviderSettings struct {
-	BinaryPath  string            `json:"binaryPath,omitempty"`
-	LaunchArgs  string            `json:"launchArgs,omitempty"`
-	Env         map[string]string `json:"env,omitempty"`
-	ServerURL   string            `json:"serverUrl,omitempty"`
-	APIEndpoint string            `json:"apiEndpoint,omitempty"`
-	Model       string            `json:"model,omitempty"`
-	Enabled     bool              `json:"enabled"`
+	BinaryPath   string            `json:"binaryPath,omitempty"`
+	LaunchArgs   string            `json:"launchArgs,omitempty"`
+	Env          map[string]string `json:"env,omitempty"`
+	ServerURL    string            `json:"serverUrl,omitempty"`
+	APIEndpoint  string            `json:"apiEndpoint,omitempty"`
+	Model        string            `json:"model,omitempty"`
+	PrintTimeout string            `json:"printTimeout,omitempty"`
+	Enabled      bool              `json:"enabled"`
 }
 
 type ProviderSnapshot struct {

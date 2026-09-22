@@ -20,15 +20,30 @@ export function toProvider(snapshot: domain.ProviderSnapshot): CLIProvider {
   };
 }
 
+export function formatModelDisplayName(rawName: string): string {
+  let name = rawName || '';
+  if (name.toLowerCase().startsWith('opencode/')) {
+    name = name.slice(9);
+  } else if (name.toLowerCase().startsWith('opencode:')) {
+    name = name.slice(9);
+  }
+  return name
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 export function toModel(snapshot: domain.ProviderSnapshot, model: domain.Model): AIModel {
   const options = (model.options ?? []) as OptionDescriptor[];
   const effort = options.find((option) => option.id === EFFORT_OPTION);
   const thinking = options.find((option) => option.id === THINKING_OPTION);
   const defaultChoice = effort?.choices?.find((choice) => choice.default);
+  const displayName = formatModelDisplayName(model.displayName || model.id);
 
   return {
     id: model.id,
-    name: model.displayName,
+    name: displayName || model.displayName || model.id,
     providerId: snapshot.driver,
     icon: providerIcon(snapshot.driver),
     supportsThinking: Boolean(thinking),

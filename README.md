@@ -1,4 +1,4 @@
-# Catalyst
+# Composer
 
 A native desktop application built with Go and React using the [Wails](https://wails.io/) framework.
 

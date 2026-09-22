@@ -1,14 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 import {
+  ActiveProject,
   InterruptTurn,
   IsGitRepo,
+  LoadHistory,
+  OrchestratorLatest,
+  OrchestratorMessageAgent,
   ParseTasks,
+  ResumeHistory,
   SendTurn,
   SpawnTasks,
   StopSession,
+  SwitchTaskProviderWithOptions,
+  UpdateTaskModel,
 } from '../../../wailsjs/go/main/App';
-import { domain, session } from '../../../wailsjs/go/models';
+import { domain, history, session } from '../../../wailsjs/go/models';
 import { AgentStreamBlock } from '../agent-session';
 import { reduceEvent, RuntimeEvent, userBlock } from '../agent-session/eventReducer';
 import { useOrchestratorStore } from './useOrchestratorStore';
@@ -24,54 +31,190 @@ export interface SpawnedTask {
   title: string;
   branch?: string;
   model?: string;
+  driver?: string;
   blocks: AgentStreamBlock[];
   isBusy: boolean;
+  workspaceId?: string;
+  isLive?: boolean;
+  projectName?: string;
+  projectPath?: string;
+  /** Server timestamp of the running turn's start; set while the agent works. */
+  workStartedAt?: number;
+  /** Duration of the most recent finished turn, in milliseconds. */
+  lastTurnMs?: number;
 }
 
 export interface Spawner {
   plan: PendingPlan | null;
   tasks: SpawnedTask[];
+  backgroundTasks: SpawnedTask[];
+  allActiveTasks: SpawnedTask[];
   error: string | null;
+  workspaceId: string | null;
+  canUseWorktree: boolean;
+  /** Plan keys The Orchestrator already launched backend-side (status, not confirm). */
+  launchedKeys: string[];
   /** Detects a delegation plan in an orchestrator reply. */
   inspect: (text: string) => Promise<void>;
   confirm: (useWorktree: boolean, modelIds?: string[]) => Promise<void>;
+  confirmTasks: (
+    tasks: { title: string; prompt: string; cwd?: string; action?: string; targetThreadId?: string }[],
+    useWorktree: boolean,
+    modelIds?: string[],
+    project?: { name: string; path: string },
+  ) => Promise<void>;
+  /** Adopts agents The Orchestrator launched itself into the deck. */
+  adoptSpawned: (result: session.SpawnResult) => void;
   dismiss: () => void;
-  send: (threadId: string, text: string) => Promise<void>;
+  send: (threadId: string, text: string, files?: domain.FileRef[]) => Promise<void>;
+  sendWithModel: (
+    threadId: string,
+    text: string,
+    files?: domain.FileRef[],
+    modelId?: string,
+  ) => Promise<string | undefined>;
   interrupt: (threadId: string) => Promise<void>;
   close: (threadId: string) => Promise<void>;
+  terminate: (threadId: string) => Promise<void>;
+  /** Directly spawns a fresh agent with its own clean context */
+  spawnAgent: (
+    prompt: string,
+    title?: string,
+    modelId?: string,
+    project?: { name: string; path: string },
+  ) => Promise<string | undefined>;
+  /** Opens a specific task from a past session directly into the active deck (always 1 chat) */
+  openHistorySession: (workspaceId: string, threadId?: string) => Promise<number>;
   /** Drops every window after the backend has stopped their sessions. */
   clear: () => void;
 }
 
+export interface UseSpawnerOptions {
+  onBackgroundComplete?: (task: SpawnedTask) => void;
+}
+
+function replay(events: RuntimeEvent[] | undefined): AgentStreamBlock[] {
+  if (!events?.length) return [];
+  return events.reduce<AgentStreamBlock[]>((blocks, event) => reduceEvent(blocks, event), []);
+}
+
+/** Merges any split continuation tasks into their root conversation thread */
+export function normalizeSessionTasks(
+  tasks: any[],
+  transcripts: Record<string, RuntimeEvent[]>,
+): { tasks: any[]; transcripts: Record<string, RuntimeEvent[]> } {
+  const mergedTranscripts = { ...transcripts };
+  const taskMap = new Map<string, any>();
+  const order: string[] = [];
+
+  // Merge any orphaned continuation transcript files into their root thread
+  for (const tKey of Object.keys(transcripts || {})) {
+    if (tKey.includes('-cont-')) {
+      const rootKey = tKey.split('-cont-')[0];
+      const contEvents = transcripts[tKey] || [];
+      if (contEvents.length > 0) {
+        mergedTranscripts[rootKey] = [...(mergedTranscripts[rootKey] || []), ...contEvents];
+      }
+    }
+  }
+
+  for (const t of tasks || []) {
+    const rootId = t.threadId?.includes('-cont-')
+      ? t.threadId.split('-cont-')[0]
+      : t.threadId;
+
+    if (!taskMap.has(rootId)) {
+      const drivers = Array.isArray(t.drivers) ? [...t.drivers] : t.driver ? [t.driver] : [];
+      const models = Array.isArray(t.models) ? [...t.models] : t.model ? [t.model] : [];
+      taskMap.set(rootId, { ...t, threadId: rootId, drivers, models });
+      order.push(rootId);
+    } else {
+      const primary = taskMap.get(rootId)!;
+      if (!primary.drivers) primary.drivers = primary.driver ? [primary.driver] : [];
+      if (t.driver && !primary.drivers.includes(t.driver)) primary.drivers.push(t.driver);
+      if (Array.isArray(t.drivers)) {
+        for (const d of t.drivers) if (d && !primary.drivers.includes(d)) primary.drivers.push(d);
+      }
+
+      if (!primary.models) primary.models = primary.model ? [primary.model] : [];
+      if (t.model && !primary.models.includes(t.model)) primary.models.push(t.model);
+      if (Array.isArray(t.models)) {
+        for (const m of t.models) if (m && !primary.models.includes(m)) primary.models.push(m);
+      }
+
+      if (t.driver) primary.driver = t.driver;
+      if (t.model) primary.model = t.model;
+      if (t.options) primary.options = t.options;
+      if (t.state) primary.state = t.state;
+      if (t.updatedAt && t.updatedAt > (primary.updatedAt || 0)) {
+        primary.updatedAt = t.updatedAt;
+      }
+      const contEvents = transcripts[t.threadId] || [];
+      if (contEvents.length > 0 && !t.threadId.includes('-cont-')) {
+        mergedTranscripts[rootId] = [...(mergedTranscripts[rootId] || []), ...contEvents];
+      }
+    }
+  }
+
+  return {
+    tasks: order.map((id) => taskMap.get(id)!),
+    transcripts: mergedTranscripts,
+  };
+}
+
+/** Duration of the most recent finished turn in a stored transcript. */
+function lastTurnDuration(events: RuntimeEvent[] | undefined): number | undefined {
+  if (!events?.length) return undefined;
+  const started = new Map<string, number>();
+  let last: number | undefined;
+  for (const event of events) {
+    if (event.kind === 'turn.started' && event.turnId) {
+      started.set(event.turnId, event.at || 0);
+    } else if (
+      (event.kind === 'turn.completed' || event.kind === 'turn.failed') &&
+      event.turnId
+    ) {
+      const at = started.get(event.turnId);
+      if (at) last = Math.max(0, (event.at || at) - at);
+    }
+  }
+  return last;
+}
+
 const RUNTIME_CHANNEL = 'agent:event';
+
+/** Stable key for a plan so the card can show launched status, not confirm. */
+export function planKey(titles: string[]): string {
+  return titles.join('\n');
+}
 
 /**
  * Owns the delegation half of the orchestrator: recognising a plan, asking
  * about isolation, spawning the agents, and keeping each spawned session's
  * transcript up to date.
+ *
+ * The Orchestrator backend is source of truth for launches: it executes
+ * coordinator plans itself and announces them over orchestrator:spawned. This
+ * hook adopts those into the deck; manual confirm remains only as an override
+ * for launching the same plan with different models.
  */
-export function useSpawner(): Spawner {
+export function useSpawner(options?: UseSpawnerOptions): Spawner {
   const [plan, setPlan] = useState<PendingPlan | null>(null);
   const [tasks, setTasks] = useState<SpawnedTask[]>([]);
+  const [backgroundTasks, setBackgroundTasks] = useState<SpawnedTask[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [canUseWorktree, setCanUseWorktree] = useState(false);
+  const [launchedKeys, setLaunchedKeys] = useState<string[]>([]);
+  const currentWorkspaceId = useRef<string | null>(null);
   const threads = useRef<Set<string>>(new Set());
+  const threadReplies = useRef<Record<string, string>>({});
+  const lastSentOptions = useRef<Record<string, string>>({});
+  const onBackgroundCompleteRef = useRef(options?.onBackgroundComplete);
+  onBackgroundCompleteRef.current = options?.onBackgroundComplete;
 
   useEffect(() => {
-    const off = EventsOn(RUNTIME_CHANNEL, (event: RuntimeEvent) => {
-      if (!threads.current.has(event.threadId)) return;
-
-      setTasks((previous) =>
-        previous.map((task) => {
-          if (task.threadId !== event.threadId) return task;
-          const isBusy =
-            event.kind === 'turn.completed' || event.kind === 'turn.failed'
-              ? false
-              : task.isBusy;
-          return { ...task, blocks: reduceEvent(task.blocks, event), isBusy };
-        }),
-      );
-    });
-    return off;
+    IsGitRepo('').then(setCanUseWorktree).catch(() => false);
   }, []);
 
   const inspect = useCallback(async (text: string) => {
@@ -79,17 +222,142 @@ export function useSpawner(): Spawner {
       const parsed = await ParseTasks(text);
       if (!parsed || parsed.length === 0) return;
 
-      const cwd = '';
-      const canUseWorktree = await IsGitRepo(cwd).catch(() => false);
-      setPlan({ tasks: parsed, canUseWorktree });
+      // An empty path resolves to the active project on the backend, so the
+      // worktree question is asked about the directory the agents will really
+      // start in rather than about Composer's own folder.
+      const isRepo = await IsGitRepo('').catch(() => false);
+      setCanUseWorktree(isRepo);
+      setPlan({ tasks: parsed, canUseWorktree: isRepo });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     }
   }, []);
 
-  const confirm = useCallback(
-    async (useWorktree: boolean, modelIds: string[] = []) => {
-      if (!plan) return;
+  useEffect(() => {
+    const off = EventsOn(RUNTIME_CHANNEL, (event: RuntimeEvent) => {
+      if (!threads.current.has(event.threadId)) return;
+
+      if (event.kind === 'agent.message' && event.text) {
+        threadReplies.current[event.threadId] = event.delta
+          ? (threadReplies.current[event.threadId] || '') + event.text
+          : event.text;
+      }
+
+      setTasks((previous) =>
+        previous.map((task) => {
+          if (task.threadId !== event.threadId) return task;
+          if (event.kind === 'turn.started') {
+            return {
+              ...task,
+              blocks: reduceEvent(task.blocks, event),
+              isBusy: true,
+              isLive: true,
+              workStartedAt: event.at || Date.now(),
+            };
+          }
+          const isBusy =
+            event.kind === 'turn.completed' || event.kind === 'turn.failed'
+              ? false
+              : task.isBusy;
+          const finished =
+            event.kind === 'turn.completed' || event.kind === 'turn.failed';
+          const lastTurnMs =
+            finished && task.workStartedAt
+              ? Math.max(0, (event.at || Date.now()) - task.workStartedAt)
+              : task.lastTurnMs;
+          return {
+            ...task,
+            blocks: reduceEvent(task.blocks, event),
+            isBusy,
+            lastTurnMs,
+            workStartedAt: finished ? undefined : task.workStartedAt,
+          };
+        }),
+      );
+
+      setBackgroundTasks((previous) => {
+        let finishedTask: SpawnedTask | null = null;
+        const next = previous.map((task) => {
+          if (task.threadId !== event.threadId) return task;
+          if (event.kind === 'turn.started') {
+            return {
+              ...task,
+              blocks: reduceEvent(task.blocks, event),
+              isBusy: true,
+              isLive: true,
+              workStartedAt: event.at || Date.now(),
+            };
+          }
+          const isBusy =
+            event.kind === 'turn.completed' || event.kind === 'turn.failed'
+              ? false
+              : task.isBusy;
+          const finished =
+            event.kind === 'turn.completed' || event.kind === 'turn.failed';
+          const lastTurnMs =
+            finished && task.workStartedAt
+              ? Math.max(0, (event.at || Date.now()) - task.workStartedAt)
+              : task.lastTurnMs;
+          const updated = {
+            ...task,
+            blocks: reduceEvent(task.blocks, event),
+            isBusy,
+            lastTurnMs,
+            workStartedAt: finished ? undefined : task.workStartedAt,
+          };
+          if (finished) finishedTask = updated;
+          return updated;
+        });
+
+        if (finishedTask) {
+          const t = finishedTask;
+          setTimeout(() => onBackgroundCompleteRef.current?.(t), 0);
+        }
+        return next;
+      });
+
+      if (event.kind === 'turn.completed') {
+        const reply = threadReplies.current[event.threadId];
+        if (reply) {
+          void inspect(reply);
+        }
+        delete threadReplies.current[event.threadId];
+      }
+    });
+    return off;
+  }, [inspect]);
+
+  const confirmTasks = useCallback(
+    async (
+      planTasks: { title: string; prompt: string; cwd?: string; action?: string; targetThreadId?: string }[],
+      useWorktree: boolean,
+      modelIds: string[] = [],
+      project?: { name: string; path: string },
+    ) => {
+      if (!planTasks || planTasks.length === 0) return;
+
+      // The Orchestrator backend is source of truth: if it already executed
+      // this plan, confirming again would spawn duplicates. Just surface the
+      // agents instead of relaunching.
+      try {
+        const latest = await OrchestratorLatest().catch(() => null);
+        if (latest?.executed && latest.tasks?.length === planTasks.length) {
+          const latestTitles = latest.tasks.map((t) => t.title);
+          const same = planTasks.every((task, index) => task.title === latestTitles[index]);
+          if (same) {
+            setPlan(null);
+            setLaunchedKeys((previous) =>
+              previous.includes(planKey(latestTitles))
+                ? previous
+                : [...previous, planKey(latestTitles)],
+            );
+            return;
+          }
+        }
+      } catch {
+        // Fall through to manual launch when the check itself fails.
+      }
+
       const store = useOrchestratorStore.getState();
       const fallback = store.getSelectedModel();
       if (!fallback) {
@@ -101,89 +369,414 @@ export function useSpawner(): Spawner {
       setError(null);
 
       try {
-        const result = await SpawnTasks(
-          plan.tasks.map((task, index) => {
-            // Each task may target a different agent; an unknown id falls back
-            // to the model selected in the bar.
-            const chosen = store.models.find((m) => m.id === modelIds[index]) ?? fallback;
-            return {
-              title: task.title,
-              prompt: task.prompt,
-              // Honours a directory the orchestrator picked out of the request,
-              // so a task naming another project starts there.
-              cwd: task.cwd ?? '',
-              driver: chosen.providerId,
-              model: chosen.id,
-              options: toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
-            };
-          }),
-          {
-            driver: fallback.providerId,
-            model: fallback.id,
-            options: toModelOptions(fallback, store.getCurrentModelSettings(fallback.id)),
-            cwd: '',
-            useWorktree,
-            title: plan.tasks[0]?.title ?? 'Tasks',
-            prompt: plan.tasks.map((task) => task.title).join(', '),
-          },
-        );
-
-        for (const task of result.tasks) {
-          threads.current.add(task.threadId);
+        const currentProj = project || (await ActiveProject().catch(() => null));
+        const projCwd = currentProj?.path || planTasks.find((task) => task.cwd)?.cwd || '';
+        if (!projCwd) {
+          setError('Choose a project folder before starting an agent');
+          return;
         }
-        setTasks((previous) => [
-          ...previous,
-          ...result.tasks.map((task, index) => {
-            const initialPrompt = plan.tasks[index]?.prompt || task.prompt;
-            return {
-              threadId: task.threadId,
-              title: task.title,
-              branch: task.worktree?.branch,
-              model: task.model,
-              blocks: initialPrompt
-                ? [userBlock(initialPrompt, `orch-prompt-${task.threadId}`)]
-                : ([] as AgentStreamBlock[]),
-              isBusy: true,
-            };
-          }),
-        ]);
 
-        if (result.errors?.length) setError(result.errors.join('\n'));
+        // Separate message routing tasks from new spawn tasks
+        const messageTasks = planTasks.filter((t) => t.action === 'message' && t.targetThreadId);
+        const spawnTasks = planTasks.filter((t) => t.action !== 'message' || !t.targetThreadId);
+
+        // Execute message tasks directly to existing agents
+        for (const msgTask of messageTasks) {
+          const targetId = msgTask.targetThreadId!;
+          await OrchestratorMessageAgent(targetId, msgTask.prompt);
+          setTasks((previous) =>
+            previous.map((t) =>
+              t.threadId === targetId
+                ? {
+                    ...t,
+                    isBusy: true,
+                    blocks: [
+                      ...t.blocks,
+                      userBlock(msgTask.prompt, `user-${Date.now()}`, [], Date.now()),
+                    ],
+                  }
+                : t,
+            ),
+          );
+        }
+
+        // Execute spawn tasks if any exist
+        if (spawnTasks.length > 0) {
+          const result = await SpawnTasks(
+            spawnTasks.map((task) => {
+              const originalIndex = planTasks.indexOf(task);
+              const chosen = store.models.find((m) => m.id === modelIds[originalIndex]) ?? fallback;
+              return {
+                title: task.title,
+                prompt: task.prompt,
+                cwd: task.cwd || projCwd,
+                driver: chosen.providerId,
+                model: chosen.id,
+                options: toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
+              };
+            }),
+            {
+              driver: fallback.providerId,
+              model: fallback.id,
+              options: toModelOptions(fallback, store.getCurrentModelSettings(fallback.id)),
+              cwd: projCwd,
+              useWorktree,
+              title: spawnTasks[0]?.title ?? 'Tasks',
+              prompt: spawnTasks.map((task) => task.title).join(', '),
+              workspaceId: currentWorkspaceId.current || '',
+              permissionMode: store.autoApprovePermissions ? 'bypassPermissions' : 'default',
+            },
+          );
+
+          if (result.workspace?.id) {
+            currentWorkspaceId.current = result.workspace.id;
+            setWorkspaceId(result.workspace.id);
+          }
+
+          for (const task of result.tasks) {
+            threads.current.add(task.threadId);
+            const returned = store.models.find((m) => m.id === task.model);
+            if (returned) {
+              lastSentOptions.current[task.threadId] = JSON.stringify(
+                toModelOptions(returned, store.getCurrentModelSettings(returned.id)),
+              );
+            }
+          }
+          setTasks((previous) => [
+            ...previous,
+            ...result.tasks.map((task, index) => {
+              const initialPrompt = spawnTasks[index]?.prompt || task.prompt;
+              return {
+                threadId: task.threadId,
+                title: task.title,
+                branch: task.worktree?.branch,
+                model: task.model,
+                driver: task.driver,
+                blocks: initialPrompt
+                  ? [userBlock(initialPrompt, `orch-prompt-${task.threadId}`, [], task.createdAt || Date.now())]
+                  : ([] as AgentStreamBlock[]),
+                isBusy: true,
+                projectName: currentProj?.name,
+                projectPath: currentProj?.path,
+              };
+            }),
+          ]);
+
+          if (result.errors?.length) setError(result.errors.join('\n'));
+        }
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     },
-    [plan],
+    [],
+  );
+
+  const confirm = useCallback(
+    async (useWorktree: boolean, modelIds: string[] = []) => {
+      if (!plan) return;
+      await confirmTasks(plan.tasks, useWorktree, modelIds);
+    },
+    [plan, confirmTasks],
   );
 
   const dismiss = useCallback(() => setPlan(null), []);
 
-  const send = useCallback(async (threadId: string, text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
+  function describeSwitch(
+    prevProviderName: string | undefined,
+    prevModelName: string | undefined,
+    nextProviderName: string,
+    nextModelName: string,
+  ): string {
+    const from = `${prevProviderName || 'agent'}: ${prevModelName || 'previous model'}`;
+    const to = `${nextProviderName}: ${nextModelName}`;
+    return `Switched from ${from} to ${to}`;
+  }
 
-    const turnId = `${threadId}-turn-${Date.now()}`;
-    setTasks((previous) =>
-      previous.map((task) =>
-        task.threadId === threadId
-          ? {
-              ...task,
-              isBusy: true,
-              blocks: [...task.blocks, userBlock(trimmed, `user-${Date.now()}`)],
-            }
-          : task,
-      ),
-    );
+  /** Display name for a provider id, capitalised when the provider list is unavailable. */
+  function providerDisplayName(driverId: string | undefined): string {
+    if (!driverId) return 'agent';
+    const known = useOrchestratorStore.getState().providers.find((p) => p.id === driverId)?.name;
+    if (known) return known;
+    return driverId.charAt(0).toUpperCase() + driverId.slice(1);
+  }
 
-    try {
-      await SendTurn(domain.SendTurnInput.createFrom({ threadId, turnId, text: trimmed }));
-    } catch (cause) {
-      setTasks((previous) =>
-        previous.map((task) => (task.threadId === threadId ? { ...task, isBusy: false } : task)),
-      );
-      setError(cause instanceof Error ? cause.message : String(cause));
-    }
-  }, []);
+  const sendWithModel = useCallback(
+    async (
+      threadId: string,
+      text: string,
+      files: domain.FileRef[] = [],
+      modelId?: string,
+    ): Promise<string | undefined> => {
+      const trimmed = text.trim();
+      if (!trimmed && files.length === 0) return undefined;
+
+      const store = useOrchestratorStore.getState();
+      const currentTask = tasks.find((t) => t.threadId === threadId);
+
+      if (currentTask && currentTask.workspaceId && currentTask.isLive === false) {
+        try {
+          await ResumeHistory(currentTask.workspaceId);
+          threads.current.add(threadId);
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.workspaceId === currentTask.workspaceId ? { ...t, isLive: true } : t,
+            ),
+          );
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+          return undefined;
+        }
+      }
+
+      const desired = modelId
+        ? store.models.find((m) => m.id === modelId) ?? store.getSelectedModel()
+        : undefined;
+      const prevDriver = currentTask?.driver;
+      const prevModelId = currentTask?.model;
+      const prevModelName =
+        store.models.find((m) => m.id === prevModelId)?.name || prevModelId;
+
+      if (desired && currentTask && desired.providerId !== (prevDriver || desired.providerId)) {
+        // Cross-provider switch reuses the same thread: the card, its size,
+        // its transcript and its history all stay one continuous conversation.
+        // The backend folds the handoff plus this message into a single turn.
+        const options = toModelOptions(desired, store.getCurrentModelSettings(desired.id));
+        const prevProviderName = providerDisplayName(prevDriver);
+        const nextProvider =
+          store.providers.find((p) => p.id === desired.providerId);
+        const nextProviderName = nextProvider?.name || providerDisplayName(desired.providerId);
+        const notice = describeSwitch(prevProviderName, prevModelName, nextProviderName, desired.name);
+        const icon = desired.icon || nextProvider?.icon || '';
+        const stamp = Date.now();
+        setTasks((previous) =>
+          previous.map((task) =>
+            task.threadId === threadId
+              ? {
+                  ...task,
+                  isBusy: true,
+                  isLive: true,
+                  blocks: [
+                    ...task.blocks,
+                    {
+                      type: 'notice' as const,
+                      id: `notice-${stamp}`,
+                      label: notice,
+                      icon: icon || undefined,
+                    },
+                    userBlock(trimmed, `user-${stamp}`, files, stamp),
+                  ],
+                }
+              : task,
+          ),
+        );
+        try {
+          const switched = await SwitchTaskProviderWithOptions(
+            threadId,
+            desired.providerId,
+            desired.id,
+            options,
+            notice,
+            icon,
+            trimmed,
+            files,
+          );
+          lastSentOptions.current[threadId] = JSON.stringify(options);
+          setTasks((previous) =>
+            previous.map((task) => {
+              if (task.threadId !== threadId) return task;
+              const prevDrivers = (task as any).drivers || (task.driver ? [task.driver] : []);
+              const prevModels = (task as any).models || (task.model ? [task.model] : []);
+              const nextDrivers = Array.from(new Set([...prevDrivers, switched.driver].filter(Boolean)));
+              const nextModels = Array.from(new Set([...prevModels, switched.model].filter(Boolean)));
+              return {
+                ...task,
+                model: switched.model,
+                driver: switched.driver,
+                drivers: nextDrivers,
+                models: nextModels,
+              };
+            }),
+          );
+          return threadId;
+        } catch (cause) {
+          setTasks((previous) =>
+            previous.map((task) => (task.threadId === threadId ? { ...task, isBusy: false } : task)),
+          );
+          setError(cause instanceof Error ? cause.message : String(cause));
+          return undefined;
+        }
+      }
+
+      if (desired && currentTask && desired.id !== prevModelId) {
+        const options = toModelOptions(desired, store.getCurrentModelSettings(desired.id));
+        const providerName = providerDisplayName(desired.providerId);
+        const notice = describeSwitch(providerName, prevModelName, providerName, desired.name);
+        const icon = desired.icon || '';
+        const stamp = Date.now();
+        setTasks((previous) =>
+          previous.map((task) =>
+            task.threadId === threadId
+              ? {
+                  ...task,
+                  isBusy: true,
+                  isLive: true,
+                  blocks: [
+                    ...task.blocks,
+                    {
+                      type: 'notice' as const,
+                      id: `notice-${stamp}`,
+                      label: notice,
+                      icon: icon || undefined,
+                    },
+                    userBlock(trimmed, `user-${stamp}`, files, stamp),
+                  ],
+                }
+              : task,
+          ),
+        );
+        try {
+          const updated = await UpdateTaskModel(
+            threadId,
+            desired.providerId,
+            desired.id,
+            options,
+            notice,
+            icon,
+          );
+          lastSentOptions.current[threadId] = JSON.stringify(options);
+          setTasks((previous) =>
+            previous.map((task) =>
+              task.threadId === threadId
+                ? { ...task, model: updated.model, driver: updated.driver }
+                : task,
+            ),
+          );
+        } catch (cause) {
+          setTasks((previous) =>
+            previous.map((task) => (task.threadId === threadId ? { ...task, isBusy: false } : task)),
+          );
+          setError(cause instanceof Error ? cause.message : String(cause));
+          return undefined;
+        }
+      } else if (desired && currentTask) {
+        const options = toModelOptions(desired, store.getCurrentModelSettings(desired.id));
+        const key = JSON.stringify(options);
+        if (lastSentOptions.current[threadId] && lastSentOptions.current[threadId] !== key) {
+          const providerName = providerDisplayName(desired.providerId);
+          const notice = `Effort changed for ${providerName}: ${desired.name}`;
+          const icon = desired.icon || '';
+          const stamp = Date.now();
+          setTasks((previous) =>
+            previous.map((task) =>
+              task.threadId === threadId
+                ? {
+                    ...task,
+                    isBusy: true,
+                    isLive: true,
+                    blocks: [
+                      ...task.blocks,
+                      {
+                        type: 'notice' as const,
+                        id: `notice-${stamp}`,
+                        label: notice,
+                        icon: icon || undefined,
+                      },
+                      userBlock(trimmed, `user-${stamp}`, files, stamp),
+                    ],
+                  }
+                : task,
+            ),
+          );
+          try {
+            await UpdateTaskModel(threadId, desired.providerId, desired.id, options, notice, icon);
+            lastSentOptions.current[threadId] = key;
+          } catch (cause) {
+            setTasks((previous) =>
+              previous.map((task) =>
+                task.threadId === threadId ? { ...task, isBusy: false } : task,
+              ),
+            );
+            setError(cause instanceof Error ? cause.message : String(cause));
+            return undefined;
+          }
+        } else {
+          lastSentOptions.current[threadId] = key;
+          const turnId = `${threadId}-turn-${Date.now()}`;
+          setTasks((previous) =>
+            previous.map((task) =>
+              task.threadId === threadId
+                ? {
+                    ...task,
+                    isBusy: true,
+                    isLive: true,
+                    blocks: [...task.blocks, userBlock(trimmed, `user-${Date.now()}`, files, Date.now())],
+                  }
+                : task,
+            ),
+          );
+          try {
+            await SendTurn(
+              domain.SendTurnInput.createFrom({ threadId, turnId, text: trimmed, files }),
+            );
+          } catch (cause) {
+            setTasks((previous) =>
+              previous.map((task) =>
+                task.threadId === threadId ? { ...task, isBusy: false } : task,
+              ),
+            );
+            setError(cause instanceof Error ? cause.message : String(cause));
+          }
+          return threadId;
+        }
+      } else {
+        const turnId = `${threadId}-turn-${Date.now()}`;
+        setTasks((previous) =>
+          previous.map((task) =>
+            task.threadId === threadId
+              ? {
+                  ...task,
+                  isBusy: true,
+                  isLive: true,
+                  blocks: [...task.blocks, userBlock(trimmed, `user-${Date.now()}`, files, Date.now())],
+                }
+              : task,
+          ),
+        );
+        try {
+          await SendTurn(
+            domain.SendTurnInput.createFrom({ threadId, turnId, text: trimmed, files }),
+          );
+        } catch (cause) {
+          setTasks((previous) =>
+            previous.map((task) => (task.threadId === threadId ? { ...task, isBusy: false } : task)),
+          );
+          setError(cause instanceof Error ? cause.message : String(cause));
+        }
+        return threadId;
+      }
+
+      const turnId = `${threadId}-turn-${Date.now()}`;
+      try {
+        await SendTurn(
+          domain.SendTurnInput.createFrom({ threadId, turnId, text: trimmed, files }),
+        );
+      } catch (cause) {
+        setTasks((previous) =>
+          previous.map((task) => (task.threadId === threadId ? { ...task, isBusy: false } : task)),
+        );
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+      return threadId;
+    },
+    [tasks],
+  );
+
+  const send = useCallback(
+    async (threadId: string, text: string, files: domain.FileRef[] = []) => {
+      await sendWithModel(threadId, text, files, undefined);
+    },
+    [sendWithModel],
+  );
 
   const interrupt = useCallback(async (threadId: string) => {
     try {
@@ -198,7 +791,8 @@ export function useSpawner(): Spawner {
 
   const close = useCallback(async (threadId: string) => {
     threads.current.delete(threadId);
-    setTasks((previous) => previous.filter((task) => task.threadId !== threadId));
+    setTasks((previous) => previous.filter((t) => t.threadId !== threadId));
+    setBackgroundTasks((previous) => previous.filter((t) => t.threadId !== threadId));
     try {
       await StopSession(threadId);
     } catch {
@@ -206,12 +800,321 @@ export function useSpawner(): Spawner {
     }
   }, []);
 
+  const terminate = useCallback(async (threadId: string) => {
+    await close(threadId);
+  }, [close]);
+
+  const spawnAgent = useCallback(
+    async (
+      prompt: string,
+      title?: string,
+      modelId?: string,
+      project?: { name: string; path: string },
+    ) => {
+      const trimmed = prompt.trim();
+      if (!trimmed) return;
+
+      const store = useOrchestratorStore.getState();
+      const chosen = store.models.find((m) => m.id === modelId) ?? store.getSelectedModel();
+      if (!chosen) {
+        setError('No agent CLI available');
+        return;
+      }
+
+      setError(null);
+      const taskTitle = title || (trimmed.length > 28 ? `${trimmed.slice(0, 28)}…` : trimmed);
+
+      try {
+        const currentProj = project || (await ActiveProject().catch(() => null));
+        const projCwd = currentProj?.path || '';
+        if (!projCwd) {
+          setError('Choose a project folder before starting an agent');
+          return;
+        }
+        const result = await SpawnTasks(
+          [
+            {
+              title: taskTitle,
+              prompt: trimmed,
+              cwd: projCwd,
+              driver: chosen.providerId,
+              model: chosen.id,
+              options: toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
+            },
+          ],
+          {
+            driver: chosen.providerId,
+            model: chosen.id,
+            options: toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
+            cwd: projCwd,
+            useWorktree: false,
+            title: taskTitle,
+            prompt: trimmed,
+            workspaceId: '',
+            permissionMode: store.autoApprovePermissions ? 'bypassPermissions' : 'default',
+          },
+        );
+
+        if (result.workspace?.id) {
+          currentWorkspaceId.current = null;
+          setWorkspaceId(result.workspace.id);
+        }
+
+        for (const task of result.tasks) {
+          threads.current.add(task.threadId);
+        }
+        lastSentOptions.current[result.tasks[0].threadId] = JSON.stringify(
+          toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
+        );
+
+        setTasks((previous) => [
+          ...previous,
+          ...result.tasks.map((task) => ({
+            threadId: task.threadId,
+            title: task.title,
+            branch: task.worktree?.branch,
+            model: task.model,
+            driver: task.driver,
+            blocks: [userBlock(trimmed, `orch-prompt-${task.threadId}`, [], task.createdAt || Date.now())],
+            isBusy: true,
+            projectName: currentProj?.name,
+            projectPath: currentProj?.path,
+          })),
+        ]);
+
+        return result.tasks[0]?.threadId;
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+    },
+    [],
+  );
+
+  const openHistorySession = useCallback(
+    async (targetWorkspaceId: string, targetThreadId?: string): Promise<number> => {
+      try {
+        setError(null);
+        // 1. If targetThreadId is specified, check if that specific task is already in deck
+        const rootTargetId = targetThreadId?.includes('-cont-')
+          ? targetThreadId.split('-cont-')[0]
+          : targetThreadId;
+
+        if (rootTargetId) {
+          const existingIdx = tasks.findIndex(
+            (t) => t.threadId === rootTargetId || t.threadId === targetThreadId,
+          );
+          if (existingIdx !== -1) {
+            return existingIdx;
+          }
+
+          // Check if this task is currently running in backgroundTasks
+          const bgIdx = backgroundTasks.findIndex(
+            (t) => t.threadId === rootTargetId || t.threadId === targetThreadId,
+          );
+          if (bgIdx !== -1) {
+            const bgTask = backgroundTasks[bgIdx];
+            setBackgroundTasks((prev) => prev.filter((_, i) => i !== bgIdx));
+            setTasks((prev) => [...prev, bgTask]);
+            return tasks.length;
+          }
+        }
+
+        const loaded = await LoadHistory(targetWorkspaceId);
+        const meta = loaded.meta;
+        const rawTranscripts = (loaded.transcripts ?? {}) as Record<string, RuntimeEvent[]>;
+        let rawTasks = meta.tasks ? [...meta.tasks] : [];
+        const cwd = meta.workspace?.cwd || '';
+        const folderName = cwd ? cwd.replace(/\\/g, '/').split('/').filter(Boolean).pop() : undefined;
+
+        // If session had no subagents but had coordinator blocks:
+        if (rawTasks.length === 0 && (meta.coordinatorThreadId || meta.workspace?.prompt)) {
+          const threadId = meta.coordinatorThreadId || `coordinator-${targetWorkspaceId}`;
+          const coordBlocks = replay(rawTranscripts[threadId]);
+          const firstNonNotice = coordBlocks.find((b) => b.type !== 'notice');
+          const prompt = meta.workspace?.prompt;
+          const blocks =
+            firstNonNotice?.type !== 'user' && prompt
+              ? [
+                  userBlock(
+                    prompt,
+                    `orch-prompt-${threadId}`,
+                    [],
+                    meta.workspace?.createdAt || Date.now(),
+                  ),
+                  ...coordBlocks,
+                ]
+              : coordBlocks;
+          if (blocks.length > 0) {
+            rawTasks.push({
+              threadId,
+              title: meta.workspace?.title || 'Session',
+              prompt: meta.workspace?.prompt,
+              blocks,
+            } as any);
+          }
+        }
+
+        if (rawTasks.length === 0) {
+          return -1;
+        }
+
+        // Normalize continuation tasks so mid-chat switches are 1 unified conversation
+        const { tasks: loadedTasks, transcripts } = normalizeSessionTasks(rawTasks, rawTranscripts);
+
+        // Target ONLY the single requested task (or primary/first task) - NEVER open 4 or 5 at once
+        const t = rootTargetId
+          ? loadedTasks.find((item) => item.threadId === rootTargetId) || loadedTasks[0]
+          : loadedTasks[0];
+
+        if (!t) {
+          return -1;
+        }
+
+        const alreadyIdx = tasks.findIndex((x) => x.threadId === t.threadId);
+        if (alreadyIdx !== -1) {
+          return alreadyIdx;
+        }
+
+        threads.current.add(t.threadId);
+        const replayed = (t as any).blocks || replay(transcripts[t.threadId]);
+        const firstNonNotice = replayed.find((b: AgentStreamBlock) => b.type !== 'notice');
+        const prompt = t.prompt || meta.workspace?.prompt;
+        const blocks =
+          firstNonNotice?.type !== 'user' && prompt
+            ? [
+                userBlock(
+                  prompt,
+                  `orch-prompt-${t.threadId}`,
+                  [],
+                  t.createdAt || meta.workspace?.createdAt || Date.now(),
+                ),
+                ...replayed,
+              ]
+            : replayed;
+
+        const threadEvents = (transcripts[t.threadId] ?? []) as RuntimeEvent[];
+        const taskObj: SpawnedTask = {
+          threadId: t.threadId,
+          title: t.title || 'Agent',
+          branch: t.worktree?.branch,
+          model: t.model,
+          driver: (t as any).driver,
+          blocks,
+          lastTurnMs: lastTurnDuration(threadEvents),
+          isBusy: false,
+          workspaceId: targetWorkspaceId,
+          isLive: false,
+          projectName: folderName,
+          projectPath: cwd,
+        };
+
+        const storedOptions = (t as any).options;
+        if (storedOptions) {
+          lastSentOptions.current[t.threadId] = JSON.stringify(storedOptions);
+        }
+
+        const newIndex = tasks.length;
+        setTasks((prev) => [...prev, taskObj]);
+        return newIndex;
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+        return -1;
+      }
+    },
+    [tasks],
+  );
+
   const clear = useCallback(() => {
+    for (const id of threads.current) {
+      StopSession(id).catch(() => {});
+    }
     threads.current = new Set();
     setTasks([]);
+    setBackgroundTasks([]);
     setPlan(null);
     setError(null);
+    setLaunchedKeys([]);
+    currentWorkspaceId.current = null;
+    setWorkspaceId(null);
   }, []);
 
-  return { plan, tasks, error, inspect, confirm, dismiss, send, interrupt, close, clear };
+  const allActiveTasks = useMemo(() => {
+    return [...tasks, ...backgroundTasks];
+  }, [tasks, backgroundTasks]);
+
+  /**
+   * Adopts agents The Orchestrator launched backend-side into the deck.
+   * Announced over orchestrator:spawned; same card mapping as a manual
+   * confirm, minus the SpawnTasks round-trip. Also flips the matching plan
+   * card from confirm gate to launched status and clears a matching pending
+   * plan so it cannot be confirmed into duplicates.
+   */
+  const adoptSpawned = useCallback((result: session.SpawnResult) => {
+    if (!result?.tasks || result.tasks.length === 0) return;
+    if (result.workspace?.id) {
+      currentWorkspaceId.current = result.workspace.id;
+      setWorkspaceId(result.workspace.id);
+    }
+    const key = planKey(result.tasks.map((task) => task.title));
+    setLaunchedKeys((previous) => (previous.includes(key) ? previous : [...previous, key]));
+    setPlan((previous) => {
+      if (!previous) return previous;
+      return planKey(previous.tasks.map((task) => task.title)) === key ? null : previous;
+    });
+    if (result.errors?.length) setError(result.errors.join('\n'));
+    for (const task of result.tasks) {
+      threads.current.add(task.threadId);
+      const storedOptions = (task as any).options;
+      if (storedOptions) {
+        lastSentOptions.current[task.threadId] = JSON.stringify(storedOptions);
+      }
+    }
+    setTasks((previous) => {
+      const known = new Set(previous.map((task) => task.threadId));
+      const fresh = result.tasks.filter((task) => !known.has(task.threadId));
+      if (fresh.length === 0) return previous;
+      return [
+        ...previous,
+        ...fresh.map((task) => ({
+          threadId: task.threadId,
+          title: task.title,
+          branch: task.worktree?.branch,
+          model: task.model,
+          driver: task.driver,
+          blocks: task.prompt
+            ? [userBlock(task.prompt, `orch-prompt-${task.threadId}`, [], task.createdAt || Date.now())]
+            : ([] as AgentStreamBlock[]),
+          isBusy: true,
+          workspaceId: result.workspace?.id,
+          isLive: true,
+          projectName: undefined,
+          projectPath: result.workspace?.cwd,
+        })),
+      ];
+    });
+  }, []);
+
+  return {
+    plan,
+    tasks,
+    backgroundTasks,
+    allActiveTasks,
+    error,
+    workspaceId,
+    canUseWorktree,
+    launchedKeys,
+    inspect,
+    confirm,
+    confirmTasks,
+    adoptSpawned,
+    dismiss,
+    send,
+    sendWithModel,
+    interrupt,
+    close,
+    terminate,
+    spawnAgent,
+    openHistorySession,
+    clear,
+  };
 }

@@ -76,33 +76,53 @@ body,
 }
 
 /* Custom Scrollbar Utility */
-.custom-scrollbar {
+.custom-scrollbar,
+.modern-scroll-area {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+.custom-scrollbar::-webkit-scrollbar,
+.modern-scroll-area::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-button {
+.custom-scrollbar::-webkit-scrollbar-button,
+.modern-scroll-area::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track,
+.modern-scroll-area::-webkit-scrollbar-track {
   background: transparent !important;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.modern-scroll-area::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.25);
   border-radius: 9999px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.45);
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.modern-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Markdown Inline Code Chip - Warm Amber / Yellowish matching Antigravity */
+.markdown-inline-code {
+  color: #f6c177;
+  background-color: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+[data-theme='light'] .markdown-inline-code,
+[data-theme='white'] .markdown-inline-code {
+  color: #b45309;
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 /* Horizontal tab strips scroll but must not show a bar: the rail is only a few
@@ -154,17 +174,215 @@ body,
   }
 }
 
+:root {
+  --theme-panel-bg: rgba(18, 20, 26, 0.85);
+  --theme-panel-border: rgba(255, 255, 255, 0.10);
+  --theme-card-bg: rgba(20, 22, 28, 0.65);
+  --theme-card-border: rgba(255, 255, 255, 0.08);
+  --theme-input-bg: rgba(18, 20, 26, 0.90);
+  --theme-pill-bg: rgba(255, 255, 255, 0.06);
+  --theme-pill-hover: rgba(255, 255, 255, 0.12);
+}
+
 /* Feed card surface.
-   These cards sit inside the already frosted agent panel, so they only need enough blur
-   to obscure text showing through, not a second full-strength pass. The original
-   backdrop-blur-xl (24px) was the dominant cost while the feed scrolled; a smaller
-   radius over an already-frosted backdrop reads the same and is far cheaper. */
+   These cards sit inside the agent panel. Nested backdrop-filter is completely removed
+   to eliminate GPU pipeline stalls and D3D11 compositor TDR timeouts. */
 .glass-card {
-  background-image: linear-gradient(
-    rgba(255, 255, 255, 0.06),
-    rgba(255, 255, 255, 0.06)
-  );
-  background-color: rgba(255, 255, 255, 0.14);
+  background-color: var(--theme-card-bg, rgba(20, 22, 28, 0.65));
+  border-color: var(--theme-card-border, rgba(255, 255, 255, 0.08));
+}
+
+/* Explicit zero-blur for Dark and Light modes */
+[data-theme='dark'] .liquid-glass-container,
+[data-theme='dark-stealth'] .liquid-glass-container,
+[data-theme='light'] .liquid-glass-container,
+[data-theme='white'] .liquid-glass-container {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+[data-theme='refractive-glass'] .liquid-glass-container,
+[data-theme='glass'] .liquid-glass-container {
+  backdrop-filter: blur(16px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+}
+
+[data-theme='refractive-glass'] .glass-card,
+[data-theme='glass'] .glass-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Light Theme Overrides */
+[data-theme='light'] {
+  color-scheme: light;
+}
+
+[data-theme='light'] .glass-card {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='light'] .text-white,
+[data-theme='light'] .text-white\/95,
+[data-theme='light'] .text-white\/90 {
+  color: #030303 !important;
+}
+
+[data-theme='light'] .text-white\/85,
+[data-theme='light'] .text-white\/80,
+[data-theme='light'] .text-white\/75,
+[data-theme='light'] .text-white\/70 {
+  color: rgba(3, 3, 3, 0.75) !important;
+}
+
+[data-theme='light'] .text-white\/65,
+[data-theme='light'] .text-white\/60,
+[data-theme='light'] .text-white\/55,
+[data-theme='light'] .text-white\/50,
+[data-theme='light'] .text-white\/45,
+[data-theme='light'] .text-white\/40 {
+  color: rgba(3, 3, 3, 0.48) !important;
+}
+
+[data-theme='light'] .text-white\/35,
+[data-theme='light'] .text-white\/30,
+[data-theme='light'] .text-white\/25,
+[data-theme='light'] .text-white\/20,
+[data-theme='light'] .text-white\/15,
+[data-theme='light'] .text-white\/10 {
+  color: rgba(3, 3, 3, 0.28) !important;
+}
+
+[data-theme='light'] .hover\:text-white:hover,
+[data-theme='light'] .hover\:text-white\/90:hover,
+[data-theme='light'] .hover\:text-white\/85:hover,
+[data-theme='light'] .hover\:text-white\/80:hover {
+  color: #030303 !important;
+}
+
+[data-theme='light'] .group:hover .group-hover\:text-white,
+[data-theme='light'] .group:hover .group-hover\:text-white\/80,
+[data-theme='light'] .group:hover .group-hover\:text-white\/70 {
+  color: #030303 !important;
+}
+
+[data-theme='light'] .bg-white\/\[0\.04\],
+[data-theme='light'] .bg-white\/\[0\.05\],
+[data-theme='light'] .bg-white\/\[0\.06\],
+[data-theme='light'] .bg-white\/\[0\.07\],
+[data-theme='light'] .bg-white\/\[0\.08\],
+[data-theme='light'] .bg-white\/\[0\.10\],
+[data-theme='light'] .bg-white\/5,
+[data-theme='light'] .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme='light'] .hover\:bg-white\/\[0\.06\]:hover,
+[data-theme='light'] .hover\:bg-white\/\[0\.08\]:hover,
+[data-theme='light'] .hover\:bg-white\/\[0\.10\]:hover,
+[data-theme='light'] .hover\:bg-white\/\[0\.12\]:hover,
+[data-theme='light'] .hover\:bg-white\/\[0\.14\]:hover,
+[data-theme='light'] .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme='light'] .bg-white\/15,
+[data-theme='light'] .bg-white\/20,
+[data-theme='light'] .bg-white\/\[0\.12\],
+[data-theme='light'] .bg-white\/\[0\.16\] {
+  background-color: rgba(0, 0, 0, 0.09) !important;
+}
+
+[data-theme='light'] .border-white\/\[0\.05\],
+[data-theme='light'] .border-white\/\[0\.06\],
+[data-theme='light'] .border-white\/\[0\.07\],
+[data-theme='light'] .border-white\/\[0\.08\],
+[data-theme='light'] .border-white\/\[0\.09\],
+[data-theme='light'] .border-white\/\[0\.10\],
+[data-theme='light'] .border-white\/\[0\.12\],
+[data-theme='light'] .border-white\/10,
+[data-theme='light'] .border-white\/12,
+[data-theme='light'] .border-white\/15 {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme='light'] .border-white\/20,
+[data-theme='light'] .border-white\/25,
+[data-theme='light'] .border-white\/35 {
+  border-color: rgba(0, 0, 0, 0.16) !important;
+}
+
+[data-theme='light'] .bg-white\/\[0\.10\],
+[data-theme='light'] .bg-white\/\[0\.08\] {
+  background-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme='light'] .bg-white\/20 {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme='light'] .ring-white\/20,
+[data-theme='light'] .ring-white\/25,
+[data-theme='light'] .ring-white\/35 {
+  --tw-ring-color: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme='light'] .bg-\[\#007AFF\],
+[data-theme='light'] .bg-\[\#007AFF\] *,
+[data-theme='light'] button.bg-\[\#007AFF\],
+[data-theme='light'] button.bg-\[\#007AFF\] * {
+  color: #ffffff !important;
+}
+
+[data-theme='light'] .bg-rose-500,
+[data-theme='light'] .bg-rose-500\/25,
+[data-theme='light'] .bg-rose-500 * {
+  color: #ffffff !important;
+}
+
+[data-theme='light'] select option {
+  background-color: #ffffff !important;
+  color: #030303 !important;
+}
+
+[data-theme='light'] * {
+  scrollbar-color: rgba(0, 0, 0, 0.20) transparent;
+}
+
+[data-theme='light'] ::marker {
+  color: rgba(3, 3, 3, 0.35) !important;
+}
+
+[data-theme='light'] .markdown-body strong,
+[data-theme='light'] .markdown-body h1,
+[data-theme='light'] .markdown-body h2,
+[data-theme='light'] .markdown-body h3 {
+  color: #030303 !important;
+}
+
+[data-theme='light'] .markdown-body code {
+  color: #030303 !important;
+  background-color: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme='light'] .markdown-body pre {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme='light'] .markdown-body blockquote {
+  border-left-color: rgba(0, 0, 0, 0.20) !important;
+  color: rgba(3, 3, 3, 0.70) !important;
+}
+
+[data-theme='light'] .markdown-body th {
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #030303 !important;
+}
+
+[data-theme='light'] .markdown-body td {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  color: rgba(3, 3, 3, 0.80) !important;
 }
 
 /* A dragged window travels over new background each frame, so its blurred backdrop
@@ -172,7 +390,8 @@ body,
    panels, so it is left running: suspending it made the surface visibly flatten
    mid-drag for no measurable gain. Only the saturate pass is dropped, which is the
    part that has to re-read the sampled pixels. */
-[data-gesture='active'] .liquid-glass-container {
+[data-theme='glass'][data-gesture='active'] .liquid-glass-container,
+[data-theme='refractive-glass'][data-gesture='active'] .liquid-glass-container {
   backdrop-filter: blur(7px) !important;
   -webkit-backdrop-filter: blur(7px) !important;
 }
@@ -264,7 +483,7 @@ body,
 .an-text-shimmer {
   position: relative;
   display: inline-block;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--theme-text-muted, rgba(255, 255, 255, 0.45));
   overflow: hidden;
   isolation: isolate;
 }
@@ -279,9 +498,9 @@ body,
   color: transparent;
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0) 35%,
-    rgba(255, 255, 255, 1) 50%,
-    rgba(255, 255, 255, 0) 65%
+    transparent 35%,
+    var(--theme-text-primary, rgba(255, 255, 255, 1)) 50%,
+    transparent 65%
   );
   background-size: var(--shimmer-spread, 200%) 100%;
   background-position: center;
@@ -374,6 +593,51 @@ body,
   }
 }
 
+/* macOS Pure GPU Affine Card Launch:
+   Uses 2D compositor affine transforms (translate3d + scale) so Chromium caches the
+   layer in GPU VRAM and animates at locked 120 FPS without re-rasterizing backdrop blurs on CPU.
+   Duration: 300ms with Apple fluid spring curve cubic-bezier(0.16, 1, 0.3, 1). */
+@keyframes genie-morph {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 80px, 0) scale(0.92, 0.20);
+  }
+  60% {
+    opacity: 0.98;
+    transform: translate3d(0, 10px, 0) scale(0.98, 0.90);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1, 1);
+  }
+}
+
+@keyframes genie-morph-reduced {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-genie-morph {
+  animation: genie-morph 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+  transform-origin: 50% 100%;
+  backface-visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-genie-morph {
+    animation: genie-morph-reduced 180ms ease-out both;
+    will-change: auto;
+  }
+}
+
+
 /* Agent markdown: block spacing comes from the element renderers, so the
    wrapper only needs to suppress the leading and trailing gaps that would
    otherwise offset each message from its neighbours. */
@@ -388,3 +652,122 @@ body,
 .markdown-body p + p {
   margin-top: 0.5rem;
 }
+
+/* Startup Splash Animation: Fluid cubic-bezier easing */
+@keyframes curtain-rise {
+  0% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(0%);
+  }
+}
+
+@keyframes eye-blink-open {
+  0% {
+    transform: scale(0.92, 0.02);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.04, 1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1, 1);
+    opacity: 1;
+  }
+}
+
+@keyframes eye-blink-shut {
+  0% {
+    transform: scale(1, 1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95, 0.01);
+    opacity: 0;
+  }
+}
+
+.anim-curtain-rise {
+  animation: curtain-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform;
+}
+
+.anim-eyes-open {
+  animation: eye-blink-open 180ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+.anim-eyes-shut {
+  animation: eye-blink-shut 150ms cubic-bezier(0.4, 0, 0.9, 1) forwards;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-curtain-rise {
+    animation-duration: 1ms;
+  }
+  .anim-eyes-open,
+  .anim-eyes-shut {
+    animation-duration: 1ms;
+  }
+}
+
+/* ==========================================================================
+   Apple Dynamic Island Animations & Transitions
+   ========================================================================== */
+
+@keyframes dynamic-wave-1 {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+@keyframes dynamic-wave-2 {
+  0%, 100% { height: 14px; }
+  50% { height: 6px; }
+}
+
+@keyframes dynamic-wave-3 {
+  0%, 100% { height: 8px; }
+  50% { height: 18px; }
+}
+
+@keyframes dynamic-wave-4 {
+  0%, 100% { height: 16px; }
+  50% { height: 8px; }
+}
+
+@keyframes dynamic-wave-5 {
+  0%, 100% { height: 6px; }
+  50% { height: 14px; }
+}
+
+.anim-dynamic-wave-1 {
+  animation: dynamic-wave-1 0.8s ease-in-out infinite;
+}
+.anim-dynamic-wave-2 {
+  animation: dynamic-wave-2 0.65s ease-in-out infinite 0.15s;
+}
+.anim-dynamic-wave-3 {
+  animation: dynamic-wave-3 0.9s ease-in-out infinite 0.05s;
+}
+.anim-dynamic-wave-4 {
+  animation: dynamic-wave-4 0.75s ease-in-out infinite 0.25s;
+}
+.anim-dynamic-wave-5 {
+  animation: dynamic-wave-5 0.85s ease-in-out infinite 0.1s;
+}
+
+@keyframes dynamic-island-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.anim-dynamic-island-pulse {
+  animation: dynamic-island-pulse 0.4s cubic-bezier(0.16, 1, 0.3, 1) 2;
+}
+
+

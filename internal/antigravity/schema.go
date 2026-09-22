@@ -6,7 +6,39 @@ type ToolInfo struct {
 	Name       string          `json:"name"`
 	Parameters json.RawMessage `json:"parameters,omitempty"`
 	Output     string          `json:"output,omitempty"`
-	Error      string          `json:"error,omitempty"`
+	Error      *ToolError      `json:"error,omitempty"`
+}
+
+type ToolError struct {
+	Type    string
+	Message string
+}
+
+func (e *ToolError) UnmarshalJSON(data []byte) error {
+	var text string
+	if json.Unmarshal(data, &text) == nil {
+		e.Message = text
+		return nil
+	}
+	var shape struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(data, &shape); err != nil {
+		return err
+	}
+	e.Type, e.Message = shape.Type, shape.Message
+	return nil
+}
+
+func (e *ToolError) Text() string {
+	if e == nil {
+		return ""
+	}
+	if e.Message != "" {
+		return e.Message
+	}
+	return e.Type
 }
 
 type Usage struct {

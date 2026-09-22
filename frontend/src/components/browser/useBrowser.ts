@@ -7,6 +7,7 @@ const POLL_MS = 4_000;
 export interface BrowserTab {
   id: string;
   url: string;
+  label?: string;
   /** Bumped to force a remount of the frame, which is how reload works for a cross-origin iframe. */
   nonce: number;
   /** Set once a load has visibly failed or been refused, so the surface can offer an escape hatch. */
@@ -48,9 +49,25 @@ const UNOWNED = '__unowned__';
 const UNOWNED_TITLE = 'Other servers';
 
 let tabSeq = 0;
-function newTab(url: string = BLANK): BrowserTab {
+function newTab(url: string = BLANK, label?: string): BrowserTab {
   tabSeq += 1;
-  return { id: `tab-${tabSeq}`, url, nonce: 0, blocked: false };
+  return { id: `tab-${tabSeq}`, url, label, nonce: 0, blocked: false };
+}
+
+function projectName(cwd?: string): string {
+  if (!cwd) return '';
+  const parts = cwd.replace(/[\\/]+$/, '').split(/[\\/]/);
+  return parts[parts.length - 1] ?? '';
+}
+
+function portLabels(list: servers.Server[]): Map<number, string> {
+  const labels = new Map<number, string>();
+  for (const server of list) {
+    if (!(server.port > 0)) continue;
+    const name = projectName(server.cwd) || server.name || '';
+    labels.set(server.port, name ? `${name} :${server.port}` : `localhost:${server.port}`);
+  }
+  return labels;
 }
 
 /**
@@ -128,11 +145,13 @@ export function useBrowser(isOpen: boolean, busyThreadIds: string[] = []): Brows
           const key = group.threadId || UNOWNED;
           // The agent CLI's own IPC socket is not a page, so it is never offered
           // as a destination.
-          const ports = (group.servers ?? [])
-            .filter((server) => !server.agent)
-            .map((server) => server.port)
-            .sort((a, b) => a - b);
-          if (ports.length === 0 && !byThread.has(key)) continue;
+          const listed = (group.servers ?? []).filter(
+            (server) => !server.agent && server.port > 0,
+          );
+          const labels = portLabels(listed);
+          const ports = listed.map((server) => server.port).sort((a, b) => a - b);
+          const hasServers = (group.servers ?? []).length > 0;
+          if (ports.length === 0 && !hasServers && !byThread.has(key)) continue;
 
           const existing = byThread.get(key);
 
@@ -147,7 +166,10 @@ export function useBrowser(isOpen: boolean, busyThreadIds: string[] = []): Brows
             // common case needs no interaction at all.
             const first = ports[0];
             if (first !== undefined) seeded.add(first);
-            const tab = newTab(first !== undefined ? `http://localhost:${first}` : BLANK);
+            const tab = newTab(
+              first !== undefined ? `http://localhost:${first}` : BLANK,
+              first !== undefined ? labels.get(first) : undefined,
+            );
             next.push({
               threadId: key,
               title: group.threadId ? group.title || key : UNOWNED_TITLE,
@@ -169,7 +191,7 @@ export function useBrowser(isOpen: boolean, busyThreadIds: string[] = []): Brows
           const isPlaceholderOnly = tabs.length === 1 && tabs[0].url === BLANK;
           for (const port of fresh) {
             seeded.add(port);
-            const tab = newTab(`http://localhost:${port}`);
+            const tab = newTab(`http://localhost:${port}`, labels.get(port));
             tabs = isPlaceholderOnly && tabs[0].id === activeTabId ? [tab] : [...tabs, tab];
             activeTabId = tab.id;
           }

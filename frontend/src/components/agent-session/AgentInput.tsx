@@ -1,13 +1,19 @@
 import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
 import { ModelPicker } from '../orchestrator/ModelPicker';
 import { EffortPicker } from '../orchestrator/EffortPicker';
 import { useTransitionMount } from '../common/useTransitionMount';
 import { SmoothTextarea } from '../common/SmoothTextarea';
+import { AttachmentStrip } from '../common/AttachmentStrip';
+import { AttachmentsState, filesFromTransfer, useAttachments } from '../common/useAttachments';
+import { domain } from '../../../wailsjs/go/models';
 import { ThinkingEffort, ThinkingMode } from '../orchestrator/types';
 
 export interface AgentInputProps {
-  onSubmit?: (message: string, modelId: string) => void;
+  onSubmit?: (message: string, modelId: string, files?: domain.FileRef[]) => void;
+  /** Supply to share staging with a parent; omitted, the input owns its own. */
+  attachments?: AttachmentsState;
   onInterrupt?: () => void;
   isStreaming?: boolean;
   placeholder?: string;
@@ -29,8 +35,14 @@ export const AgentInput: React.FC<AgentInputProps> = ({
   placeholder = 'Send a message',
   className = '',
   defaultModelId,
+  attachments: suppliedAttachments,
 }) => {
   const { providers, models } = useOrchestratorStore();
+
+  // Hooks cannot be called conditionally, so one is always created and simply
+  // ignored when the parent supplies its own.
+  const ownFiles = useAttachments();
+  const attachments = suppliedAttachments ?? ownFiles;
 
   const [message, setMessage] = useState('');
   const [textareaHeight, setTextareaHeight] = useState(20);
@@ -44,10 +56,11 @@ export const AgentInput: React.FC<AgentInputProps> = ({
     return m?.providerId || 'anthropic';
   });
 
-  // Isolated picker states for this AgentInput instance
+  // Isolated picker open states for this AgentInput instance. Effort/mode
+  // selections write through to the shared store so the picker highlight and
+  // the options sent on submit always agree.
   const [isLocalModelPickerOpen, setIsLocalModelPickerOpen] = useState(false);
   const [isLocalEffortPickerOpen, setIsLocalEffortPickerOpen] = useState(false);
-  const [localSettings, setLocalSettings] = useState<Record<string, { effort: ThinkingEffort; mode: ThinkingMode }>>({});
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -94,18 +107,31 @@ export const AgentInput: React.FC<AgentInputProps> = ({
     };
   }, [isLocalModelPickerOpen, isLocalEffortPickerOpen]);
 
+  // An attachment on its own is a complete message, so a turn is sendable when
+  // there is either text or a staged file.
+  const hasAttachments = attachments.items.length > 0;
+  const canSubmit = message.trim().length > 0 || hasAttachments;
+
+  const submitMessage = () => {
+    if (!canSubmit) return;
+    const files = attachments.toRefs();
+    onSubmit?.(message, localModelId, files);
+    // Released rather than cleared: the turn in flight owns those paths now.
+    if (files.length > 0) attachments.release();
+    setMessage('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '22px';
+    }
+    setTextareaHeight(20);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (isStreaming) {
         onInterrupt?.();
-      } else if (message.trim()) {
-        onSubmit?.(message, localModelId);
-        setMessage('');
-        if (textareaRef.current) {
-          textareaRef.current.style.height = '22px';
-        }
-        setTextareaHeight(20);
+      } else {
+        submitMessage();
       }
     }
     if (e.key === 'Escape') {
@@ -118,25 +144,39 @@ export const AgentInput: React.FC<AgentInputProps> = ({
     e.stopPropagation();
     if (isStreaming) {
       onInterrupt?.();
-    } else if (message.trim()) {
-      onSubmit?.(message, localModelId);
-      setMessage('');
-      if (textareaRef.current) {
-        textareaRef.current.style.height = '22px';
-      }
-      setTextareaHeight(20);
+      return;
     }
+    submitMessage();
+  };
+
+  // Pasting a screenshot stages it instead of inserting its text form. Pastes
+  // carrying no file fall through untouched so ordinary text still pastes.
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const files = filesFromTransfer(e.clipboardData);
+    if (files.length === 0) return;
+    e.preventDefault();
+    void attachments.accept(files);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    const files = filesFromTransfer(e.dataTransfer);
+    if (files.length === 0) return;
+    e.preventDefault();
+    void attachments.accept(files);
   };
 
   const handleSelectModel = (modelId: string) => {
     const m = models.find((item) => item.id === modelId);
     if (!m) return;
+    const hasEfforts = Boolean(
+      (m.effortLevels && m.effortLevels.length > 0) || m.supportsThinking,
+    );
     if (localModelId === modelId && isLocalEffortPickerOpen) {
       setIsLocalEffortPickerOpen(false);
     } else {
       setLocalModelId(modelId);
       setLocalProviderId(m.providerId);
-      setIsLocalEffortPickerOpen(true);
+      setIsLocalEffortPickerOpen(hasEfforts);
     }
   };
 
@@ -153,14 +193,17 @@ export const AgentInput: React.FC<AgentInputProps> = ({
   return (
     <div
       ref={containerRef}
+      onPaste={handlePaste}
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
       className={`relative flex flex-col select-none ${className}`}
     >
-      {/* Main Agent Input Box - Frosted White Glass Bubble */}
+      {/* Main Agent Input Box - Obsidian Dark Stealth Bubble */}
       <div
-        className="rounded-[14px] glass-card border border-white/25 p-2.5 flex flex-col gap-2 transition-all duration-200"
+        className="rounded-[14px] glass-card border border-white/10 p-2.5 flex flex-col gap-2 transition-all duration-200"
         style={{
           boxShadow:
-            '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
+            '0 4px 16px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.08)',
         }}
       >
         {/* Top Textarea Message Input */}
@@ -182,6 +225,22 @@ export const AgentInput: React.FC<AgentInputProps> = ({
             }}
           />
         </div>
+
+        {/* Staged files, between the message and the controls so they read as
+            part of what is about to be sent. */}
+        {hasAttachments && (
+          <div
+            className="overflow-y-auto overflow-x-hidden custom-scrollbar"
+            style={{ maxHeight: '96px' }}
+          >
+            <AttachmentStrip
+              items={attachments.items}
+              onRemove={attachments.remove}
+              compact
+              className="px-1 pr-1.5"
+            />
+          </div>
+        )}
 
         {/* Bottom Toolbar: Model Switcher + Action Button */}
         <div className="flex items-center justify-between pt-0.5">
@@ -215,6 +274,28 @@ export const AgentInput: React.FC<AgentInputProps> = ({
             </span>
           </button>
 
+          <div className="flex items-center gap-1 shrink-0">
+          {/* Attach, paired with send: both act on the message being composed. */}
+          <button
+            type="button"
+            title="Attach files"
+            aria-label="Attach files"
+            disabled={attachments.isBusy}
+            onClick={(e) => {
+              e.stopPropagation();
+              void attachments.browse();
+            }}
+            className={`w-[26px] h-[26px] rounded-[8px] flex items-center justify-center transition-all duration-150 shrink-0 ${
+              attachments.isBusy
+                ? 'text-white/25 cursor-default'
+                : 'text-white/55 hover:text-white hover:bg-white/15 active:scale-90 cursor-pointer'
+            }`}
+          >
+            <span className="material-symbols-rounded text-[16px] leading-none">
+              {attachments.isBusy ? 'hourglass_top' : 'attach_file'}
+            </span>
+          </button>
+
           {/* Action / Send Button (Normal upward arrow or Interrupt target when streaming) */}
           <button
             type="button"
@@ -232,25 +313,30 @@ export const AgentInput: React.FC<AgentInputProps> = ({
               </span>
             )}
           </button>
+          </div>
         </div>
       </div>
 
       {/* Popups (Independent Model Picker & Effort Picker positioned above input with readable blur) */}
-      {(modelPickerMount.shouldRender || effortPickerMount.shouldRender) && (
-        <div
-          className="absolute bottom-[calc(100%+8px)] left-0 flex items-end gap-2.5 z-50 pointer-events-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {modelPickerMount.shouldRender && (
-            <div
-              className="glass-popup-anim origin-bottom-left"
-              style={{
-                opacity: modelPickerMount.isVisible ? 1 : 0,
-                transform: modelPickerMount.isVisible
-                  ? 'none'
-                  : 'translateY(8px) scale(0.96)',
-                pointerEvents: modelPickerMount.isVisible ? 'auto' : 'none',
+      <div
+        className="absolute bottom-[calc(100%+8px)] left-0 flex items-end gap-2.5 z-50 pointer-events-none"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <AnimatePresence>
+          {isLocalModelPickerOpen && (
+            <motion.div
+              key="agent-model-picker"
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 4, transition: { duration: 0.12, ease: 'easeIn' } }}
+              transition={{
+                type: 'spring',
+                stiffness: 440,
+                damping: 30,
+                mass: 0.8,
               }}
+              style={{ transformOrigin: 'bottom left' }}
+              className="origin-bottom-left pointer-events-auto"
             >
               <ModelPicker
                 selectedModelId={localModelId}
@@ -259,46 +345,40 @@ export const AgentInput: React.FC<AgentInputProps> = ({
                 onSelectProvider={handleSelectProvider}
                 isFloatingPopup={true}
               />
-            </div>
+            </motion.div>
           )}
+        </AnimatePresence>
 
-          {effortPickerMount.shouldRender && (
-            <div
-              className="glass-popup-anim origin-bottom-left"
-              style={{
-                opacity: effortPickerMount.isVisible ? 1 : 0,
-                transform: effortPickerMount.isVisible
-                  ? 'none'
-                  : 'translateX(-10px) scale(0.96)',
-                pointerEvents: effortPickerMount.isVisible ? 'auto' : 'none',
+        <AnimatePresence>
+          {isLocalEffortPickerOpen && (
+            <motion.div
+              key="agent-effort-picker"
+              initial={{ opacity: 0, scale: 0.95, y: 8, x: -6 }}
+              animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 4, x: -4, transition: { duration: 0.12, ease: 'easeIn' } }}
+              transition={{
+                type: 'spring',
+                stiffness: 440,
+                damping: 30,
+                mass: 0.8,
               }}
+              style={{ transformOrigin: 'bottom left' }}
+              className="origin-bottom-left pointer-events-auto"
             >
               <EffortPicker
                 configuringModelId={localModelId}
                 isFloatingPopup={true}
                 onSelectEffort={(effort) => {
-                  setLocalSettings((prev) => ({
-                    ...prev,
-                    [localModelId]: {
-                      ...(prev[localModelId] || { mode: 'normal' }),
-                      effort,
-                    },
-                  }));
+                  useOrchestratorStore.getState().setModelSettings(localModelId, { effort });
                 }}
                 onSelectMode={(mode) => {
-                  setLocalSettings((prev) => ({
-                    ...prev,
-                    [localModelId]: {
-                      ...(prev[localModelId] || { effort: 'Medium' }),
-                      mode,
-                    },
-                  }));
+                  useOrchestratorStore.getState().setModelSettings(localModelId, { mode });
                 }}
               />
-            </div>
+            </motion.div>
           )}
-        </div>
-      )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };

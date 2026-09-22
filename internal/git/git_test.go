@@ -84,7 +84,7 @@ func TestWorktreeLifecycleAndHandoff(t *testing.T) {
 	}
 }
 
-// TestHandoffDetectsConflict is the case that decides whether Catalyst can hand
+// TestHandoffDetectsConflict is the case that decides whether Composer can hand
 // off safely: two agents editing the same file must be reported, not merged.
 func TestHandoffDetectsConflict(t *testing.T) {
 	ctx := context.Background()

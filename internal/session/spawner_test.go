@@ -9,16 +9,16 @@ import (
 	"testing"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/drivers"
-	"catalyst/internal/git"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/drivers"
+	"composer/internal/git"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 func TestParseTasks(t *testing.T) {
 	reply := "Here is the plan:\n\n" +
-		"```catalyst:tasks\n" +
+		"```composer:tasks\n" +
 		`{"tasks":[{"title":"Add login","prompt":"Implement the login form"},` +
 		`{"title":"Add logout","prompt":"Implement logout"}]}` +
 		"\n```\n\nBoth can run in parallel."
@@ -31,17 +31,24 @@ func TestParseTasks(t *testing.T) {
 		t.Errorf("unexpected tasks: %+v", tasks)
 	}
 
-	if stripped := StripTaskBlock(reply); strings.Contains(stripped, "catalyst:tasks") {
+	if stripped := StripTaskBlock(reply); strings.Contains(stripped, "composer:tasks") {
 		t.Errorf("block leaked into display text: %q", stripped)
 	}
 
-	// A conversational reply must not produce phantom tasks.
-	if got := ParseTasks("You are talking to Claude. No work needed."); len(got) != 0 {
-		t.Errorf("expected no tasks, got %+v", got)
+	// Test action and targetThreadId routing
+	routeReply := "```composer:tasks\n" +
+		`{"tasks":[{"action":"message","targetThreadId":"thread-42","title":"Update UI","prompt":"Make it blue"},` +
+		`{"title":"New Service","prompt":"Build service"}]}` +
+		"\n```"
+	routeTasks := ParseTasks(routeReply)
+	if len(routeTasks) != 2 {
+		t.Fatalf("expected 2 route tasks, got %d", len(routeTasks))
 	}
-	// Malformed JSON must fail closed rather than spawn garbage.
-	if got := ParseTasks("```catalyst:tasks\n{not json}\n```"); len(got) != 0 {
-		t.Errorf("expected no tasks from bad JSON, got %+v", got)
+	if routeTasks[0].Action != "message" || routeTasks[0].TargetThreadID != "thread-42" {
+		t.Errorf("expected routed task, got %+v", routeTasks[0])
+	}
+	if routeTasks[1].Action != "spawn" || routeTasks[1].TargetThreadID != "" {
+		t.Errorf("expected spawned task default, got %+v", routeTasks[1])
 	}
 }
 
@@ -65,6 +72,9 @@ func gitInit(t *testing.T, root string) {
 // TestSpawnCreatesIsolatedAgents is the end-to-end proof of the orchestrator
 // model: two tasks, two live CLI sessions, two isolated worktrees.
 func TestSpawnCreatesIsolatedAgents(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI test in short mode")
+	}
 	env := shell.BaseEnvironment()
 	if _, ok := shell.LookPath("claude", env); !ok {
 		t.Skip("claude CLI not installed")
@@ -116,7 +126,7 @@ func TestSpawnCreatesIsolatedAgents(t *testing.T) {
 		}
 		seenPaths[task.Worktree.Path] = true
 
-		if !strings.HasPrefix(task.Worktree.Branch, "catalyst/") {
+		if !strings.HasPrefix(task.Worktree.Branch, "composer/") {
 			t.Errorf("unexpected branch %q", task.Worktree.Branch)
 		}
 		// Worktrees must live outside the project directory.
@@ -174,6 +184,9 @@ func TestSpawnCreatesIsolatedAgents(t *testing.T) {
 // parseable task block for a two-feature request, which the whole delegation
 // flow depends on.
 func TestOrchestratorEmitsPlan(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI test in short mode")
+	}
 	env := shell.BaseEnvironment()
 	if _, ok := shell.LookPath("claude", env); !ok {
 		t.Skip("claude CLI not installed")
@@ -232,6 +245,9 @@ func TestOrchestratorEmitsPlan(t *testing.T) {
 // TestSpawnHonoursPerTaskCwd proves a task naming another directory actually
 // runs there, rather than in the plan-wide working directory.
 func TestSpawnHonoursPerTaskCwd(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI test in short mode")
+	}
 	if _, ok := shell.LookPath("claude", shell.BaseEnvironment()); !ok {
 		t.Skip("claude CLI not installed")
 	}

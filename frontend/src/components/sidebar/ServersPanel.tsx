@@ -1,5 +1,4 @@
 import React from 'react';
-import { LiquidGlass } from '../../liquid-glass';
 import { ScrollArea } from '../common/ScrollArea';
 import { servers } from '../../../wailsjs/go/models';
 
@@ -38,6 +37,12 @@ function shortCommand(command: string): string {
   return withoutPaths.length > 64 ? `${withoutPaths.slice(0, 64)}…` : withoutPaths;
 }
 
+function projectName(cwd?: string): string {
+  if (!cwd) return '';
+  const parts = cwd.replace(/[\\/]+$/, '').split(/[\\/]/);
+  return parts[parts.length - 1] ?? '';
+}
+
 const ServerRow: React.FC<{
   server: servers.Server;
   isStopping: boolean;
@@ -45,14 +50,28 @@ const ServerRow: React.FC<{
 }> = ({ server, isStopping, onStop }) => (
   <div className="flex items-center gap-2.5 p-2 rounded-[10px] bg-white/[0.04] border border-white/[0.08]">
     <span className="text-[12px] font-semibold font-['Geist'] text-white tabular-nums shrink-0 w-[52px]">
-      :{server.port}
+      {server.port ? `:${server.port}` : '—'}
     </span>
 
     <div className="min-w-0 flex-1 flex flex-col gap-0.5">
       <span className="text-[11px] font-medium font-['Geist'] text-white/90 tracking-tight truncate">
-        {KIND_LABELS[server.kind] ?? server.name}
+        {projectName(server.cwd) || KIND_LABELS[server.kind] || server.name}
+        {!!projectName(server.cwd) && (
+          <span className="text-white/45 font-normal">
+            {' '}
+            · {KIND_LABELS[server.kind] ?? server.name}
+          </span>
+        )}
         <span className="text-white/35 font-normal"> · pid {server.pid}</span>
+        {server.managed && (
+          <span className="text-emerald-300/70 font-normal"> · managed</span>
+        )}
       </span>
+      {!!server.cwd && (
+        <span className="text-[10px] font-['Geist'] text-white/35 truncate" title={server.cwd}>
+          {server.cwd}
+        </span>
+      )}
       {!!server.command && (
         <span className="text-[10px] font-mono text-white/40 truncate">
           {shortCommand(server.command)}
@@ -89,28 +108,7 @@ export const ServersPanel: React.FC<ServersPanelProps> = ({
   const total = groups.reduce((sum, group) => sum + (group.servers?.length ?? 0), 0);
 
   return (
-    <LiquidGlass
-      variant="panel"
-      surface="squircle"
-      radius={20}
-      bezelWidth={18}
-      glassThickness={24}
-      refractionScale={0.8}
-      blur={0.4}
-      specularOpacity={0.8}
-      specularSaturation={6}
-      lightAngle={-45}
-      tint="rgba(0, 0, 0, 0.22)"
-      shadow="apple"
-      border="1px solid rgba(255, 255, 255, 0.18)"
-      frost={16}
-      frostSaturation={170}
-      className={`w-[380px] flex flex-col ${className}`}
-      style={{
-        boxShadow:
-          '0 20px 54px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25)',
-      }}
-    >
+    <div className={`w-full h-full flex flex-col select-none ${className}`}>
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 shrink-0">
         <div className="flex items-center gap-2">
           <span className="material-symbols-rounded text-[18px] text-white/80 leading-none">
@@ -183,7 +181,7 @@ export const ServersPanel: React.FC<ServersPanelProps> = ({
           ))}
         </ScrollArea>
       )}
-    </LiquidGlass>
+    </div>
   );
 };
 

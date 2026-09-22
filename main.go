@@ -2,6 +2,10 @@ package main
 
 import (
 	"embed"
+	"os"
+	"path/filepath"
+
+	"composer/internal/logger"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -13,15 +17,37 @@ import (
 var assets embed.FS
 
 func main() {
+	// Clean up any legacy shim executables so agents never encounter or invoke them.
+	binDir := filepath.Join(configRoot(), "bin")
+	_ = os.Remove(filepath.Join(binDir, "composer-serve.exe"))
+	_ = os.Remove(filepath.Join(binDir, "composer-task.exe"))
+	_ = os.Remove(filepath.Join(binDir, "composer-serve"))
+	_ = os.Remove(filepath.Join(binDir, "composer-task"))
+
+	logger.Init(
+		filepath.Join(configRoot(), "orchestrator_debug.log"),
+	)
+	logger.Infof("Main", "Starting Orchestrator, PID=%d", os.Getpid())
+
 	// Create an instance of the app structure
 	app := NewApp()
 
+	// Check if user disabled GPU acceleration in settings.
+	// Defaults to false (GPU enabled), allowing users experiencing display driver crashes to toggle software rendering.
+	gpuPref, _ := app.GetUserPreference("disable_gpu_acceleration")
+	disableGpu := gpuPref == "true"
+	if disableGpu {
+		logger.Infof("Main", "WebView2 GPU Hardware Acceleration: DISABLED by user preference")
+	} else {
+		logger.Infof("Main", "WebView2 GPU Hardware Acceleration: ENABLED (default)")
+	}
+
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:            "catalyst",
+		Title:            "Orchestrator",
 		WindowStartState: options.Normal,
-		Width:            1280,
-		Height:           860,
+		Width:            1440,
+		Height:           900,
 		MinWidth:         900,
 		MinHeight:        600,
 		// The wallpaper is the interface here, so the OS title bar is dropped and
@@ -33,6 +59,7 @@ func main() {
 		},
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup:        app.startup,
+		OnDomReady:       app.domReady,
 		OnShutdown:       app.shutdown,
 		Debug: options.Debug{
 			OpenInspectorOnStartup: false,
@@ -43,10 +70,10 @@ func main() {
 			// retire, which is what makes resizing feel like it drops frames.
 			ResizeDebounceMS: 16,
 
-			// Leave the GPU enabled. Wails only exposes the negative switch, so this is
-			// here to document that it must stay false: setting it forces the entire
-			// glass UI through software rasterization.
-			WebviewGpuIsDisabled: false,
+			// WebviewGpuIsDisabled controls WebView2 GPU hardware acceleration.
+			// When false, GPU hardware acceleration is active.
+			// When true, software rasterization is used.
+			WebviewGpuIsDisabled: disableGpu,
 
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,

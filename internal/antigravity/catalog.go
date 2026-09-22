@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // agy bakes the effort tier into the model id (`gemini-3.7-flash-high`) rather

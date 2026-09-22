@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 type Registry struct {

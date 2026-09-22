@@ -1,0 +1,143 @@
+import React, { useEffect, useState, useRef } from 'react'
+import { RuntimeEvent, ServerMessage } from '../types'
+import { api } from '../api'
+import { mergeEvents, threadRunning } from '../events'
+import NavHeader from '../components/NavHeader'
+import ChatBubble from '../components/ChatBubble'
+import InputBar from '../components/InputBar'
+
+interface Props {
+  threadId: string
+  title: string
+  pop: () => void
+  wsLastMessage: ServerMessage | null
+  wsSend: (msg: object) => boolean
+  wsConnected: boolean
+}
+
+export default function AgentChat({ threadId, title, pop, wsLastMessage, wsSend, wsConnected }: Props) {
+  const [events, setEvents] = useState<RuntimeEvent[]>([])
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    let mounted = true
+    setLoading(true)
+    api.agentHistory(threadId).then(hist => {
+      if (mounted) setEvents(Array.isArray(hist) ? hist : [])
+    }).catch((e) => {
+      if (mounted) setError(e?.message || 'Failed to load history')
+    }).finally(() => {
+      if (mounted) setLoading(false)
+    })
+    return () => { mounted = false }
+  }, [threadId])
+
+  useEffect(() => {
+    const ev = wsLastMessage?.event
+    if (wsLastMessage?.type === 'event' && ev && ev.threadId === threadId) {
+      setEvents(prev => mergeEvents(prev, ev))
+    }
+  }, [wsLastMessage, threadId])
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [events])
+
+  const isRunning = threadRunning(events)
+
+  const handleSend = async (text: string) => {
+    setError(null)
+    const optimistic: RuntimeEvent = {
+      kind: 'user.message', threadId, text,
+      seq: Date.now(), at: Date.now(),
+    } as RuntimeEvent
+    setEvents(prev => [...prev, optimistic])
+    setSending(true)
+    try {
+      await api.sendAgent(threadId, text)
+    } catch (e: unknown) {
+      const ok = wsSend({ action: 'send_agent', threadId, text })
+      if (!ok) setError(e instanceof Error ? e.message : 'Send failed')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleStop = async () => {
+    try {
+      await api.stopAgent(threadId)
+    } catch {
+      wsSend({ action: 'stop_agent', threadId })
+    }
+  }
+
+  const handleApprove = async (requestId: string, decision: string) => {
+    try {
+      await api.approve(threadId, requestId, decision)
+    } catch (e) {
+      const ok = wsSend({ action: 'approve', threadId, requestId, decision })
+      if (!ok) setError(e instanceof Error ? e.message : 'Approval failed')
+    }
+  }
+
+  const handleAnswer = async (requestId: string, answers: string[]) => {
+    try {
+      await api.answerQuestion(threadId, requestId, answers)
+    } catch (e) {
+      const ok = wsSend({ action: 'answer_question', threadId, requestId, answers })
+      if (!ok) setError(e instanceof Error ? e.message : 'Answer failed')
+    }
+  }
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <NavHeader
+        title={title}
+        onBack={pop}
+        rightAction={
+          <span style={{ fontSize: 11, color: wsConnected ? '#34d399' : '#f87171', fontWeight: 600 }}>
+            {wsConnected ? '● live' : '○ offline'}
+          </span>
+        }
+      />
+
+      {error && (
+        <div style={{ margin: '8px 16px 0', padding: '8px 12px', borderRadius: 8, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', fontSize: 12, color: '#fca5a5' }}>
+          {error}
+        </div>
+      )}
+
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: 1 }} />
+        {loading && events.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-mut)', fontSize: 13 }}>Loading messages...</div>
+        ) : events.length === 0 ? (
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-mut)', fontSize: 13 }}>No messages yet. Say hello below.</div>
+        ) : (
+          events.map((ev, i) => (
+            <ChatBubble
+              key={`${ev.seq}-${i}`}
+              event={ev}
+              isUser={ev.kind === 'user.message'}
+              onApprove={handleApprove}
+              onAnswer={handleAnswer}
+            />
+          ))
+        )}
+        <div style={{ height: 16 }} />
+      </div>
+
+      <InputBar
+        onSend={handleSend}
+        onStop={handleStop}
+        isRunning={isRunning}
+        disabled={sending}
+      />
+    </div>
+  )
+}

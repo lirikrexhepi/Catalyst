@@ -78,7 +78,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
       tint="rgba(0, 0, 0, 0.20)"
       shadow="apple"
       border="1px solid rgba(255, 255, 255, 0.18)"
-      className={`w-[580px] ${className}`}
+      className={`w-[667px] ${className}`}
       style={{
         boxShadow:
           '0 20px 54px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25)',

@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // ResumeRequest asks for one stored task to be brought back to life.

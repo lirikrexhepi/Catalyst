@@ -5,6 +5,8 @@ import { RestoredSession } from './useHistory';
 export interface RestoredSessionBarProps {
   session: RestoredSession;
   isResuming: boolean;
+  hasLiveAgents?: boolean;
+  liveAgentCount?: number;
   onResume: () => void;
   onClose: () => void;
   className?: string;
@@ -20,6 +22,8 @@ export interface RestoredSessionBarProps {
 export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
   session,
   isResuming,
+  hasLiveAgents = false,
+  liveAgentCount = 0,
   onResume,
   onClose,
   className = '',
@@ -67,6 +71,16 @@ export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5 ml-auto shrink-0">
+          {hasLiveAgents && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-[26px] px-2.5 rounded-[8px] bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/35 active:scale-95 text-[11px] font-medium font-['Geist'] text-emerald-200 tracking-tight transition-all duration-150 cursor-pointer flex items-center gap-1.5 mr-1"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Return to live session ({liveAgentCount})</span>
+            </button>
+          )}
           {isReplay && (
             <button
               type="button"
@@ -79,7 +93,7 @@ export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
           )}
           <button
             type="button"
-            title="Close session"
+            title="Close replay"
             onClick={onClose}
             className="w-[26px] h-[26px] rounded-[8px] grid place-items-center text-white/45 hover:text-white/90 hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
           >

@@ -4,12 +4,12 @@ import (
 	"context"
 	"strings"
 
-	"catalyst/internal/antigravity"
-	"catalyst/internal/claude"
-	"catalyst/internal/codex"
-	"catalyst/internal/domain"
-	"catalyst/internal/opencode"
-	"catalyst/internal/provider"
+	"composer/internal/antigravity"
+	"composer/internal/claude"
+	"composer/internal/codex"
+	"composer/internal/domain"
+	"composer/internal/opencode"
+	"composer/internal/provider"
 )
 
 // All returns the built-in driver set. Registering a new agent CLI means adding
@@ -36,7 +36,7 @@ func (d *claudeDriver) Kind() domain.DriverKind { return domain.DriverClaude }
 func (d *claudeDriver) DisplayName() string     { return "Claude Code" }
 
 func (d *claudeDriver) DefaultSettings() domain.ProviderSettings {
-	return domain.ProviderSettings{Enabled: true}
+	return domain.ProviderSettings{Enabled: false}
 }
 
 // Probe gates the static catalog on the installed CLI version, since the Claude
@@ -59,7 +59,7 @@ func (d *antigravityDriver) Kind() domain.DriverKind { return domain.DriverAntig
 func (d *antigravityDriver) DisplayName() string     { return "Antigravity" }
 
 func (d *antigravityDriver) DefaultSettings() domain.ProviderSettings {
-	return domain.ProviderSettings{Enabled: true}
+	return domain.ProviderSettings{Enabled: false}
 }
 
 func (d *antigravityDriver) Probe(ctx context.Context, settings domain.ProviderSettings) domain.ProviderSnapshot {
@@ -84,7 +84,7 @@ func (d *codexDriver) Kind() domain.DriverKind { return domain.DriverCodex }
 func (d *codexDriver) DisplayName() string     { return "Codex" }
 
 func (d *codexDriver) DefaultSettings() domain.ProviderSettings {
-	return domain.ProviderSettings{Enabled: true}
+	return domain.ProviderSettings{Enabled: false}
 }
 
 func (d *codexDriver) Probe(ctx context.Context, settings domain.ProviderSettings) domain.ProviderSnapshot {
@@ -101,7 +101,7 @@ func (d *openCodeDriver) Kind() domain.DriverKind { return domain.DriverOpenCode
 func (d *openCodeDriver) DisplayName() string     { return "OpenCode" }
 
 func (d *openCodeDriver) DefaultSettings() domain.ProviderSettings {
-	return domain.ProviderSettings{Enabled: true}
+	return domain.ProviderSettings{Enabled: false}
 }
 
 func (d *openCodeDriver) Probe(ctx context.Context, settings domain.ProviderSettings) domain.ProviderSnapshot {
@@ -133,9 +133,30 @@ func (d *openCodeDriver) models(ctx context.Context, settings domain.ProviderSet
 		if id == "" || strings.HasPrefix(id, "#") {
 			continue
 		}
-		models = append(models, domain.Model{ID: id, DisplayName: id})
+		displayName := formatOpenCodeModelName(id)
+		models = append(models, domain.Model{ID: id, DisplayName: displayName})
 	}
 	return models
+}
+
+func formatOpenCodeModelName(id string) string {
+	name := id
+	if strings.HasPrefix(strings.ToLower(name), "opencode/") {
+		name = name[9:]
+	} else if strings.HasPrefix(strings.ToLower(name), "opencode:") {
+		name = name[9:]
+	}
+	parts := strings.Fields(strings.ReplaceAll(name, "-", " "))
+	for i, p := range parts {
+		if len(p) > 0 {
+			parts[i] = strings.ToUpper(p[:1]) + p[1:]
+		}
+	}
+	displayName := strings.Join(parts, " ")
+	if displayName == "" {
+		return id
+	}
+	return displayName
 }
 
 func (d *openCodeDriver) NewAdapter(settings domain.ProviderSettings, emit provider.Emitter) (provider.Adapter, error) {

@@ -1,10 +1,11 @@
 package claude
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 func (a *Adapter) handleEnvelope(s *session, envelope *Envelope) {
@@ -29,6 +30,8 @@ func (a *Adapter) handleEnvelope(s *session, envelope *Envelope) {
 		a.handleResult(s, envelope)
 	case "rate_limit_event":
 		a.handleRateLimit(s, envelope)
+	case "control_request":
+		a.handleControlRequest(s, envelope)
 	}
 }
 
@@ -87,11 +90,18 @@ func (a *Adapter) handleAssistant(s *session, envelope *Envelope) {
 			event.Text = block.Thinking
 			a.emit.Emit(event)
 		case "tool_use":
-			event := a.event(s, domain.EventToolCall)
 			tool := &domain.ToolCall{ID: block.ID, Name: block.Name, Status: domain.ToolInProgress}
 			if len(block.Input) > 0 {
 				_ = json.Unmarshal(block.Input, &tool.Input)
 			}
+			// Intercept AskUserQuestion to render the interactive question card
+			if block.Name == "AskUserQuestion" {
+				event := a.event(s, domain.EventQuestionAsked)
+				event.Question = parseClaudeQuestion(block.ID, tool.Input)
+				a.emit.Emit(event)
+				continue
+			}
+			event := a.event(s, domain.EventToolCall)
 			event.Tool = tool
 			a.emit.Emit(event)
 		}
@@ -197,4 +207,123 @@ func convertUsage(usage *Usage, cost float64) *domain.Usage {
 		CacheWriteTokens: usage.CacheCreationInputTokens,
 		CostUSD:          cost,
 	}
+}
+
+func (a *Adapter) handleControlRequest(s *session, envelope *Envelope) {
+	reqID := envelope.RequestID
+	if reqID == "" {
+		return
+	}
+
+	payload := envelope.Request
+	toolName := "Permission Request"
+	detail := ""
+	if payload != nil {
+		if payload.ToolName != "" {
+			toolName = payload.ToolName
+		}
+		if len(payload.Input) > 0 {
+			detail = string(payload.Input)
+		}
+	}
+
+	s.mu.Lock()
+	perm := s.permission
+	s.mu.Unlock()
+
+	// If bypassPermissions is configured, auto-approve immediately
+	if perm == domain.PermissionBypass {
+		go func() {
+			_ = a.RespondToApproval(context.Background(), s.threadID, reqID, domain.ApprovalAllowAlways)
+		}()
+		return
+	}
+
+	event := a.event(s, domain.EventApprovalRequest)
+	event.Approval = &domain.ApprovalRequest{
+		RequestID: reqID,
+		Title:     toolName,
+		Detail:    detail,
+		Options: []domain.ApprovalOption{
+			{ID: "once", Name: "Allow once", Kind: domain.ApprovalAllowOnce},
+			{ID: "always", Name: "Always allow", Kind: domain.ApprovalAllowAlways},
+			{ID: "reject", Name: "Deny", Kind: domain.ApprovalDeny},
+		},
+	}
+	a.emit.Emit(event)
+}
+
+func parseClaudeQuestion(requestID string, input map[string]any) *domain.QuestionRequest {
+	req := &domain.QuestionRequest{RequestID: requestID}
+	if rawQuestions, ok := input["questions"].([]any); ok && len(rawQuestions) > 0 {
+		for _, entry := range rawQuestions {
+			m, ok := entry.(map[string]any)
+			if !ok {
+				continue
+			}
+			item := domain.QuestionItem{}
+			if q, ok := m["question"].(string); ok && q != "" {
+				item.Question = q
+			} else if h, ok := m["header"].(string); ok && h != "" {
+				item.Question = h
+			}
+			if h, ok := m["header"].(string); ok && h != "" {
+				if q, ok := m["question"].(string); ok && q != "" && q != h {
+					item.Question = h + ": " + q
+				}
+			}
+			if opts, ok := m["options"].([]any); ok {
+				item.Options = formatClaudeOptions(opts)
+			}
+			if item.Question != "" {
+				req.Questions = append(req.Questions, item)
+			}
+		}
+		if len(req.Questions) > 0 {
+			return req
+		}
+	}
+	item := domain.QuestionItem{}
+	if q, ok := input["question"].(string); ok && q != "" {
+		item.Question = q
+	} else if h, ok := input["header"].(string); ok && h != "" {
+		item.Question = h
+	}
+	if opts, ok := input["options"].([]any); ok {
+		item.Options = formatClaudeOptions(opts)
+	}
+	if item.Question != "" {
+		req.Questions = []domain.QuestionItem{item}
+	}
+	return req
+}
+
+func formatClaudeOptions(opts []any) []string {
+	out := make([]string, 0, len(opts))
+	for _, o := range opts {
+		switch v := o.(type) {
+		case string:
+			if v != "" {
+				out = append(out, v)
+			}
+		case map[string]any:
+			label := ""
+			if s, ok := v["label"].(string); ok && s != "" {
+				label = s
+			} else if s, ok := v["value"].(string); ok && s != "" {
+				label = s
+			}
+			if d, ok := v["description"].(string); ok && d != "" {
+				if label != "" {
+					label = label + " — " + d
+				} else {
+					label = d
+				}
+			}
+			if label != "" {
+				out = append(out, label)
+			}
+		}
+	}
+	return out
 }

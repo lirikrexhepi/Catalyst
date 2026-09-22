@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/shell"
 )
 
 type Repo struct {
@@ -26,6 +26,13 @@ func command(dir string, args ...string) *exec.Cmd {
 }
 
 func run(ctx context.Context, dir string, args ...string) (string, error) {
+	out, err := runRaw(ctx, dir, args...)
+	return strings.TrimSpace(out), err
+}
+
+// runRaw is run without the trim, for output whose leading or trailing
+// whitespace carries meaning — NUL-separated records and diff bodies both do.
+func runRaw(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
 	cmd.Env = shell.Slice(shell.BaseEnvironment())
@@ -39,7 +46,7 @@ func run(ctx context.Context, dir string, args ...string) (string, error) {
 		}
 		return "", fmt.Errorf("git %s: %w", args[0], err)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return string(out), nil
 }
 
 // Open resolves the repository containing dir, if there is one.
@@ -84,7 +91,7 @@ func (r *Repo) RemoveWorktree(ctx context.Context, path string, force bool) erro
 }
 
 // Handoff summarises a task branch against its base: what changed, and whether
-// it would merge cleanly. Catalyst reports this and leaves the merge to a human.
+// it would merge cleanly. Composer reports this and leaves the merge to a human.
 func (r *Repo) Handoff(ctx context.Context, worktree *domain.Worktree) (domain.TaskHandoff, error) {
 	handoff := domain.TaskHandoff{Branch: worktree.Branch}
 	base := worktree.BaseBranch

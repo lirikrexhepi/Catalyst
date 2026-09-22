@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 const subscriberBuffer = 512

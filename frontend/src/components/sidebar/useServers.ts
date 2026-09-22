@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ListServers, StopServer } from '../../../wailsjs/go/main/App';
+import { EventsOn } from '../../../wailsjs/runtime/runtime';
 import { servers } from '../../../wailsjs/go/models';
 
 const POLL_MS = 4_000;
@@ -14,10 +15,10 @@ export interface Servers {
 }
 
 /**
- * Tracks listening servers while the panel is open.
+ * Tracks listening servers while the panel is open or actively queried.
  *
- * Polled rather than event-driven: a server can be started or die by any means,
- * including outside Catalyst, so there is no event to subscribe to.
+ * Supported by both real-time events (when managed servers start/detect ports)
+ * and background polling (for processes spawned externally).
  */
 export function useServers(isOpen: boolean): Servers {
   const [groups, setGroups] = useState<servers.Group[]>([]);
@@ -39,8 +40,16 @@ export function useServers(isOpen: boolean): Servers {
     setLoading(true);
     void refresh().finally(() => setLoading(false));
 
+    // Instant update whenever Go emits a server change or port detection:
+    const cancelEvent = EventsOn('servers:changed', () => {
+      void refresh();
+    });
+
     const timer = window.setInterval(() => void refresh(), POLL_MS);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+      if (cancelEvent) cancelEvent();
+    };
   }, [isOpen, refresh]);
 
   const stop = useCallback(

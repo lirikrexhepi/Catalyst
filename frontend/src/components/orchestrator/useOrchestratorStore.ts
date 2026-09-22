@@ -8,6 +8,7 @@ interface OrchestratorStore {
   models: AIModel[];
   selectedProviderId: string;
   selectedModelId: string;
+  preferredModels: Record<string, string>;
   modelSettings: Record<string, ModelSettings>;
   messageText: string;
   isModelPickerOpen: boolean;
@@ -15,11 +16,16 @@ interface OrchestratorStore {
   activeConfiguringModelId: string | null;
   isLoadingProviders: boolean;
   providersError: string | null;
+  autoStartAgents: boolean;
+  autoApprovePermissions: boolean;
 
   // Actions
+  setAutoStartAgents: (enabled: boolean) => void;
+  setAutoApprovePermissions: (enabled: boolean) => void;
   loadProviders: (force?: boolean) => Promise<void>;
   setProviders: (providers: CLIProvider[]) => void;
   setModels: (models: AIModel[]) => void;
+  setPreferredModel: (providerId: string, modelId: string) => void;
   addProvider: (provider: CLIProvider) => void;
   addModel: (model: AIModel) => void;
   selectProvider: (providerId: string) => void;
@@ -50,6 +56,7 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
   models: DEFAULT_MODELS,
   selectedProviderId: '',
   selectedModelId: '',
+  preferredModels: {},
   modelSettings: initialSettings,
   messageText: '',
   isModelPickerOpen: false,
@@ -57,6 +64,28 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
   activeConfiguringModelId: null,
   isLoadingProviders: false,
   providersError: null,
+  autoStartAgents:
+    typeof window !== 'undefined'
+      ? localStorage.getItem('orchestrator_auto_start_agents') === 'true'
+      : false,
+  autoApprovePermissions:
+    typeof window !== 'undefined'
+      ? localStorage.getItem('orchestrator_auto_approve_permissions') !== 'false'
+      : true,
+
+  setAutoStartAgents: (autoStartAgents: boolean) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orchestrator_auto_start_agents', autoStartAgents ? 'true' : 'false');
+    }
+    set({ autoStartAgents });
+  },
+
+  setAutoApprovePermissions: (autoApprovePermissions: boolean) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orchestrator_auto_approve_permissions', autoApprovePermissions ? 'true' : 'false');
+    }
+    set({ autoApprovePermissions });
+  },
 
   // Discovers installed CLIs and their models. Only ready providers are
   // selectable; the current selection is preserved across refreshes when it
@@ -65,7 +94,9 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
     set({ isLoadingProviders: true });
     try {
       const snapshots = await ListProviders(force);
-      const ready = snapshots.filter((snapshot) => snapshot.availability === 'ready');
+      const ready = snapshots.filter(
+        (snapshot) => snapshot.availability === 'ready' && snapshot.settings?.enabled,
+      );
 
       const providers = ready.map(toProvider);
       const models = ready.flatMap((snapshot) =>
@@ -85,6 +116,13 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
       const previous = get().selectedModelId;
       const keep = models.find((model) => model.id === previous);
 
+      const preferredModels: Record<string, string> = {};
+      for (const snapshot of ready) {
+        if (snapshot.settings?.model) {
+          preferredModels[snapshot.driver] = snapshot.settings.model;
+        }
+      }
+
       // A model the user pinned in Settings wins the initial choice. `defaultModel`
       // comes from the provider's saved settings, so a fresh run opens on the CLI
       // and model they chose rather than on whichever happens to sort first.
@@ -101,6 +139,7 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
       set({
         providers,
         models,
+        preferredModels,
         modelSettings: settings,
         selectedModelId: selected?.id || '',
         selectedProviderId: selected?.providerId || providers[0]?.id || '',
@@ -117,6 +156,10 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
 
   setProviders: (providers) => set({ providers }),
   setModels: (models) => set({ models }),
+  setPreferredModel: (providerId, modelId) =>
+    set((state) => ({
+      preferredModels: { ...state.preferredModels, [providerId]: modelId },
+    })),
 
   addProvider: (provider) =>
     set((state) => ({
@@ -140,7 +183,9 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
 
   selectProvider: (providerId) => {
     const providerModels = get().models.filter((m) => m.providerId === providerId);
-    const newSelectedModelId = providerModels[0]?.id || get().selectedModelId;
+    const preferredId = get().preferredModels[providerId];
+    const preferredModel = preferredId ? providerModels.find((m) => m.id === preferredId) : undefined;
+    const newSelectedModelId = preferredModel?.id || providerModels[0]?.id || get().selectedModelId;
     set({
       selectedProviderId: providerId,
       selectedModelId: newSelectedModelId,
@@ -152,6 +197,9 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
     const model = get().models.find((m) => m.id === modelId);
     if (!model) return;
     const { selectedModelId, isEffortPickerOpen } = get();
+    const hasEfforts = Boolean(
+      (model.effortLevels && model.effortLevels.length > 0) || model.supportsThinking,
+    );
 
     // Toggle effort modal: if clicking the active model and effort modal is open, close it
     if (selectedModelId === modelId && isEffortPickerOpen) {
@@ -161,7 +209,7 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
         selectedModelId: modelId,
         selectedProviderId: model.providerId,
         activeConfiguringModelId: modelId,
-        isEffortPickerOpen: true,
+        isEffortPickerOpen: hasEfforts,
       });
     }
   },
@@ -173,6 +221,11 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
   },
 
   openEffortForModel: (modelId) => {
+    const model = get().models.find((m) => m.id === modelId);
+    const hasEfforts = Boolean(
+      model && ((model.effortLevels && model.effortLevels.length > 0) || model.supportsThinking),
+    );
+    if (!hasEfforts) return;
     set({
       activeConfiguringModelId: modelId,
       isEffortPickerOpen: true,
@@ -199,7 +252,20 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
       isEffortPickerOpen: isModelPickerOpen ? state.isEffortPickerOpen : false,
     })),
 
-  setEffortPickerOpen: (isEffortPickerOpen) => set({ isEffortPickerOpen }),
+  setEffortPickerOpen: (isEffortPickerOpen) => {
+    if (isEffortPickerOpen) {
+      const activeId = get().activeConfiguringModelId || get().selectedModelId;
+      const model = get().models.find((m) => m.id === activeId);
+      const hasEfforts = Boolean(
+        model && ((model.effortLevels && model.effortLevels.length > 0) || model.supportsThinking),
+      );
+      if (!hasEfforts) {
+        set({ isEffortPickerOpen: false });
+        return;
+      }
+    }
+    set({ isEffortPickerOpen });
+  },
 
   toggleModelPicker: () =>
     set((state) => {

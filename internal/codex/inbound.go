@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 func (a *Adapter) handleInbound(ctx context.Context, method string, params json.RawMessage) (any, error) {

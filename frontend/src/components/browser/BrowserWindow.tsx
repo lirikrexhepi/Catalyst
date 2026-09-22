@@ -321,7 +321,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                     }`}
                   >
                     <span className="text-[11px] font-['Geist'] tracking-tight truncate">
-                      {displayUrl(tab.url).replace(/^https?:\/\//, '') || 'New tab'}
+                      {tab.label || displayUrl(tab.url).replace(/^https?:\/\//, '') || 'New tab'}
                     </span>
                     <button
                       type="button"

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { BUILT_IN, CUSTOM_PREFIX, Wallpaper, isCustom } from './wallpapers';
 
-const SELECTED_KEY = 'catalyst:wallpaper';
-const CUSTOM_KEY = 'catalyst:wallpapers:custom';
+const SELECTED_KEY = 'composer:wallpaper';
+const CUSTOM_KEY = 'composer:wallpapers:custom';
 
 // Uploads are stored as data URLs in localStorage, which is a few MB in total.
 // A photo straight from a camera would blow that budget on its own, so images

@@ -1,12 +1,13 @@
 package history
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 func event(threadID, text string, seq uint64) domain.RuntimeEvent {
@@ -227,5 +228,247 @@ func TestDisabledStoreIsInert(t *testing.T) {
 	}
 	if list, err := store.List(); err != nil || len(list) != 0 {
 		t.Errorf("List on disabled store = %v, %v", list, err)
+	}
+}
+
+func TestMergeContinuationsOnLoadAndList(t *testing.T) {
+	root := t.TempDir()
+	store := New(root)
+	defer store.Close()
+
+	wsID := "ws-switch-test"
+	baseID := "task-base-1"
+	contID := "task-base-1-cont-9999"
+
+	meta := Meta{
+		Workspace: domain.Workspace{ID: wsID, Title: "Cross-provider session", UpdatedAt: 100},
+		Tasks: []domain.Task{
+			{
+				ThreadID:  baseID,
+				Title:     "Switch prompt",
+				Driver:    "antigravity",
+				Model:     "gemini-3.8-flash",
+				State:     domain.TaskClosed,
+				CreatedAt: 100,
+				UpdatedAt: 110,
+			},
+			{
+				ThreadID:  contID,
+				Title:     "Switch prompt",
+				Driver:    "opencode",
+				Model:     "opencode/muse-spark-1.3",
+				State:     domain.TaskRunning,
+				CreatedAt: 120,
+				UpdatedAt: 130,
+			},
+		},
+		Resume: map[string]string{
+			baseID: "resume-antigravity",
+			contID: "resume-opencode",
+		},
+	}
+
+	if err := store.SaveMeta(meta); err != nil {
+		t.Fatalf("SaveMeta: %v", err)
+	}
+
+	// Write base transcript
+	_ = store.Append(wsID, baseID, domain.RuntimeEvent{
+		Kind:     domain.EventUserMessage,
+		ThreadID: baseID,
+		Text:     "initial prompt",
+		At:       105,
+	})
+	_ = store.Append(wsID, baseID, domain.RuntimeEvent{
+		Kind:     domain.EventAgentMessage,
+		ThreadID: baseID,
+		Text:     "gemini reply",
+		At:       110,
+	})
+
+	// Write cont transcript
+	_ = store.Append(wsID, contID, domain.RuntimeEvent{
+		Kind:     domain.EventNotice,
+		ThreadID: contID,
+		Text:     "Switched from antigravity to opencode",
+		At:       122,
+	})
+	_ = store.Append(wsID, contID, domain.RuntimeEvent{
+		Kind:     domain.EventUserMessage,
+		ThreadID: contID,
+		Text:     "continuation prompt",
+		At:       125,
+	})
+	_ = store.Append(wsID, contID, domain.RuntimeEvent{
+		Kind:     domain.EventAgentMessage,
+		ThreadID: contID,
+		Text:     "opencode reply",
+		At:       130,
+	})
+	_ = store.Flush(wsID)
+
+	// List should report 1 merged task
+	list, err := store.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("expected 1 workspace, got %d", len(list))
+	}
+	if len(list[0].Tasks) != 1 {
+		t.Fatalf("expected 1 merged task in list, got %d", len(list[0].Tasks))
+	}
+	mergedTask := list[0].Tasks[0]
+	if mergedTask.ThreadID != baseID {
+		t.Errorf("expected root thread ID %s, got %s", baseID, mergedTask.ThreadID)
+	}
+	if mergedTask.Driver != "opencode" || mergedTask.Model != "opencode/muse-spark-1.3" {
+		t.Errorf("expected latest provider opencode/muse-spark-1.3, got %s / %s", mergedTask.Driver, mergedTask.Model)
+	}
+
+	// Load should merge transcripts and clean up continuation file
+	loaded, err := store.Load(wsID)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(loaded.Meta.Tasks) != 1 {
+		t.Fatalf("expected 1 task in loaded meta, got %d", len(loaded.Meta.Tasks))
+	}
+	if _, hasContInMap := loaded.Transcripts[contID]; hasContInMap {
+		t.Errorf("continuation thread ID should have been removed from Transcripts map")
+	}
+	events := loaded.Transcripts[baseID]
+	if len(events) != 5 {
+		t.Fatalf("expected 5 merged events, got %d", len(events))
+	}
+	if events[0].Text != "initial prompt" || events[2].Kind != domain.EventNotice || events[4].Text != "opencode reply" {
+		t.Errorf("events not merged in correct sequence: %v", events)
+	}
+	if loaded.Meta.Resume[baseID] != "resume-opencode" {
+		t.Errorf("expected resume id resume-opencode, got %s", loaded.Meta.Resume[baseID])
+	}
+}
+
+func TestUserHistoryHealing(t *testing.T) {
+	appData := os.Getenv("APPDATA")
+	if appData == "" {
+		t.Skip("no APPDATA")
+	}
+	historyDir := filepath.Join(appData, "composer", "history")
+	if _, err := os.Stat(historyDir); err != nil {
+		t.Skip("no composer history dir")
+	}
+
+	store := New(historyDir)
+	defer store.Close()
+
+	list, err := store.List()
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+
+	// Verify no continuation tasks exist in listed items
+	for _, meta := range list {
+		for _, task := range meta.Tasks {
+			if strings.Contains(task.ThreadID, "-cont-") {
+				t.Errorf("found unmerged continuation task in workspace %s: %s", meta.Workspace.ID, task.ThreadID)
+			}
+		}
+	}
+
+	// Load ws-2-mu8vfw30 if it exists and verify it loads as 1 task
+	testWs := "ws-2-mu8vfw30"
+	if _, err := os.Stat(filepath.Join(historyDir, testWs)); err == nil {
+		loaded, err := store.Load(testWs)
+		if err != nil {
+			t.Fatalf("Load %s failed: %v", testWs, err)
+		}
+		if len(loaded.Meta.Tasks) != 1 {
+			t.Errorf("expected 1 task in %s, got %d", testWs, len(loaded.Meta.Tasks))
+		}
+		for threadID := range loaded.Transcripts {
+			if strings.Contains(threadID, "-cont-") {
+				t.Errorf("found unmerged continuation transcript in %s: %s", testWs, threadID)
+			}
+		}
+	}
+}
+
+func TestAutoHealCorruptMeta(t *testing.T) {
+	root := t.TempDir()
+	store := New(root)
+	defer store.Close()
+
+	wsDir := filepath.Join(root, "ws-heal")
+	if err := os.MkdirAll(wsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Corrupt meta.json with zero bytes
+	if err := os.WriteFile(filepath.Join(wsDir, "meta.json"), make([]byte, 500), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create valid transcript with a user prompt
+	tPath := filepath.Join(wsDir, "task-agent-1.jsonl")
+	ev := domain.RuntimeEvent{
+		Kind:     domain.EventUserMessage,
+		ThreadID: "task-agent-1",
+		Text:     "Build the new dashboard",
+		Driver:   domain.DriverAntigravity,
+		At:       1700000000123,
+	}
+	payload, _ := json.Marshal(ev)
+	if err := os.WriteFile(tPath, append(payload, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// LoadMeta should auto-heal from the transcript
+	meta, err := store.LoadMeta("ws-heal")
+	if err != nil {
+		t.Fatalf("LoadMeta failed to auto-heal: %v", err)
+	}
+	if meta.Workspace.ID != "ws-heal" {
+		t.Errorf("expected ws-heal, got %s", meta.Workspace.ID)
+	}
+	if meta.Workspace.Prompt != "Build the new dashboard" {
+		t.Errorf("expected prompt 'Build the new dashboard', got %q", meta.Workspace.Prompt)
+	}
+	if len(meta.Tasks) != 1 || meta.Tasks[0].ThreadID != "task-agent-1" {
+		t.Errorf("expected task-agent-1, got %+v", meta.Tasks)
+	}
+
+	// Verify it also shows up in List
+	list, err := store.List()
+	if err != nil {
+		t.Fatalf("List failed: %v", err)
+	}
+	if len(list) != 1 || list[0].Workspace.ID != "ws-heal" {
+		t.Fatalf("expected 1 item in list, got %d", len(list))
+	}
+}
+
+func TestBOMInMeta(t *testing.T) {
+	root := t.TempDir()
+	store := New(root)
+	defer store.Close()
+
+	wsDir := filepath.Join(root, "ws-bom")
+	if err := os.MkdirAll(wsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	rawJSON := `{"workspace":{"id":"ws-bom","title":"Test BOM","createdAt":1700000000000,"updatedAt":1700000000000},"tasks":[]}`
+	bomPayload := append([]byte("\xef\xbb\xbf"), []byte(rawJSON)...)
+	if err := os.WriteFile(filepath.Join(wsDir, "meta.json"), bomPayload, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	meta, err := store.LoadMeta("ws-bom")
+	if err != nil {
+		t.Fatalf("LoadMeta failed on BOM: %v", err)
+	}
+	if meta.Workspace.Title != "Test BOM" {
+		t.Errorf("expected 'Test BOM', got %q", meta.Workspace.Title)
 	}
 }

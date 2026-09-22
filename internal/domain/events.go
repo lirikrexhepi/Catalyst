@@ -15,6 +15,10 @@ const (
 	EventPlan             EventKind = "plan"
 	EventApprovalRequest  EventKind = "approval.request"
 	EventApprovalResolved EventKind = "approval.resolved"
+	EventQuestionAsked    EventKind = "question.asked"
+	EventQuestionAnswered EventKind = "question.answered"
+	EventUserMessage      EventKind = "user.message"
+	EventNotice           EventKind = "notice"
 	EventUsage            EventKind = "usage"
 	EventRateLimit        EventKind = "rate.limit"
 	EventDiagnostic       EventKind = "diagnostic"
@@ -42,9 +46,12 @@ type RuntimeEvent struct {
 
 	Text       string           `json:"text,omitempty"`
 	Delta      bool             `json:"delta,omitempty"`
+	Icon       string           `json:"icon,omitempty"`
+	Files      []FileRef        `json:"files,omitempty"`
 	Tool       *ToolCall        `json:"tool,omitempty"`
 	Plan       []PlanEntry      `json:"plan,omitempty"`
 	Approval   *ApprovalRequest `json:"approval,omitempty"`
+	Question   *QuestionRequest `json:"question,omitempty"`
 	Usage      *Usage           `json:"usage,omitempty"`
 	RateLimits []RateLimit      `json:"rateLimits,omitempty"`
 	StopReason StopReason       `json:"stopReason,omitempty"`
@@ -115,4 +122,16 @@ type RateLimit struct {
 	Status      string `json:"status,omitempty"`
 	UsedPercent *int   `json:"usedPercent,omitempty"`
 	ResetsAt    int64  `json:"resetsAt,omitempty"`
+}
+
+// QuestionRequest carries a structured clarification question from the agent.
+type QuestionRequest struct {
+	RequestID string         `json:"requestId"`
+	Questions []QuestionItem `json:"questions"`
+}
+
+type QuestionItem struct {
+	Question    string   `json:"question"`
+	Options     []string `json:"options,omitempty"`
+	MultiSelect bool     `json:"isMultiSelect,omitempty"`
 }

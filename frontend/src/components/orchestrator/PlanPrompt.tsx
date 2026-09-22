@@ -55,7 +55,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
     <LiquidGlass
       variant="panel"
       surface="squircle"
-      radius={18}
+      radius={24}
       bezelWidth={18}
       glassThickness={24}
       refractionScale={0.8}
@@ -66,7 +66,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
       tint="rgba(0, 0, 0, 0.22)"
       shadow="apple"
       border="1px solid rgba(255, 255, 255, 0.18)"
-      className={`w-[580px] px-4.5 py-4 ${className}`}
+      className={`w-[667px] px-4.5 py-3.5 ${className}`}
       style={{
         boxShadow:
           '0 20px 54px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25)',

@@ -1,23 +1,31 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 import {
-  CoordinatorHistory,
+	ActiveProject,
+	CoordinatorHistory,
   CoordinatorInterrupt,
-  CoordinatorSend,
+  CoordinatorSendFiles,
 } from '../../../wailsjs/go/main/App';
+import { domain } from '../../../wailsjs/go/models';
 import { AgentStreamBlock } from '../agent-session';
 import { reduceEvent, RuntimeEvent, userBlock } from '../agent-session/eventReducer';
 import { useOrchestratorStore } from './useOrchestratorStore';
 import { toModelOptions } from './orchestratorData';
 
 const COORDINATOR_THREAD = 'coordinator';
+
+/** Last path segment, for showing an attachment by name rather than full path. */
+function fileName(path: string): string {
+  const parts = path.split(/[\\/]/);
+  return parts[parts.length - 1] || path;
+}
 const RUNTIME_CHANNEL = 'agent:event';
 
 export interface Coordinator {
   blocks: AgentStreamBlock[];
   isBusy: boolean;
   error: string | null;
-  send: (text: string) => Promise<void>;
+  send: (text: string, files?: domain.FileRef[]) => Promise<void>;
   interrupt: () => Promise<void>;
   /** Drops the transcript after the backend session has been reset. */
   clear: () => void;
@@ -92,9 +100,10 @@ export function useCoordinator(options: CoordinatorOptions = {}): Coordinator {
     };
   }, []);
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, files: domain.FileRef[] = []) => {
     const trimmed = text.trim();
-    if (!trimmed) return;
+    // An attachment with no text is still a message worth sending.
+    if (!trimmed && files.length === 0) return;
 
     const store = useOrchestratorStore.getState();
     const model = store.getSelectedModel();
@@ -111,7 +120,7 @@ export function useCoordinator(options: CoordinatorOptions = {}): Coordinator {
       // Mark a switch inline so the transcript explains why later replies come
       // from a different agent. The divider is only meaningful once there is
       // earlier conversation to separate from.
-      const changed = lastModelId.current !== null && lastModelId.current !== model.id;
+      const changed = false;
       const notice =
         changed && previous.length > 0
           ? [
@@ -123,24 +132,32 @@ export function useCoordinator(options: CoordinatorOptions = {}): Coordinator {
               },
             ]
           : [];
-      return [...previous, ...notice, userBlock(trimmed, `user-${stamp}`)];
+      return [
+        ...previous,
+        ...notice,
+        userBlock(trimmed, `user-${stamp}`, files, stamp),
+      ];
     });
     lastModelId.current = model.id;
 
     try {
-      const turnId = await CoordinatorSend(
+	  // Resolve the folder at send time rather than trusting a render-time
+	  // snapshot. Project selection is asynchronous, so this closes the window
+	  // where a new chat could otherwise start in the desktop launch directory.
+	  const project = await ActiveProject();
+	  if (!project?.path) {
+	    throw new Error('Choose a project folder before starting a chat');
+	  }
+      const turnId = await CoordinatorSendFiles(
         {
           driver: model.providerId,
           model: model.id,
           options: toModelOptions(model, store.getCurrentModelSettings(model.id)),
-          // The orchestrator plans and delegates; it is started with no tools at
-          // all, so it needs no permission mode. Setting one (notably "plan")
-          // injects the CLI's own research-first instructions, which fight the
-          // delegation prompt.
-          permissionMode: '',
-          cwd: '',
+          permissionMode: store.autoApprovePermissions ? 'bypassPermissions' : 'default',
+		  cwd: project.path,
         },
         trimmed,
+        files,
       );
       pendingTurn.current = turnId;
     } catch (cause) {

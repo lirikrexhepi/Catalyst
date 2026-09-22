@@ -57,7 +57,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
 
   return (
     <div
-      className={`rounded-[14px] glass-card border border-white/25 px-3.5 py-2.5 text-white max-w-full shadow-md transition-all duration-150 group select-none font-['Geist'] ${className}`}
+      className={`rounded-[14px] glass-card border border-current/25 px-3.5 py-2.5 text-current max-w-full shadow-md transition-all duration-150 group select-none font-['Geist'] ${className}`}
       style={{
         boxShadow:
           '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',
@@ -74,7 +74,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
             {fileExt}
           </span>
 
-          <span className="text-[12px] font-medium text-white tracking-tight truncate leading-none flex items-center">
+          <span className="text-[12px] font-medium text-current tracking-tight truncate leading-none flex items-center">
             Edited {filePath}
           </span>
         </div>
@@ -92,7 +92,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
             type="button"
             title="Copy diff"
             onClick={handleCopy}
-            className="w-[20px] h-[20px] rounded flex items-center justify-center hover:bg-white/15 active:scale-90 transition-all text-white/80 hover:text-white cursor-pointer shrink-0"
+            className="w-[20px] h-[20px] rounded flex items-center justify-center hover:bg-current/15 active:scale-90 transition-all text-current/80 hover:text-current cursor-pointer shrink-0"
           >
             <span className="material-symbols-outlined text-[13px] leading-none flex items-center justify-center">
               {isCopied ? 'check' : 'content_copy'}
@@ -102,7 +102,7 @@ const EditToolImpl: React.FC<EditToolProps> = ({
           {/* Chevron */}
           <button
             type="button"
-            className="w-[20px] h-[20px] rounded flex items-center justify-center hover:bg-white/15 text-white/80 hover:text-white shrink-0 cursor-pointer"
+            className="w-[20px] h-[20px] rounded flex items-center justify-center hover:bg-current/15 text-current/80 hover:text-current shrink-0 cursor-pointer"
           >
             <span
               className={`material-symbols-outlined text-[15px] leading-none flex items-center justify-center transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -137,11 +137,11 @@ const EditToolImpl: React.FC<EditToolProps> = ({
                       ? 'bg-emerald-500/15 text-emerald-200'
                       : isDel
                       ? 'bg-rose-500/15 text-rose-200'
-                      : 'text-white/70'
+                      : 'text-current/70'
                   }`}
                 >
                   {/* Line Number */}
-                  <span className="w-6 text-right pr-3 select-none text-white/35 shrink-0 font-mono text-[10px]">
+                  <span className="w-6 text-right pr-3 select-none text-current/35 shrink-0 font-mono text-[10px]">
                     {line.lineNum}
                   </span>
 

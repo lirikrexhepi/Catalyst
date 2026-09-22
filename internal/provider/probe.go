@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/shell"
 )
 
 const probeTimeout = 10 * time.Second

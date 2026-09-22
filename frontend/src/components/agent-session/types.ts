@@ -8,11 +8,18 @@ import { ToolGroupItem } from './ToolGroup';
  * Compatible with Claude Code CLI, Antigravity Agent loops, AI SDK, and MCP tools.
  */
 
+export interface UserMessageFile {
+  path: string;
+  name?: string;
+  mime?: string;
+}
+
 export interface UserMessageBlock {
   type: 'user';
   id: string;
   content: string;
   timestamp?: number;
+  files?: UserMessageFile[];
 }
 
 /** Inline rule marking a provider/model switch mid-conversation. */
@@ -28,6 +35,7 @@ export interface AssistantTextBlock {
   id: string;
   content: string;
   isStreaming?: boolean;
+  timestamp?: number;
 }
 
 export interface ThinkingBlockData {
@@ -92,6 +100,11 @@ export interface PlanToolBlockData {
   approved?: boolean;
 }
 
+export interface QuestionItemData {
+  question: string;
+  options: QuestionOption[];
+}
+
 export interface QuestionToolBlockData {
   type: 'tool_question';
   id: string;
@@ -99,6 +112,26 @@ export interface QuestionToolBlockData {
   totalQuestions?: number;
   question: string;
   options: QuestionOption[];
+  items?: QuestionItemData[];
+  answered?: boolean;
+  selectedAnswer?: string;
+}
+
+export interface ApprovalOptionItem {
+  id: string;
+  name: string;
+  kind?: string;
+}
+
+export interface ApprovalBlockData {
+  type: 'approval_request';
+  id: string;
+  requestID: string;
+  title: string;
+  detail?: string;
+  options: ApprovalOptionItem[];
+  status?: 'pending' | 'resolved' | 'denied';
+  decision?: string;
 }
 
 export type AgentStreamBlock =
@@ -112,4 +145,6 @@ export type AgentStreamBlock =
   | EditToolBlockData
   | TodoToolBlockData
   | PlanToolBlockData
-  | QuestionToolBlockData;
+  | QuestionToolBlockData
+  | ApprovalBlockData;
+

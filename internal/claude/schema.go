@@ -48,7 +48,9 @@ type Envelope struct {
 	NumTurns   int     `json:"num_turns,omitempty"`
 	Usage      *Usage  `json:"usage,omitempty"`
 
-	RateLimitInfo *RateLimitInfo `json:"rate_limit_info,omitempty"`
+	RateLimitInfo *RateLimitInfo  `json:"rate_limit_info,omitempty"`
+	RequestID     string          `json:"request_id,omitempty"`
+	Request       *ControlPayload `json:"request,omitempty"`
 }
 
 // RateLimitInfo rides on `type: "rate_limit_event"` frames and is the only place
@@ -79,8 +81,29 @@ func UserText(text string) InputMessage {
 	}
 }
 
+type ControlPayload struct {
+	Subtype  string          `json:"subtype"`
+	ToolName string          `json:"tool_name,omitempty"`
+	Input    json.RawMessage `json:"input,omitempty"`
+}
+
 type ControlRequest struct {
 	Type      string          `json:"type"`
 	RequestID string          `json:"request_id"`
-	Request   json.RawMessage `json:"request"`
+	Request   *ControlPayload `json:"request"`
+}
+
+type ControlResponse struct {
+	Type      string                 `json:"type"`
+	RequestID string                 `json:"request_id"`
+	Response  ControlResponsePayload `json:"response"`
+}
+
+type ControlResponsePayload struct {
+	Subtype  string                  `json:"subtype"`
+	Response ControlResponseDecision `json:"response"`
+}
+
+type ControlResponseDecision struct {
+	Behavior string `json:"behavior"`
 }

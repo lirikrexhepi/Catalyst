@@ -1,14 +1,16 @@
 import React from 'react';
 import { Scene } from './components/scene/Scene';
-import { TitleBar } from './components/common/TitleBar';
+import { ThemeProvider } from './themes';
 
 function App() {
   return (
-    <main className="w-screen h-screen overflow-hidden">
-      <Scene />
-      <TitleBar />
-    </main>
+    <ThemeProvider>
+      <main className="w-screen h-screen overflow-hidden relative">
+        <Scene />
+      </main>
+    </ThemeProvider>
   );
 }
 
 export default App;
+

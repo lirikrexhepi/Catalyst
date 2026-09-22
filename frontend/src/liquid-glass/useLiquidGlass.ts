@@ -1,10 +1,16 @@
 import { useState, useEffect, useRef, useId, useMemo, CSSProperties } from 'react';
 import { DisplacementMapResult, LiquidGlassProps } from './types';
 import { generateLiquidGlassMaps } from './mapGenerator';
+import { useThemeSafe } from '../themes';
 
 const SIZE_STEP = 8;
 
 export function useLiquidGlass(props: LiquidGlassProps = {}) {
+  const themeContext = useThemeSafe();
+  const theme = themeContext?.currentTheme;
+  const isGlassTheme = theme?.id === 'glass' || theme?.id === 'refractive-glass' || theme?.glass?.mode === 'optical-refraction';
+  const isStealth = !isGlassTheme || theme?.glass?.mode === 'stealth';
+
   const {
     radius = 20,
     bezelWidth = 20,
@@ -13,17 +19,19 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
     baseThickness = 5,
     refractionScale = 0.8,
     blur = 0.6,
-    frost = 6,
-    frostSaturation = 150,
-    specularOpacity = 0.6,
+    frost = isGlassTheme ? (theme?.glass?.frost ?? 16) : 0,
+    frostSaturation = isGlassTheme ? (theme?.glass?.frostSaturation ?? 150) : 100,
+    specularOpacity = isGlassTheme ? (theme?.glass?.specularOpacity ?? 0.6) : 0,
     specularSaturation = 6,
     lightAngle = -45,
     lightElevation = 45,
-    tint = 'rgba(20, 20, 24, 0.80)',
+    tint = 'var(--theme-panel-bg, rgba(20, 20, 24, 0.80))',
     shadow = 'apple',
     border = true,
-    disableRefraction = false,
+    disableRefraction = !isGlassTheme || isStealth,
   } = props;
+
+  const effectiveFrost = isGlassTheme && !isStealth ? Math.min(frost, 16) : 0;
 
   const rawId = useId();
   const filterId = useMemo(
@@ -47,29 +55,44 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
     const el = containerRef.current;
     if (!el) return;
 
-    const commit = (rawW: number, rawH: number) => {
+    let resizeTimer: any = null;
+
+    const commit = (rawW: number, rawH: number, immediate = false) => {
       if (rawW <= 0 || rawH <= 0) return;
       const w = Math.max(SIZE_STEP, Math.round(rawW / SIZE_STEP) * SIZE_STEP);
       const h = Math.max(SIZE_STEP, Math.round(rawH / SIZE_STEP) * SIZE_STEP);
-      setDimensions((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+
+      const apply = () => {
+        setDimensions((prev) => (prev.width === w && prev.height === h ? prev : { width: w, height: h }));
+      };
+
+      if (immediate) {
+        apply();
+      } else {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(apply, 140);
+      }
     };
 
     const rect = el.getBoundingClientRect();
-    commit(rect.width || el.offsetWidth, rect.height || el.offsetHeight);
+    commit(rect.width || el.offsetWidth, rect.height || el.offsetHeight, true);
 
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[entries.length - 1];
       if (!entry) return;
       if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
-        commit(entry.borderBoxSize[0].inlineSize, entry.borderBoxSize[0].blockSize);
+        commit(entry.borderBoxSize[0].inlineSize, entry.borderBoxSize[0].blockSize, false);
       } else {
         const r = el.getBoundingClientRect();
-        commit(r.width || el.offsetWidth, r.height || el.offsetHeight);
+        commit(r.width || el.offsetWidth, r.height || el.offsetHeight, false);
       }
     });
 
     resizeObserver.observe(el);
-    return () => resizeObserver.disconnect();
+    return () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeObserver.disconnect();
+    };
   }, []);
 
   // Compute radius in pixels
@@ -85,7 +108,10 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
   // is scheduled off the critical path; the previously generated map stays applied until
   // the replacement is ready, which keeps resizes flicker-free.
   useEffect(() => {
-    if (disableRefraction) return;
+    if (disableRefraction || !isGlassTheme) {
+      if (mapResult !== null) setMapResult(null);
+      return;
+    }
     if (dimensions.width <= 0 || dimensions.height <= 0) return;
 
     let cancelled = false;
@@ -132,6 +158,8 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
     lightAngle,
     lightElevation,
     disableRefraction,
+    isGlassTheme,
+    mapResult,
   ]);
 
   // Compute Apple-grade glass shadows
@@ -161,16 +189,10 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
 
   // Backdrop chain. Only blur/saturate live here: both are GPU-accelerated and cost
   // nothing measurable even while content streams over them.
-  //
-  // The SVG refraction graph is deliberately NOT included. `feDisplacementMap` and
-  // `feImage` have no GPU path in Blink, so putting them in `backdrop-filter` forces
-  // the whole graph onto the CPU and re-runs it whenever the surface or anything
-  // beneath it changes. Measured on D3D11: 97ms/frame with the graph versus 6.9ms
-  // without it, at four panels. The bezel optics are composited as a static overlay
-  // instead (see specularStyle), which is visually equivalent while the surface is
-  // still and costs one cached texture upload.
+  // When in dark or light mode (isStealth / !isGlassTheme), backdropFilter is undefined,
+  // preventing GPU driver shader stalls and TDR resets.
   const containerStyle: CSSProperties = useMemo(() => {
-    const frostValue = frost > 0 ? `blur(${frost}px) saturate(${frostSaturation}%)` : undefined;
+    const frostValue = effectiveFrost > 0 ? `blur(${effectiveFrost}px) saturate(${frostSaturation}%)` : undefined;
 
     return {
       position: 'relative',
@@ -181,28 +203,24 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
       boxShadow: resolvedShadow,
       border: resolvedBorder,
       overflow: 'hidden',
-      // Promote to a dedicated compositor layer so the blurred backdrop can be cached
-      // between frames. Deliberately NOT using `contain: paint` or `isolation: isolate`
-      // here: both make this element its own backdrop root, which forces the filter to
-      // be re-resolved from scratch every frame instead of reusing the cached surface.
-      transform: 'translateZ(0)',
-      backfaceVisibility: 'hidden',
+      // Promote to dedicated compositor layer only when frosted glass is actively rendering
+      transform: isGlassTheme && effectiveFrost > 0 ? 'translateZ(0)' : undefined,
+      backfaceVisibility: isGlassTheme && effectiveFrost > 0 ? 'hidden' : undefined,
     };
   }, [
     resolvedRadius,
     tint,
     resolvedShadow,
     resolvedBorder,
-    frost,
+    effectiveFrost,
     frostSaturation,
+    isGlassTheme,
   ]);
 
-  // Bezel optics as a composited overlay. The specular map already encodes the
-  // Fresnel rim and Blinn-Phong highlight computed from the same surface physics,
-  // so screening it over the frosted backdrop reproduces the lit glass edge without
-  // any per-frame filtering.
+  // Bezel optics as a composited overlay.
+  // Standard alpha blending avoids GPU readback stalls caused by mixBlendMode over backdrop-filter.
   const specularStyle: CSSProperties | null = useMemo(() => {
-    if (disableRefraction || !mapResult?.specularMapUrl) return null;
+    if (disableRefraction || !isGlassTheme || !mapResult?.specularMapUrl || specularOpacity <= 0) return null;
     return {
       position: 'absolute',
       inset: 0,
@@ -210,11 +228,10 @@ export function useLiquidGlass(props: LiquidGlassProps = {}) {
       pointerEvents: 'none',
       backgroundImage: `url(${mapResult.specularMapUrl})`,
       backgroundSize: '100% 100%',
-      mixBlendMode: 'screen',
       opacity: specularOpacity,
       zIndex: 1,
     };
-  }, [disableRefraction, mapResult, specularOpacity]);
+  }, [disableRefraction, isGlassTheme, mapResult, specularOpacity]);
 
   return {
     ref: containerRef,

@@ -3,7 +3,7 @@ package session
 import (
 	"testing"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 func usageEvent(thread, turn string, driver domain.DriverKind, in, out int64) domain.RuntimeEvent {

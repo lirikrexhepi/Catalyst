@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // CoordinatorThreadID is the live orchestrator conversation.
@@ -21,7 +21,7 @@ const CoordinatorThreadID = "coordinator"
 
 // CoordinatorThreadFor names the orchestrator transcript stored against a
 // workspace. Reopening a session replays this alongside its agents, which is
-// what makes a Catalyst session more than a single agent's chat log.
+// what makes a Composer session more than a single agent's chat log.
 func CoordinatorThreadFor(workspaceID string) string {
 	if workspaceID == "" {
 		return CoordinatorThreadID
@@ -35,13 +35,15 @@ func CoordinatorThreadFor(workspaceID string) string {
 type Coordinator struct {
 	manager *Manager
 
-	mu      sync.Mutex
-	driver  domain.DriverKind
-	model   string
-	options domain.ModelOptions
-	cwd     string
-	started bool
+	mu         sync.Mutex
+	driver     domain.DriverKind
+	model      string
+	options    domain.ModelOptions
+	cwd        string
+	permission domain.PermissionMode
+	started    bool
 	primed  bool
+	pendingHandoff string
 	// pending holds the turns of the current conversation that have not yet been
 	// attributed to a workspace. A spawn claims them, which is how the plan that
 	// produced a set of agents ends up stored beside those agents.
@@ -110,7 +112,19 @@ type Config struct {
 // Send ensures a session matching cfg is live, then delivers the message. The
 // returned turn id lets the caller correlate streamed events.
 func (c *Coordinator) Send(ctx context.Context, cfg Config, text string) (string, error) {
-	if text == "" {
+	return c.SendWithFiles(ctx, cfg, text, nil)
+}
+
+// SendWithFiles is Send with attachments. A turn carrying files may have no
+// text of its own — an image pasted on its own is a complete message — so the
+// empty check passes when either is present.
+func (c *Coordinator) SendWithFiles(
+	ctx context.Context,
+	cfg Config,
+	text string,
+	files []domain.FileRef,
+) (string, error) {
+	if text == "" && len(files) == 0 {
 		return "", fmt.Errorf("message is empty")
 	}
 	if err := c.ensureSession(ctx, cfg); err != nil {
@@ -124,16 +138,27 @@ func (c *Coordinator) Send(ctx context.Context, cfg Config, text string) (string
 	// (model switch) must re-establish the role.
 	c.mu.Lock()
 	body := text
+	handoff := c.pendingHandoff
+	c.pendingHandoff = ""
 	if !c.primed {
 		body = SystemPrompt + "\n\n---\n\n" + text
 		c.primed = true
 	}
+	if handoff != "" {
+		body = handoff + "\n\n--- Current request ---\n\n" + body
+	}
 	c.mu.Unlock()
+
+	// Record the user's prompt as a durable event so CoordinatorHistory()
+	// replays include it. Without this, user messages only exist client-side
+	// and vanish on any component remount or history replay.
+	c.manager.RecordUserMessage(CoordinatorThreadID, turnID, text, files...)
 
 	if err := c.manager.Send(ctx, domain.SendTurnInput{
 		ThreadID: CoordinatorThreadID,
 		TurnID:   turnID,
 		Text:     body,
+		Files:    files,
 	}); err != nil {
 		return "", err
 	}
@@ -156,8 +181,19 @@ func (c *Coordinator) ensureSession(ctx context.Context, cfg Config) error {
 		return nil
 	}
 	if c.started {
+		prior := c.manager.History(CoordinatorThreadID)
+		prevDriver := c.driver
+		prevModel := c.model
 		_ = c.manager.Stop(ctx, CoordinatorThreadID)
 		c.started = false
+		if len(prior) > 0 {
+			c.pendingHandoff = BuildHandoffPrompt(prevDriver, driver, prior, cwd)
+		}
+		c.mu.Unlock()
+		if len(prior) > 0 {
+			c.manager.RecordNotice(CoordinatorThreadID, fmt.Sprintf("Switched from %s: %s to %s: %s", domain.DriverLabel(prevDriver), prevModel, domain.DriverLabel(driver), cfg.Model), "")
+		}
+		c.mu.Lock()
 	}
 
 	if _, err := c.manager.Start(ctx, driver, domain.SessionStartInput{
@@ -171,13 +207,14 @@ func (c *Coordinator) ensureSession(ctx context.Context, cfg Config) error {
 		return err
 	}
 
-	c.driver, c.model, c.options, c.cwd, c.started = driver, cfg.Model, cfg.Options, cwd, true
+	c.driver, c.model, c.options, c.permission, c.cwd, c.started = driver, cfg.Model, cfg.Options, cfg.Permission, cwd, true
 	c.primed = false
 	return nil
 }
 
 func (c *Coordinator) matches(driver domain.DriverKind, cfg Config, cwd string) bool {
 	return c.driver == driver && c.model == cfg.Model && c.cwd == cwd &&
+		c.permission == cfg.Permission &&
 		sameOptions(c.options, cfg.Options)
 }
 

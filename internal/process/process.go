@@ -11,15 +11,16 @@ import (
 	"sync"
 	"time"
 
-	"catalyst/internal/shell"
+	"composer/internal/shell"
 )
 
 type Spec struct {
-	Command string
-	Args    []string
-	Cwd     string
-	Env     map[string]string
-	Stderr  func(line string)
+	Command  string
+	Args     []string
+	Cwd      string
+	Env      map[string]string
+	Stderr   func(line string)
+	KillTree bool
 }
 
 type Process struct {
@@ -32,6 +33,7 @@ type Process struct {
 	exited     chan struct{}
 	stderrTail []string
 	killed     bool
+	job        any
 }
 
 var ErrNotFound = errors.New("executable not found")
@@ -50,6 +52,7 @@ func Start(ctx context.Context, spec Spec) (*Process, error) {
 	cmd.Dir = spec.Cwd
 	cmd.Env = shell.Slice(env)
 	configureSysProcAttr(cmd)
+	applyCommandLine(cmd, resolved)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -68,6 +71,9 @@ func Start(ctx context.Context, spec Spec) (*Process, error) {
 	}
 
 	p := &Process{cmd: cmd, stdin: stdin, stdout: stdout, exited: make(chan struct{})}
+	if spec.KillTree {
+		attachJob(p)
+	}
 
 	go p.pumpStderr(stderr, spec.Stderr)
 	go func() {
@@ -125,6 +131,7 @@ func (p *Process) ExitError() error {
 func (p *Process) Shutdown(grace time.Duration) error {
 	select {
 	case <-p.exited:
+		closeJob(p)
 		return p.ExitError()
 	default:
 	}
@@ -143,9 +150,12 @@ func (p *Process) Shutdown(grace time.Duration) error {
 	terminate(p.cmd)
 	select {
 	case <-p.exited:
+		closeJob(p)
+		return nil
 	case <-time.After(2 * time.Second):
 		_ = p.cmd.Process.Kill()
 		<-p.exited
 	}
+	closeJob(p)
 	return nil
 }

@@ -31,10 +31,13 @@ type Task struct {
 	WorkspaceID string     `json:"workspaceId"`
 	ThreadID    string     `json:"threadId"`
 	Title       string     `json:"title"`
-	Prompt      string     `json:"prompt"`
-	Driver      DriverKind `json:"driver"`
-	Model       string     `json:"model,omitempty"`
-	State       TaskState  `json:"state"`
+	Prompt      string       `json:"prompt"`
+	Driver      DriverKind   `json:"driver"`
+	Drivers     []DriverKind `json:"drivers,omitempty"`
+	Model       string       `json:"model,omitempty"`
+	Models      []string     `json:"models,omitempty"`
+	Options     ModelOptions `json:"options,omitempty"`
+	State       TaskState    `json:"state"`
 
 	Worktree *Worktree `json:"worktree,omitempty"`
 	// Summary is captured at turn completion rather than on close, so context
@@ -44,7 +47,7 @@ type Task struct {
 	UpdatedAt int64  `json:"updatedAt"`
 }
 
-// Worktree records the isolated checkout a task ran in. Catalyst creates and
+// Worktree records the isolated checkout a task ran in. Composer creates and
 // reports these; merging stays a human decision.
 type Worktree struct {
 	Path       string `json:"path"`
@@ -54,7 +57,7 @@ type Worktree struct {
 }
 
 // TaskHandoff is the reconciliation view shown when work finishes: what changed
-// and whether it can land cleanly. Catalyst reports; it does not merge.
+// and whether it can land cleanly. Composer reports; it does not merge.
 type TaskHandoff struct {
 	TaskID       string   `json:"taskId"`
 	Branch       string   `json:"branch"`

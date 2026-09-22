@@ -1,9 +1,14 @@
-import React, { useRef } from 'react';
-import { LiquidGlass } from '../../liquid-glass';
+import React, { useRef, useState, useEffect } from 'react';
 import { ScrollArea } from '../common/ScrollArea';
+import { CleanDropdown } from '../common/CleanDropdown';
 import { WallpaperState } from './useWallpaper';
 import { DefaultModels } from './useDefaultModels';
 import { isCustom } from './wallpapers';
+import { useTheme } from '../../themes';
+import { providerIcon } from '../orchestrator/providerIcons';
+import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
+import { RemoteAccessSection } from './RemoteAccessSection';
+import { GetUserPreference, SetUserPreference } from '../../../wailsjs/go/main/App';
 
 export interface SettingsPanelProps {
   wallpaper: WallpaperState;
@@ -18,7 +23,37 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onClose,
   className = '',
 }) => {
+  const { currentTheme, themeId, availableThemes, setTheme } = useTheme();
+  const isLight = currentTheme.id === 'light' || currentTheme.id === 'white';
   const fileRef = useRef<HTMLInputElement>(null);
+  const autoStartAgents = useOrchestratorStore((s) => s.autoStartAgents);
+  const setAutoStartAgents = useOrchestratorStore((s) => s.setAutoStartAgents);
+  const autoApprovePermissions = useOrchestratorStore((s) => s.autoApprovePermissions);
+  const setAutoApprovePermissions = useOrchestratorStore((s) => s.setAutoApprovePermissions);
+
+  const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
+  const [hasChangedGpu, setHasChangedGpu] = useState<boolean>(false);
+
+  useEffect(() => {
+    GetUserPreference('disable_gpu_acceleration')
+      .then((val) => {
+        if (val === 'true') {
+          setGpuAcceleration(false);
+        } else {
+          setGpuAcceleration(true);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to read GPU acceleration preference:', err);
+      });
+  }, []);
+
+  const handleToggleGpu = () => {
+    const nextVal = !gpuAcceleration;
+    setGpuAcceleration(nextVal);
+    setHasChangedGpu(true);
+    void SetUserPreference('disable_gpu_acceleration', nextVal ? 'false' : 'true');
+  };
 
   const handleFiles = (files: FileList | null) => {
     const file = files?.[0];
@@ -27,28 +62,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   };
 
   return (
-    <LiquidGlass
-      variant="panel"
-      surface="squircle"
-      radius={20}
-      bezelWidth={18}
-      glassThickness={24}
-      refractionScale={0.8}
-      blur={0.4}
-      specularOpacity={0.8}
-      specularSaturation={6}
-      lightAngle={-45}
-      tint="rgba(0, 0, 0, 0.22)"
-      shadow="apple"
-      border="1px solid rgba(255, 255, 255, 0.18)"
-      frost={16}
-      frostSaturation={170}
-      className={`w-[380px] flex flex-col ${className}`}
-      style={{
-        boxShadow:
-          '0 20px 54px rgba(0, 0, 0, 0.55), 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25)',
-      }}
-    >
+    <div className={`w-full h-full flex flex-col select-none ${className}`}>
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 shrink-0">
         <div className="flex items-center gap-2">
           <span className="material-symbols-rounded text-[18px] text-white/80 leading-none">
@@ -62,21 +76,185 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           type="button"
           title="Close"
           onClick={onClose}
-          className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
+          className="w-[24px] h-[24px] rounded-full hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white"
         >
           <span className="material-symbols-rounded text-[16px] leading-none">close</span>
         </button>
       </div>
 
       <ScrollArea maxHeight={460} className="px-4 pb-4 flex flex-col gap-2.5">
+        {/* Themes: Dark, Light, Glass */}
+        <div className="flex items-baseline justify-between gap-2 px-0.5 pt-0.5">
+          <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
+            Theme
+          </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {availableThemes.map((t) => {
+            const isSelected = t.id === themeId;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTheme(t.id)}
+                className={`py-2 px-2.5 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer active:scale-95 ${
+                  isSelected
+                    ? isLight
+                      ? 'bg-black/10 text-black shadow-sm border border-black/10'
+                      : 'bg-white/20 text-white shadow-sm'
+                    : isLight
+                      ? 'bg-black/[0.04] hover:bg-black/[0.07] text-black/70'
+                      : 'bg-white/[0.05] hover:bg-white/[0.09] text-white/70'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <div
+                    className="w-3.5 h-3.5 rounded-full shrink-0 shadow-inner"
+                    style={{ background: t.previewGradient }}
+                  />
+                  <span className={`text-[12px] font-medium font-['Geist'] tracking-tight truncate ${
+                    isLight ? 'text-[#030303]' : 'text-white/95'
+                  }`}>
+                    {t.name}
+                  </span>
+                </div>
+                {isSelected && (
+                  <span className={`material-symbols-rounded text-[13px] leading-none shrink-0 ml-1 ${
+                    isLight ? 'text-black' : 'text-white'
+                  }`}>
+                    check
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Auto-start agents Toggle */}
+        <div className={`flex items-center justify-between p-2.5 rounded-[10px] ${
+          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
+        }`}>
+          <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
+            isLight ? 'text-[#030303]' : 'text-white/90'
+          }`}>
+            Auto-start agents
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoStartAgents}
+            onClick={() => setAutoStartAgents(!autoStartAgents)}
+            className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer ${
+              autoStartAgents
+                ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
+                : isLight ? 'bg-black/15' : 'bg-white/15'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
+                autoStartAgents
+                  ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
+                  : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Auto-approve permissions Toggle */}
+        <div className={`flex items-center justify-between p-2.5 rounded-[10px] ${
+          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
+        }`}>
+          <div className="flex flex-col">
+            <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
+              isLight ? 'text-[#030303]' : 'text-white/90'
+            }`}>
+              Auto-approve permissions
+            </span>
+            <span className={`text-[10px] font-['Geist'] tracking-tight leading-snug ${
+              isLight ? 'text-black/50' : 'text-white/40'
+            }`}>
+              Bypass prompts for folders & commands
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoApprovePermissions}
+            onClick={() => setAutoApprovePermissions(!autoApprovePermissions)}
+            className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ml-2 ${
+              autoApprovePermissions
+                ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
+                : isLight ? 'bg-black/15' : 'bg-white/15'
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
+                autoApprovePermissions
+                  ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
+                  : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* GPU Hardware Acceleration Toggle */}
+        <div className={`flex flex-col gap-1.5 p-2.5 rounded-[10px] ${
+          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
+                isLight ? 'text-[#030303]' : 'text-white/90'
+              }`}>
+                GPU Hardware Acceleration
+              </span>
+              <span className={`text-[10px] font-['Geist'] tracking-tight leading-snug ${
+                isLight ? 'text-black/50' : 'text-white/40'
+              }`}>
+                Accelerates window rendering. Turn off if experiencing GPU crashes.
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={gpuAcceleration}
+              onClick={handleToggleGpu}
+              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ml-2 ${
+                gpuAcceleration
+                  ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
+                  : isLight ? 'bg-black/15' : 'bg-white/15'
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
+                  gpuAcceleration
+                    ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
+                    : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
+                }`}
+              />
+            </button>
+          </div>
+          {hasChangedGpu && (
+            <div className={`text-[10px] font-medium font-['Geist'] px-2 py-1 rounded-[6px] ${
+              isLight ? 'bg-amber-500/15 text-amber-900 border border-amber-500/20' : 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
+            }`}>
+              Restart Orchestrator for change to take effect.
+            </div>
+          )}
+        </div>
+
+        {/* Remote Phone Access from University / Cell */}
+        <RemoteAccessSection />
+
         {defaultModels.entries.length > 0 && (
           <>
-            <div className="flex items-baseline justify-between gap-2 px-0.5">
+            <div className="flex items-baseline justify-between gap-2 px-0.5 pt-1.5">
               <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
-                Default model
+                Providers & Models
               </span>
               <span className="text-[10px] font-['Geist'] text-white/25 tracking-tight">
-                per CLI
+                toggle to enable
               </span>
             </div>
 
@@ -89,63 +267,95 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             )}
 
             <div className="flex flex-col gap-1.5">
-              {defaultModels.entries.map(({ provider, models, modelId }) => (
-                <div
-                  key={provider.id}
-                  className="flex items-center gap-2.5 p-2 rounded-[10px] bg-white/[0.04] border border-white/[0.08]"
-                >
-                  {provider.icon && (
-                    <img
-                      src={provider.icon}
-                      alt=""
-                      draggable={false}
-                      className="w-[18px] h-[18px] object-contain shrink-0"
-                    />
-                  )}
-                  <span className="text-[11.5px] font-medium font-['Geist'] text-white/90 tracking-tight truncate flex-1 min-w-0">
-                    {provider.name}
-                  </span>
+              {defaultModels.entries.map(({ provider, models, modelId, enabled }) => {
+                const options = [
+                  { value: '', label: 'CLI default' },
+                  ...models.map((m) => ({ value: m.id, label: m.name })),
+                ];
 
-                  {/* A native select rather than the glass picker: this is a
-                      one-off preference, and the picker carries effort and
-                      thinking state that does not apply here. */}
-                  <select
-                    value={modelId}
-                    disabled={defaultModels.isSaving === provider.id || models.length === 0}
-                    onChange={(event) => void defaultModels.select(provider.id, event.target.value)}
-                    className="h-[24px] max-w-[150px] rounded-[7px] bg-white/[0.07] border border-white/[0.12] hover:border-white/25 focus:border-white/30 outline-none text-[11px] font-medium font-['Geist'] text-white/85 px-1.5 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-default"
+                return (
+                  <div
+                    key={provider.id}
+                    className={`grid grid-cols-[1fr_auto_145px] items-center gap-2.5 p-2 rounded-[10px] transition-colors ${
+                      enabled
+                        ? isLight ? 'bg-black/[0.04]' : 'bg-white/[0.05]'
+                        : isLight ? 'bg-black/[0.02] opacity-60' : 'bg-white/[0.02] opacity-60'
+                    }`}
                   >
-                    {/* Empty means "whatever the CLI itself defaults to", which
-                        is different from pinning its current default. */}
-                    <option value="" className="bg-[#22242c] text-white/85">
-                      CLI default
-                    </option>
-                    {models.map((model) => (
-                      <option
-                        key={model.id}
-                        value={model.id}
-                        className="bg-[#22242c] text-white/85"
-                      >
-                        {model.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+                    <div className="flex items-center gap-2 min-w-0">
+                      {provider.icon ? (
+                        <img
+                          src={providerIcon(provider.id, isLight) || provider.icon}
+                          alt=""
+                          draggable={false}
+                          className="w-[18px] h-[18px] object-contain shrink-0 rounded-[3px]"
+                        />
+                      ) : (
+                        <span className={`material-symbols-rounded text-[18px] leading-none shrink-0 ${
+                          isLight ? 'text-black/50' : 'text-white/50'
+                        }`}>
+                          smart_toy
+                        </span>
+                      )}
+
+                      <span className={`text-[12px] font-medium font-['Geist'] tracking-tight truncate ${
+                        isLight ? 'text-[#030303]' : 'text-white/90'
+                      }`}>
+                        {provider.name}
+                      </span>
+                    </div>
+
+                    {/* Enable/Disable Permission Toggle */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={enabled}
+                      title={enabled ? `Disable ${provider.name}` : `Enable ${provider.name}`}
+                      onClick={() => void defaultModels.toggle(provider.id, !enabled)}
+                      className={`w-8 h-[18px] rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ${
+                        enabled
+                          ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
+                          : isLight ? 'bg-black/15' : 'bg-white/15'
+                      }`}
+                    >
+                      <div
+                        className={`w-3.5 h-3.5 rounded-full transition-transform duration-200 ease-out ${
+                          enabled
+                            ? isLight ? 'translate-x-3.5 bg-white shadow-sm' : 'translate-x-3.5 bg-black shadow-sm'
+                            : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
+                        }`}
+                      />
+                    </button>
+
+                    {/* Simplistic Clean Dropdown for Preferred Model */}
+                    <CleanDropdown
+                      value={modelId}
+                      options={options}
+                      disabled={!enabled || defaultModels.isSaving === provider.id || models.length === 0}
+                      onChange={(val) => void defaultModels.select(provider.id, val)}
+                      className="w-[145px]"
+                    />
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="h-px bg-white/[0.08] my-1" />
+            <div className={`h-px my-1 ${isLight ? 'bg-black/[0.06]' : 'bg-white/[0.06]'}`} />
           </>
         )}
 
         <div className="flex items-baseline justify-between gap-2 px-0.5">
-          <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
+          <span className={`text-[10px] font-semibold font-['Geist'] tracking-tight uppercase ${
+            isLight ? 'text-black/45' : 'text-white/45'
+          }`}>
             Wallpaper
           </span>
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
-            className="text-[11px] font-medium font-['Geist'] text-white/60 hover:text-white tracking-tight transition-colors cursor-pointer"
+            className={`text-[11px] font-medium font-['Geist'] tracking-tight transition-colors cursor-pointer ${
+              isLight ? 'text-black/60 hover:text-black' : 'text-white/60 hover:text-white'
+            }`}
           >
             Upload
           </button>
@@ -178,8 +388,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   onClick={() => wallpaper.select(item.id)}
                   className={`w-full aspect-[16/10] rounded-[9px] overflow-hidden transition-all duration-150 cursor-pointer active:scale-95 ${
                     isSelected
-                      ? 'ring-2 ring-inset ring-white/80'
-                      : 'ring-1 ring-inset ring-white/15 hover:ring-white/40'
+                      ? isLight ? 'ring-2 ring-inset ring-black/80' : 'ring-2 ring-inset ring-white/80'
+                      : isLight ? 'ring-1 ring-inset ring-black/15 hover:ring-black/40' : 'ring-1 ring-inset ring-white/15 hover:ring-white/40'
                   }`}
                 >
                   <img
@@ -217,7 +427,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </p>
         )}
       </ScrollArea>
-    </LiquidGlass>
+    </div>
   );
 };
 

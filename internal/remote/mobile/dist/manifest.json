@@ -1,0 +1,10 @@
+{
+  "name": "Orchestrator",
+  "short_name": "Orchestrator",
+  "theme_color": "#030303",
+  "background_color": "#030303",
+  "display": "standalone",
+  "orientation": "portrait",
+  "start_url": "/",
+  "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml"}]
+}

@@ -24,11 +24,16 @@ type TextPart struct {
 	Text string `json:"text"`
 }
 
+type ModelRef struct {
+	ProviderID string `json:"providerID"`
+	ModelID    string `json:"modelID"`
+}
+
 type PromptRequest struct {
-	MessageID string `json:"messageID,omitempty"`
-	Model     string `json:"model,omitempty"`
-	Agent     string `json:"agent,omitempty"`
-	Parts     []any  `json:"parts"`
+	MessageID string    `json:"messageID,omitempty"`
+	Model     *ModelRef `json:"model,omitempty"`
+	Agent     string    `json:"agent,omitempty"`
+	Parts     []any     `json:"parts"`
 }
 
 type PermissionReply struct {

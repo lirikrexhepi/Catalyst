@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // DriverUsage is the running total for one CLI.

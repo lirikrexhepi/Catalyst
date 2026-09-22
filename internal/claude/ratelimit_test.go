@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // Captured verbatim from `claude --print --output-format stream-json --verbose`

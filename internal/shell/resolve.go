@@ -14,6 +14,7 @@ type Resolved struct {
 	Command string
 	Args    []string
 	Shell   bool
+	CmdLine string
 }
 
 type cacheEntry struct {
@@ -190,7 +191,13 @@ func SpawnCommand(command string, args []string, env map[string]string) Resolved
 	for _, arg := range args {
 		escaped = append(escaped, escapeWindowsArg(arg))
 	}
-	return Resolved{Command: "cmd.exe", Args: append([]string{"/d", "/s", "/c"}, strings.Join(escaped, " ")), Shell: true}
+	line := strings.Join(escaped, " ")
+	return Resolved{
+		Command: "cmd.exe",
+		Args:    append([]string{"/d", "/s", "/c"}, line),
+		Shell:   true,
+		CmdLine: `cmd.exe /d /s /c "` + line + `"`,
+	}
 }
 
 // escapeWindowsArg quotes one argument for a cmd.exe command line.

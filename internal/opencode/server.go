@@ -8,14 +8,16 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/process"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/logger"
+	"composer/internal/process"
+	"composer/internal/shell"
 )
 
 const defaultHostname = "127.0.0.1"
@@ -47,7 +49,7 @@ func binary(settings domain.ProviderSettings) string {
 	return "opencode"
 }
 
-func startServer(ctx context.Context, settings domain.ProviderSettings, client *http.Client) (*server, error) {
+func startServer(ctx context.Context, settings domain.ProviderSettings, client *http.Client, cwd string) (*server, error) {
 	if url := strings.TrimSpace(settings.ServerURL); url != "" {
 		return &server{baseURL: strings.TrimSuffix(url, "/")}, nil
 	}
@@ -58,25 +60,44 @@ func startServer(ctx context.Context, settings domain.ProviderSettings, client *
 	}
 
 	args := append(
-		[]string{"serve", "--hostname=" + defaultHostname, fmt.Sprintf("--port=%d", port)},
+		[]string{"serve", "--hostname=" + defaultHostname, fmt.Sprintf("--port=%d", port), "--print-logs", "--log-level=DEBUG"},
 		shell.TokenizeArgs(settings.LaunchArgs)...,
 	)
 	env := shell.Merge(shell.BaseEnvironment(), settings.Env)
 
+	procCwd := cwd
+	if procCwd == "" {
+		procCwd, _ = os.Getwd()
+	}
+	if procCwd == "" {
+		procCwd, _ = os.UserHomeDir()
+	}
+
+	logger.Infof("OpenCode", "Starting server: %s %s (cwd=%s)", binary(settings), strings.Join(args, " "), procCwd)
+
 	procCtx, cancel := context.WithCancel(context.Background())
-	proc, err := process.Start(procCtx, process.Spec{Command: binary(settings), Args: args, Env: env})
+	proc, err := process.Start(procCtx, process.Spec{
+		Command: binary(settings),
+		Args:    args,
+		Env:     env,
+		Cwd:     procCwd,
+		Stderr: func(line string) {
+			logger.Debugf("OpenCode:err", "%s", line)
+		},
+	})
 	if err != nil {
 		cancel()
+		logger.Errorf("OpenCode", "Failed to start server: %v", err)
 		return nil, fmt.Errorf("start opencode serve: %w", err)
 	}
 
-	// The server prints its bound URL on stdout; prefer that over the requested
-	// port so a port collision resolved by the CLI is still followed.
 	discovered := make(chan string, 1)
 	go func() {
 		scanner := bufio.NewScanner(proc.Stdout())
 		for scanner.Scan() {
-			if match := listeningPattern.FindStringSubmatch(scanner.Text()); match != nil {
+			line := scanner.Text()
+			logger.Debugf("OpenCode:out", "%s", line)
+			if match := listeningPattern.FindStringSubmatch(line); match != nil {
 				select {
 				case discovered <- strings.TrimSuffix(match[1], "/"):
 				default:
@@ -92,14 +113,18 @@ func startServer(ctx context.Context, settings domain.ProviderSettings, client *
 	case <-time.After(3 * time.Second):
 	case <-proc.Done():
 		cancel()
-		return nil, fmt.Errorf("opencode serve exited: %s", proc.StderrTail())
+		tail := proc.StderrTail()
+		logger.Errorf("OpenCode", "Server exited prematurely: %s", tail)
+		return nil, fmt.Errorf("opencode serve exited: %s", tail)
 	}
 
 	s := &server{baseURL: baseURL, proc: proc, cancel: cancel}
 	if err := s.waitHealthy(ctx, client); err != nil {
+		logger.Errorf("OpenCode", "Health check failed for %s: %v", baseURL, err)
 		s.stop()
 		return nil, err
 	}
+	logger.Infof("OpenCode", "Server healthy at %s", baseURL)
 	return s, nil
 }
 

@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/provider"
+	"composer/internal/domain"
+	"composer/internal/logger"
+	"composer/internal/provider"
 )
 
 // Manager owns every live agent session across providers. Adapters are created
@@ -114,6 +116,12 @@ func (m *Manager) record(event domain.RuntimeEvent) {
 			event.Driver = entry.session.Driver
 		}
 		m.mu.RUnlock()
+	}
+
+	if event.Kind == domain.EventAgentMessage || event.Kind == domain.EventAgentThought {
+		logger.Debugf("Manager", "Stream chunk: thread=%s kind=%s len=%d", event.ThreadID, event.Kind, len(event.Text))
+	} else {
+		logger.Infof("Manager", "Event: thread=%s driver=%s kind=%s seq=%d", event.ThreadID, event.Driver, event.Kind, event.Seq)
 	}
 
 	published := m.bus.Publish(event)
@@ -230,12 +238,100 @@ func (m *Manager) refreshProviderSession(threadID string) {
 }
 
 func (m *Manager) Send(ctx context.Context, in domain.SendTurnInput) error {
+	logger.Infof("Manager", "Send: thread=%s turn=%s len=%d files=%d", in.ThreadID, in.TurnID, len(in.Text), len(in.Files))
 	entry, err := m.lookup(in.ThreadID)
 	if err != nil {
+		logger.Errorf("Manager", "Send failed (lookup): %v", err)
 		return err
 	}
 	return entry.adapter.SendTurn(ctx, in)
 }
+
+// RecordUserMessage injects a user.message event into the thread's history so
+// that CoordinatorHistory() replays include user prompts. Without this, user
+// messages only exist client-side and vanish on any component remount.
+func (m *Manager) RecordUserMessage(threadID, turnID, text string, files ...domain.FileRef) {
+	m.record(domain.RuntimeEvent{
+		Kind:     domain.EventUserMessage,
+		ThreadID: threadID,
+		TurnID:   turnID,
+		Text:     text,
+		Files:    files,
+		At:       time.Now().UnixMilli(),
+	})
+}
+
+// RecordNotice injects a persistent divider into the thread's transcript, so a
+// provider/model switch survives history reopen. Recorded through the same path
+// as user messages, hence durable in JSONL and replayed on load.
+func (m *Manager) RecordNotice(threadID, text, icon string) {
+	if text == "" {
+		return
+	}
+	m.record(domain.RuntimeEvent{
+		Kind:     domain.EventNotice,
+		ThreadID: threadID,
+		Text:     text,
+		Icon:     icon,
+		At:       time.Now().UnixMilli(),
+	})
+}
+
+// ThreadSession reports the live session for a thread, if any.
+func (m *Manager) ThreadSession(threadID string) (domain.Session, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	entry, ok := m.threads[threadID]
+	if !ok {
+		return domain.Session{}, false
+	}
+	return entry.session, true
+}
+
+// ProviderSessionID returns the CLI-native resume id for a thread, if known.
+func (m *Manager) ProviderSessionID(threadID string) string {
+	m.mu.RLock()
+	entry, ok := m.threads[threadID]
+	m.mu.RUnlock()
+	if !ok {
+		return ""
+	}
+	reporter, ok := entry.adapter.(provider.SessionReporter)
+	if !ok {
+		return ""
+	}
+	session, ok := reporter.Session(threadID)
+	if !ok {
+		return ""
+	}
+	return session.ProviderSessionID
+}
+
+// UpdateModel switches the model/options a live thread will use from now on.
+// Adapters that apply it in place report true; others (long-lived procs with
+// fixed launch args) report false so the caller restarts the thread instead.
+func (m *Manager) UpdateModel(threadID, model string, options domain.ModelOptions) bool {
+	m.mu.RLock()
+	entry, ok := m.threads[threadID]
+	m.mu.RUnlock()
+	if !ok {
+		return false
+	}
+	updater, ok := entry.adapter.(provider.ModelUpdater)
+	if !ok {
+		return false
+	}
+	applied := updater.UpdateModel(threadID, model, options)
+	if applied && model != "" {
+		m.mu.Lock()
+		if current, live := m.threads[threadID]; live {
+			current.session.Model = model
+		}
+		m.mu.Unlock()
+	}
+	return applied
+}
+
 
 func (m *Manager) Interrupt(ctx context.Context, threadID string) error {
 	entry, err := m.lookup(threadID)
@@ -251,6 +347,14 @@ func (m *Manager) Respond(ctx context.Context, threadID, requestID string, decis
 		return err
 	}
 	return entry.adapter.RespondToApproval(ctx, threadID, requestID, decision)
+}
+
+func (m *Manager) RespondQuestion(ctx context.Context, threadID, requestID string, answers []string) error {
+	entry, err := m.lookup(threadID)
+	if err != nil {
+		return err
+	}
+	return entry.adapter.RespondToQuestion(ctx, threadID, requestID, answers)
 }
 
 func (m *Manager) Stop(ctx context.Context, threadID string) error {

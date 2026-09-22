@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/drivers"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/drivers"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 func TestProbeExposesModelOptions(t *testing.T) {
@@ -33,6 +33,9 @@ func TestProbeExposesModelOptions(t *testing.T) {
 // TestCoordinatorSwitchesModel drives the coordinator the way the UI will:
 // send, then send again under a different model so the session restarts.
 func TestCoordinatorSwitchesModel(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI smoke test in short mode")
+	}
 	env := shell.BaseEnvironment()
 	if _, ok := shell.LookPath("claude", env); !ok {
 		t.Skip("claude CLI not installed")
@@ -103,6 +106,9 @@ func awaitTurn(t *testing.T, events <-chan domain.RuntimeEvent, turnID, want str
 // TestCoordinatorThinkingOption reproduces the --settings regression: a boolean
 // model option must survive Windows shell escaping and reach the CLI intact.
 func TestCoordinatorThinkingOption(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI smoke test in short mode")
+	}
 	env := shell.BaseEnvironment()
 	if _, ok := shell.LookPath("claude", env); !ok {
 		t.Skip("claude CLI not installed")
@@ -132,6 +138,9 @@ func TestCoordinatorThinkingOption(t *testing.T) {
 // TestCoordinatorAutoPermissions confirms the bypass mode both CLIs are given by
 // the UI is accepted, since an unknown value makes the CLI exit immediately.
 func TestCoordinatorAutoPermissions(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI smoke test in short mode")
+	}
 	env := shell.BaseEnvironment()
 
 	for _, tc := range []struct {
@@ -176,6 +185,9 @@ func TestCoordinatorAutoPermissions(t *testing.T) {
 // TestAntigravityToolExecution covers the failure seen in the UI: agy gates tool
 // calls behind request-review by default, which blocks forever in print mode.
 func TestAntigravityToolExecution(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI smoke test in short mode")
+	}
 	env := shell.BaseEnvironment()
 	if _, ok := shell.LookPath("agy", env); !ok {
 		t.Skip("agy not installed")

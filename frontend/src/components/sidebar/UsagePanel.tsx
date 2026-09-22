@@ -1,14 +1,10 @@
 import React from 'react';
 import { LiquidGlass } from '../../liquid-glass';
-import { ScrollArea } from '../common/ScrollArea';
-import { providerIcon } from '../orchestrator/providerIcons';
 import { domain, session } from '../../../wailsjs/go/models';
 
 export interface UsagePanelProps {
   report: session.UsageReport | null;
   error?: string | null;
-  onRefresh: () => void;
-  onReset: () => void;
   onClose: () => void;
   className?: string;
 }
@@ -19,17 +15,6 @@ const DRIVER_NAMES: Record<string, string> = {
   codex: 'Codex',
   opencode: 'OpenCode',
 };
-
-function compact(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(value >= 10_000 ? 0 : 1)}k`;
-  return String(value);
-}
-
-function money(value: number): string {
-  if (value <= 0) return '—';
-  return value < 0.01 ? '<$0.01' : `$${value.toFixed(2)}`;
-}
 
 // Past this the figures are old enough to mislead — the 5h window can move
 // several points in that time — so the label is flagged rather than shown as if
@@ -52,8 +37,18 @@ function since(timestamp: number): string {
 const WINDOW_NAMES: Record<string, string> = {
   five_hour: 'Session (5h)',
   seven_day: 'Weekly (7d)',
-  opus_seven_day: 'Opus weekly',
+  seven_day_opus: 'Opus weekly',
+  seven_day_sonnet: 'Sonnet weekly',
+  seven_day_scoped: 'Model weekly',
 };
+
+// Model-scoped weekly windows arrive named after the model they cover, so the
+// label is built rather than looked up.
+function windowLabel(window: string): string {
+  const scoped = window.startsWith('seven_day_scoped:');
+  if (scoped) return `${window.slice('seven_day_scoped:'.length)} weekly`;
+  return WINDOW_NAMES[window] ?? window;
+}
 
 // resetsAt is unix seconds from the CLI, unlike every other timestamp here.
 function until(resetsAtSeconds: number): string {
@@ -68,7 +63,7 @@ function until(resetsAtSeconds: number): string {
 const QuotaBar: React.FC<{ limit: domain.RateLimit }> = ({ limit }) => {
   const used = limit.usedPercent;
   const known = typeof used === 'number';
-  const label = WINDOW_NAMES[limit.window] ?? limit.window;
+  const label = windowLabel(limit.window);
   const tone = !known || used < 75 ? 'bg-white/55' : used < 90 ? 'bg-amber-300/80' : 'bg-rose-400/85';
 
   return (
@@ -81,6 +76,7 @@ const QuotaBar: React.FC<{ limit: domain.RateLimit }> = ({ limit }) => {
           {known ? `${used}%` : '—'}
         </span>
       </div>
+
       <div className="h-[4px] rounded-full bg-white/10 overflow-hidden">
         {known && (
           <div
@@ -98,30 +94,9 @@ const QuotaBar: React.FC<{ limit: domain.RateLimit }> = ({ limit }) => {
   );
 };
 
-const Stat: React.FC<{ label: string; value: string; muted?: boolean }> = ({
-  label,
-  value,
-  muted,
-}) => (
-  <div className="flex flex-col gap-0.5 min-w-0">
-    <span className="text-[10px] font-medium font-['Geist'] text-white/40 tracking-tight uppercase">
-      {label}
-    </span>
-    <span
-      className={`text-[13px] font-semibold font-['Geist'] tabular-nums tracking-tight ${
-        muted ? 'text-white/60' : 'text-white'
-      }`}
-    >
-      {value}
-    </span>
-  </div>
-);
-
 export const UsagePanel: React.FC<UsagePanelProps> = ({
   report,
   error,
-  onRefresh,
-  onReset,
   onClose,
   className = '',
 }) => {
@@ -135,17 +110,11 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   }, []);
 
   const drivers = report?.drivers ?? [];
-  const totals = report?.totals;
-  const grandTotal = (totals?.inputTokens ?? 0) + (totals?.outputTokens ?? 0);
   const quotaDrivers = drivers.filter((driver) => (driver.limits?.length ?? 0) > 0);
-  // A CLI that only contributed quota has no tokens to break down, so it would
-  // otherwise render an empty card under the totals.
-  const spendDrivers = drivers.filter(
-    (driver) => driver.inputTokens + driver.outputTokens > 0,
-  );
   const quotaIssues = drivers
     .filter((driver) => !!driver.limitsError)
     .map((driver) => ({ driver: driver.driver, message: driver.limitsError as string }));
+  const empty = quotaDrivers.length === 0 && quotaIssues.length === 0 && !error;
 
   return (
     <LiquidGlass
@@ -159,9 +128,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
       specularOpacity={0.8}
       specularSaturation={6}
       lightAngle={-45}
-      tint="rgba(0, 0, 0, 0.22)"
+      tint="var(--theme-panel-bg, rgba(18, 20, 26, 0.88))"
       shadow="apple"
-      border="1px solid rgba(255, 255, 255, 0.18)"
+      border="1px solid var(--theme-panel-border, rgba(255, 255, 255, 0.10))"
       frost={16}
       frostSaturation={170}
       className={`w-[360px] flex flex-col ${className}`}
@@ -179,44 +148,34 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
             Usage
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            title="Re-read usage now"
-            onClick={onRefresh}
-            className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
-          >
-            <span className="material-symbols-rounded text-[16px] leading-none">refresh</span>
-          </button>
-          <button
-            type="button"
-            title="Clear token counters"
-            onClick={onReset}
-            className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
-          >
-            <span className="material-symbols-rounded text-[16px] leading-none">restart_alt</span>
-          </button>
-          <button
-            type="button"
-            title="Close"
-            onClick={onClose}
-            className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
-          >
-            <span className="material-symbols-rounded text-[16px] leading-none">close</span>
-          </button>
-        </div>
+        <button
+          type="button"
+          title="Close"
+          onClick={onClose}
+          className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
+        >
+          <span className="material-symbols-rounded text-[16px] leading-none">close</span>
+        </button>
       </div>
 
       {error && (
-        <div className="mx-4 mb-2.5 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
+        <div className="mx-4 mb-3 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
           <span className="text-[11px] font-medium font-['Geist'] text-red-200/90 leading-relaxed">
             {error}
           </span>
         </div>
       )}
 
+      {empty && (
+        <div className="px-4 pb-5 pt-1">
+          <p className="text-[12px] font-['Geist'] text-white/45 leading-relaxed">
+            Reading your plan usage…
+          </p>
+        </div>
+      )}
+
       {(quotaDrivers.length > 0 || quotaIssues.length > 0) && (
-        <div className="mx-4 mb-3 flex flex-col gap-3 shrink-0">
+        <div className="mx-4 mb-4 flex flex-col gap-3 shrink-0">
           {quotaDrivers.map((driver) => (
             <div
               key={`quota-${driver.driver}`}
@@ -228,12 +187,12 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
                 </span>
                 {!!driver.limitsFetchedAt && (
                   <span
-                    title="These figures come from the CLI's own cache, which only refreshes when a Claude client fetches usage. Catalyst re-reads it on open but cannot trigger that fetch."
+                    title="Fetched from your subscription while the panel is open. If the account cannot be reached, the CLI's own cached figures are shown instead and this stamp reports how old they are."
                     className={`text-[9px] font-['Geist'] tracking-tight ${
                       isStale(driver.limitsFetchedAt) ? 'text-amber-300/60' : 'text-white/30'
                     }`}
                   >
-                    CLI data {since(driver.limitsFetchedAt)}
+                    Updated {since(driver.limitsFetchedAt)}
                   </span>
                 )}
               </div>
@@ -254,73 +213,6 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
             </span>
           ))}
         </div>
-      )}
-
-      <div className="mx-4 mb-3 p-3 rounded-[12px] bg-white/[0.05] border border-white/[0.09] shrink-0">
-        <div className="grid grid-cols-3 gap-2">
-          <Stat label="Tokens" value={compact(grandTotal)} />
-          <Stat label="Cost" value={money(totals?.costUsd ?? 0)} />
-          <Stat label="Turns" value={String(totals?.turns ?? 0)} />
-        </div>
-      </div>
-
-      {spendDrivers.length === 0 ? (
-        <div className="px-4 pb-5 pt-1">
-          <p className="text-[12px] font-['Geist'] text-white/45 leading-relaxed">
-            No agent activity yet. Token totals appear here once an agent runs.
-          </p>
-        </div>
-      ) : (
-        <ScrollArea maxHeight={340} className="px-4 pb-4 flex flex-col gap-2">
-          {spendDrivers.map((driver) => {
-            const icon = providerIcon(driver.driver);
-            const total = driver.inputTokens + driver.outputTokens;
-            const share = grandTotal > 0 ? (total / grandTotal) * 100 : 0;
-
-            return (
-              <div
-                key={driver.driver}
-                className="p-2.5 rounded-[11px] bg-white/[0.04] border border-white/[0.08] flex flex-col gap-2"
-              >
-                <div className="flex items-center gap-2">
-                  {icon ? (
-                    <img src={icon} alt="" className="w-4 h-4 object-contain shrink-0" draggable={false} />
-                  ) : (
-                    <span className="w-4 h-4 rounded-[5px] bg-white/15 text-[9px] font-bold text-white/70 flex items-center justify-center shrink-0">
-                      {driver.driver.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                  <span className="text-[12px] font-medium font-['Geist'] text-white/95 tracking-tight flex-1 truncate">
-                    {DRIVER_NAMES[driver.driver] ?? driver.driver}
-                  </span>
-                  <span className="text-[11px] font-semibold font-['Geist'] text-white/70 tabular-nums">
-                    {compact(total)}
-                  </span>
-                </div>
-
-                <div className="h-[3px] rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-white/55 transition-[width] duration-300 ease-out"
-                    style={{ width: `${Math.max(share, total > 0 ? 2 : 0)}%` }}
-                  />
-                </div>
-
-                <div className="grid grid-cols-4 gap-1.5">
-                  <Stat label="In" value={compact(driver.inputTokens)} muted />
-                  <Stat label="Out" value={compact(driver.outputTokens)} muted />
-                  <Stat label="Cached" value={compact(driver.cacheReadTokens)} muted />
-                  <Stat label="Cost" value={money(driver.costUsd)} muted />
-                </div>
-
-                {!!driver.lastActiveAt && (
-                  <span className="text-[10px] font-['Geist'] text-white/35 tracking-tight">
-                    {driver.sessions} session{driver.sessions === 1 ? '' : 's'} · {since(driver.lastActiveAt)}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </ScrollArea>
       )}
     </LiquidGlass>
   );

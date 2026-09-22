@@ -26,7 +26,7 @@ func WorktreeRoot(repoRoot string) (string, error) {
 	sum := sha256.Sum256([]byte(strings.ToLower(filepath.Clean(absolute))))
 	name := filepath.Base(absolute) + "-" + hex.EncodeToString(sum[:4])
 
-	return filepath.Join(base, "catalyst", "worktrees", name), nil
+	return filepath.Join(base, "composer", "worktrees", name), nil
 }
 
 var slugPattern = regexp.MustCompile(`[^a-z0-9]+`)

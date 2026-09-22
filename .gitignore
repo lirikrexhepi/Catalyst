@@ -2,7 +2,13 @@ build/bin/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+internal/remote/mobile/node_modules/
 *.exe
 *.msi
 *.zip
 .DS_Store
+*.log
+*_stderr.txt
+*_stdout.txt
+test.txt
+wails_ver.txt

@@ -3,7 +3,7 @@ package history
 import (
 	"sync"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // Recorder routes live events into the right workspace on disk.
@@ -21,6 +21,9 @@ type Recorder struct {
 	metas map[string]*Meta
 	// dirty marks workspaces whose meta needs flushing.
 	dirty map[string]bool
+
+	onProviderSession func(threadID, providerSessionID string)
+	onChanged         func()
 }
 
 func NewRecorder(store *Store) *Recorder {
@@ -29,6 +32,22 @@ func NewRecorder(store *Store) *Recorder {
 		workspaceOf: make(map[string]string),
 		metas:       make(map[string]*Meta),
 		dirty:       make(map[string]bool),
+	}
+}
+
+// OnChanged registers a callback that fires whenever sessions or tasks change.
+func (r *Recorder) OnChanged(cb func()) {
+	r.mu.Lock()
+	r.onChanged = cb
+	r.mu.Unlock()
+}
+
+func (r *Recorder) notifyChanged() {
+	r.mu.RLock()
+	cb := r.onChanged
+	r.mu.RUnlock()
+	if cb != nil {
+		cb()
 	}
 }
 
@@ -50,6 +69,7 @@ func (r *Recorder) OpenWorkspace(workspace domain.Workspace, coordinatorThreadID
 	r.mu.Unlock()
 
 	_ = r.store.SaveMeta(snapshot)
+	r.notifyChanged()
 }
 
 // TrackTask binds an agent thread to its workspace and records the task.
@@ -82,6 +102,7 @@ func (r *Recorder) TrackTask(task domain.Task) {
 	r.mu.Unlock()
 
 	_ = r.store.SaveMeta(snapshot)
+	r.notifyChanged()
 }
 
 // Record persists one event against whichever workspace owns its thread.
@@ -100,12 +121,24 @@ func (r *Recorder) Record(threadID string, event domain.RuntimeEvent) {
 	_ = r.store.Append(workspaceID, threadID, event)
 
 	// A finished turn is a natural durability point, and cheap: the buffer is
-	// usually near-empty by then.
+	// usually near-empty by then. Turn starts and session starts are flushed
+	// too so a crash mid-turn loses only streamed tokens, never the prompt
+	// that started the turn or the resume id that makes it resumable.
 	switch event.Kind {
-	case domain.EventTurnCompleted, domain.EventTurnFailed, domain.EventSessionStopped:
+	case domain.EventTurnCompleted, domain.EventTurnFailed, domain.EventSessionStopped,
+		domain.EventUserMessage, domain.EventSessionStarted, domain.EventNotice:
 		_ = r.store.Flush(workspaceID)
-		r.flushMeta(workspaceID)
+		if event.Kind == domain.EventTurnCompleted || event.Kind == domain.EventTurnFailed || event.Kind == domain.EventSessionStopped {
+			r.flushMeta(workspaceID)
+		}
 	}
+}
+
+// OnProviderSession registers a callback invoked whenever a CLI session ID is recorded.
+func (r *Recorder) OnProviderSession(cb func(threadID, providerSessionID string)) {
+	r.mu.Lock()
+	r.onProviderSession = cb
+	r.mu.Unlock()
 }
 
 // NoteProviderSession stores the id needed to resume a thread in a later run.
@@ -115,14 +148,21 @@ func (r *Recorder) NoteProviderSession(threadID, providerSessionID string) {
 	}
 
 	r.mu.Lock()
+	cb := r.onProviderSession
 	workspaceID, ok := r.workspaceOf[threadID]
 	if !ok {
 		r.mu.Unlock()
+		if cb != nil {
+			cb(threadID, providerSessionID)
+		}
 		return
 	}
 	meta, ok := r.metas[workspaceID]
 	if !ok {
 		r.mu.Unlock()
+		if cb != nil {
+			cb(threadID, providerSessionID)
+		}
 		return
 	}
 	if meta.Resume == nil {
@@ -134,7 +174,24 @@ func (r *Recorder) NoteProviderSession(threadID, providerSessionID string) {
 	}
 	meta.Resume[threadID] = providerSessionID
 	r.dirty[workspaceID] = true
+	snapshot := *meta
 	r.mu.Unlock()
+
+	if err := r.store.SaveMeta(snapshot); err != nil {
+		r.mu.Lock()
+		r.dirty[workspaceID] = true
+		r.mu.Unlock()
+	} else {
+		r.mu.Lock()
+		if r.metas[workspaceID] == meta {
+			delete(r.dirty, workspaceID)
+		}
+		r.mu.Unlock()
+	}
+
+	if cb != nil {
+		cb(threadID, providerSessionID)
+	}
 }
 
 // UpdateTaskState keeps the stored task list in step with the live one, so a
@@ -177,6 +234,35 @@ func (r *Recorder) Touch(workspaceID string, at int64) {
 	r.mu.Unlock()
 }
 
+// Restore rehydrates in-memory routing from a stored workspace so a restart
+// keeps recording to the same workspace instead of dropping events as unknown
+// threads. SQLite remains only the metadata index; JSONL remains canonical.
+func (r *Recorder) Restore(meta Meta) {
+	if meta.Workspace.ID == "" {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	stored := meta
+	if stored.Resume == nil {
+		stored.Resume = make(map[string]string)
+	}
+	r.metas[meta.Workspace.ID] = &stored
+	if meta.CoordinatorThreadID != "" {
+		r.workspaceOf[meta.CoordinatorThreadID] = meta.Workspace.ID
+	}
+	for _, task := range meta.Tasks {
+		if task.ThreadID != "" {
+			r.workspaceOf[task.ThreadID] = meta.Workspace.ID
+		}
+	}
+	for threadID := range meta.Resume {
+		if _, ok := r.workspaceOf[threadID]; !ok {
+			r.workspaceOf[threadID] = meta.Workspace.ID
+		}
+	}
+}
+
 // WorkspaceOf reports which workspace a thread belongs to.
 func (r *Recorder) WorkspaceOf(threadID string) (string, bool) {
 	r.mu.RLock()
@@ -198,10 +284,16 @@ func (r *Recorder) flushMeta(workspaceID string) {
 		return
 	}
 	snapshot := *meta
-	delete(r.dirty, workspaceID)
 	r.mu.Unlock()
 
-	_ = r.store.SaveMeta(snapshot)
+	if err := r.store.SaveMeta(snapshot); err != nil {
+		return
+	}
+	r.mu.Lock()
+	if current, ok := r.metas[workspaceID]; ok && current == meta {
+		delete(r.dirty, workspaceID)
+	}
+	r.mu.Unlock()
 }
 
 // FlushAll makes every open workspace durable without closing the store, so a
@@ -209,16 +301,22 @@ func (r *Recorder) flushMeta(workspaceID string) {
 func (r *Recorder) FlushAll() error {
 	r.mu.Lock()
 	pending := make([]Meta, 0, len(r.dirty))
+	ids := make([]string, 0, len(r.dirty))
 	for workspaceID := range r.dirty {
 		if meta, ok := r.metas[workspaceID]; ok {
 			pending = append(pending, *meta)
+			ids = append(ids, workspaceID)
 		}
 	}
-	r.dirty = make(map[string]bool)
 	r.mu.Unlock()
 
-	for _, meta := range pending {
-		_ = r.store.SaveMeta(meta)
+	for i, meta := range pending {
+		if err := r.store.SaveMeta(meta); err != nil {
+			continue
+		}
+		r.mu.Lock()
+		delete(r.dirty, ids[i])
+		r.mu.Unlock()
 	}
 	return r.store.Flush("")
 }
@@ -227,16 +325,22 @@ func (r *Recorder) FlushAll() error {
 func (r *Recorder) Close() error {
 	r.mu.Lock()
 	pending := make([]Meta, 0, len(r.dirty))
+	ids := make([]string, 0, len(r.dirty))
 	for workspaceID := range r.dirty {
 		if meta, ok := r.metas[workspaceID]; ok {
 			pending = append(pending, *meta)
+			ids = append(ids, workspaceID)
 		}
 	}
-	r.dirty = make(map[string]bool)
 	r.mu.Unlock()
 
-	for _, meta := range pending {
-		_ = r.store.SaveMeta(meta)
+	for i, meta := range pending {
+		if err := r.store.SaveMeta(meta); err != nil {
+			continue
+		}
+		r.mu.Lock()
+		delete(r.dirty, ids[i])
+		r.mu.Unlock()
 	}
 	return r.store.Close()
 }
@@ -265,6 +369,7 @@ func (r *Recorder) RecordCoordinator(workspaceID, threadID string, events []doma
 	}
 	_ = r.store.Flush(workspaceID)
 	_ = r.store.SaveMeta(snapshot)
+	r.notifyChanged()
 }
 
 // Forget drops a workspace from memory and disk.
@@ -279,5 +384,37 @@ func (r *Recorder) Forget(workspaceID string) error {
 	delete(r.dirty, workspaceID)
 	r.mu.Unlock()
 
-	return r.store.Delete(workspaceID)
+	err := r.store.Delete(workspaceID)
+	r.notifyChanged()
+	return err
+}
+
+// ForgetCliTask drops an individual task from memory and disk.
+func (r *Recorder) ForgetCliTask(workspaceID, threadID string) error {
+	rootID := RootThreadID(threadID)
+	r.mu.Lock()
+	delete(r.workspaceOf, threadID)
+	delete(r.workspaceOf, rootID)
+	if meta, ok := r.metas[workspaceID]; ok {
+		var remaining []domain.Task
+		for _, t := range meta.Tasks {
+			if t.ThreadID != threadID && t.ThreadID != rootID && RootThreadID(t.ThreadID) != rootID {
+				remaining = append(remaining, t)
+			}
+		}
+		meta.Tasks = remaining
+		if meta.Resume != nil {
+			delete(meta.Resume, threadID)
+			delete(meta.Resume, rootID)
+		}
+		if len(meta.Tasks) == 0 {
+			delete(r.metas, workspaceID)
+			delete(r.dirty, workspaceID)
+		}
+	}
+	r.mu.Unlock()
+
+	err := r.store.DeleteTask(workspaceID, threadID)
+	r.notifyChanged()
+	return err
 }

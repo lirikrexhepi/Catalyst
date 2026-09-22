@@ -4,35 +4,63 @@ import (
 	"context"
 	"fmt"
 	"os"
-
 	"path/filepath"
+	"strings"
 
-	"catalyst/internal/claude"
-	"catalyst/internal/domain"
-	"catalyst/internal/drivers"
-	"catalyst/internal/git"
-	"catalyst/internal/history"
-	"catalyst/internal/provider"
-	"catalyst/internal/servers"
-	"catalyst/internal/session"
+	"composer/internal/attachments"
+	"composer/internal/claude"
+	"composer/internal/devserver"
+	"composer/internal/domain"
+	"composer/internal/drivers"
+	"composer/internal/history"
+	"composer/internal/logger"
+	"composer/internal/memory"
+	"composer/internal/projects"
+	"composer/internal/provider"
+	"composer/internal/remote"
+	"composer/internal/servers"
+	"composer/internal/service"
+	"composer/internal/session"
+	"composer/internal/storage/sqlite"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const runtimeEventChannel = "agent:event"
 
+const serversChangedChannel = "servers:changed"
+
+const quotaChangedChannel = "usage:quota"
+
+const orchestratorSpawnedChannel = "orchestrator:spawned"
+
+const historyChangedChannel = "history:changed"
+
 type App struct {
-	ctx         context.Context
-	registry    *provider.Registry
-	manager     *session.Manager
-	coordinator *session.Coordinator
-	workspaces  *session.Workspaces
-	spawner     *session.Spawner
-	usage       *session.UsageTracker
-	scanner     *servers.Scanner
+	ctx          context.Context
+	registry     *provider.Registry
+	manager      *session.Manager
+	coordinator  *session.Coordinator
+	workspaces   *session.Workspaces
+	spawner      *session.Spawner
+	orchestrator *session.Constructor
+	usage        *session.UsageTracker
+	quota        *claude.QuotaSource
+	scanner      *servers.Scanner
+	devservers   *devserver.Manager
+	control      *devserver.Control
 	historyStore *history.Store
-	recorder    *history.Recorder
-	stopFeed    func()
+	recorder     *history.Recorder
+	projects     *projects.Store
+	attachments  *attachments.Store
+	memory       *memory.Store
+	remoteServer *remote.Server
+	stopFeed     func()
+
+	db             *sqlite.DB
+	sessionService *service.SessionService
+	taskService    *service.TaskService
+	prefService    *service.PreferenceService
 }
 
 func NewApp() *App {
@@ -48,32 +76,80 @@ func NewApp() *App {
 	store := history.New(historyRoot())
 	recorder := history.NewRecorder(store)
 
+	devservers := devserver.NewManager()
+
 	// Persistence is attached rather than built in, so the session layer stays
 	// testable without a filesystem.
 	manager.SetRecorder(recorder)
 	coordinator.SetSink(recorder)
 	spawner.SetTracker(history.NewTracker(recorder, coordinator))
+	constructor := session.NewConstructor(manager, coordinator, spawner, workspaces)
+
+	var db *sqlite.DB
+	var sessionService *service.SessionService
+	var taskService *service.TaskService
+	var prefService *service.PreferenceService
+
+	if d, err := sqlite.Open(filepath.Join(configRoot(), "composer.db")); err == nil {
+		db = d
+		sRepo := sqlite.NewSessionRepo(d)
+		tRepo := sqlite.NewTaskRepo(d)
+		provRepo := sqlite.NewProviderRepo(d)
+		prefRepo := sqlite.NewPreferenceRepo(d)
+
+		sessionService = service.NewSessionService(sRepo)
+		taskService = service.NewTaskService(tRepo)
+		prefService = service.NewPreferenceService(prefRepo, provRepo)
+	} else {
+		fmt.Printf("Warning: failed to initialize SQLite database: %v\n", err)
+	}
+
+	control := devserver.NewControl(devservers)
+	if taskService != nil {
+		control.SetTaskService(taskService)
+	}
+
+	if sessionService != nil {
+		recorder.OnProviderSession(func(threadID, providerSessionID string) {
+			_ = sessionService.UpdateCLISession(context.Background(), threadID, providerSessionID)
+		})
+	}
+
+		projectsStore := projects.New(configRoot())
+	remoteServer := remote.NewServer(4545, manager, coordinator, constructor, spawner, projectsStore)
 
 	return &App{
-		registry:     registry,
-		manager:      manager,
-		coordinator:  coordinator,
-		workspaces:   workspaces,
-		spawner:      spawner,
-		usage:        session.NewUsageTracker(),
-		scanner:      servers.NewScanner(),
-		historyStore: store,
-		recorder:     recorder,
+		registry:       registry,
+		manager:        manager,
+		coordinator:    coordinator,
+		workspaces:     workspaces,
+		spawner:        spawner,
+		orchestrator:   constructor,
+		usage:          session.NewUsageTracker(),
+		quota:          claude.NewQuotaSource(""),
+		scanner:        servers.NewScanner(),
+		devservers:     devservers,
+		control:        control,
+		historyStore:   store,
+		recorder:       recorder,
+		projects:       projectsStore,
+		attachments:    attachments.New(filepath.Join(configRoot(), "attachments")),
+		memory:         memory.New(filepath.Join(configRoot(), "memory")),
+		remoteServer:   remoteServer,
+		db:             db,
+		sessionService: sessionService,
+		taskService:    taskService,
+		prefService:    prefService,
 	}
 }
 
-// configRoot is where Catalyst keeps everything it remembers between runs,
+// configRoot is where Composer keeps everything it remembers between runs,
 // falling back to the working directory when the user config dir is unavailable.
 func configRoot() string {
 	if dir, err := os.UserConfigDir(); err == nil {
-		return filepath.Join(dir, "catalyst")
+		return filepath.Join(dir, "composer")
 	}
-	return ".catalyst"
+	return ".composer"
 }
 
 // historyRoot resolves where sessions are stored.
@@ -83,20 +159,79 @@ func historyRoot() string {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	runtime.WindowShow(ctx)
+	a.enableManagedServers()
+	a.rehydrateFromHistory()
+	if a.remoteServer != nil {
+		_ = a.remoteServer.Start(ctx)
+	}
+	a.orchestrator.SetOnSpawn(func(result session.SpawnResult) {
+		if a.sessionService != nil {
+			for _, task := range result.Tasks {
+				branch := ""
+				cwd := result.Workspace.Cwd
+				if task.Worktree != nil {
+					branch = task.Worktree.Branch
+					if task.Worktree.Path != "" {
+						cwd = task.Worktree.Path
+					}
+				}
+				_ = a.sessionService.CreateSession(a.ctx, task.ThreadID, task.Title, cwd, string(task.Driver), task.Model, branch)
+			}
+		}
+		runtime.EventsEmit(a.ctx, orchestratorSpawnedChannel, result)
+	})
+
+	a.devservers.OnChange(func() {
+		runtime.EventsEmit(ctx, serversChangedChannel)
+	})
+
+	a.quota.OnUpdate(func() {
+		runtime.EventsEmit(ctx, quotaChangedChannel)
+	})
+
+	if a.recorder != nil {
+		a.recorder.OnChanged(func() {
+			runtime.EventsEmit(ctx, historyChangedChannel)
+		})
+	}
 
 	events, cancel := a.manager.Bus().Subscribe()
 	a.stopFeed = cancel
 
 	go func() {
 		for event := range events {
+			if event.Kind == domain.EventAgentMessage || event.Kind == domain.EventAgentThought {
+				textPrev := event.Text
+				if len(textPrev) > 80 {
+					textPrev = textPrev[:80] + "..."
+				}
+				logger.Debugf("EventBus", "kind=%s thread=%s delta=%v text=%q", event.Kind, event.ThreadID, event.Delta, textPrev)
+			} else if event.Kind == domain.EventToolCall || event.Kind == domain.EventToolResult {
+				name := ""
+				if event.Tool != nil {
+					name = event.Tool.Name
+				}
+				logger.Infof("EventBus", "kind=%s thread=%s tool=%s", event.Kind, event.ThreadID, name)
+			} else {
+				logger.Infof("EventBus", "kind=%s thread=%s turn=%s err=%s", event.Kind, event.ThreadID, event.TurnID, event.Error)
+			}
+
 			a.usage.Observe(event)
 			// Held until a spawn claims it, so the discussion that produced a
 			// plan is stored with the agents that plan created.
 			a.coordinator.Observe(event)
+			// The Orchestrator constructor: executes coordinator plans itself
+			// rather than returning JSON for the frontend to format.
+			a.orchestrator.Observe(event)
 			a.trackTaskState(event)
 			runtime.EventsEmit(ctx, runtimeEventChannel, event)
 		}
 	}()
+}
+
+func (a *App) domReady(ctx context.Context) {
+	runtime.WindowShow(ctx)
 }
 
 // trackTaskState keeps a task's stored state in step with its turns, so a
@@ -117,302 +252,69 @@ func (a *App) trackTaskState(event domain.RuntimeEvent) {
 	if workspaceID, ok := a.recorder.WorkspaceOf(event.ThreadID); ok {
 		a.recorder.Touch(workspaceID, event.At)
 	}
-}
-
-// UsageReport returns per-CLI token spend for this app run plus current
-// subscription quota.
-//
-// Quota is re-read on every call rather than cached, matching how each CLI's own
-// settings view behaves: opening the panel shows current figures without an
-// agent having to run first.
-func (a *App) UsageReport() session.UsageReport {
-	a.refreshQuota()
-	return a.usage.Report()
-}
-
-// refreshQuota pulls limits from every CLI that exposes them locally.
-//
-// Only Claude does: it caches utilisation in its own config, which is re-read
-// here on every call. Antigravity refreshes its token and quota in memory for
-// the lifetime of a CLI process and writes neither to disk, so there is nothing
-// to read and no way to authenticate a fetch without impersonating its OAuth
-// client. Its quota stays in its own settings UI.
-func (a *App) refreshQuota() {
-	if limits, fetchedAt, err := claude.ReadQuota(""); err == nil {
-		a.usage.SetLimits(domain.DriverClaude, limits, fetchedAt)
+	if a.sessionService != nil {
+		status := "completed"
+		if state == domain.TaskFailed {
+			status = "failed"
+		}
+		_ = a.sessionService.UpdateStatus(a.ctx, event.ThreadID, status)
 	}
-}
-
-// ResetUsage clears the counters so a single piece of work can be measured.
-// Subscription quota is re-read rather than cleared: it describes the account,
-// not this app's run.
-func (a *App) ResetUsage() session.UsageReport {
-	a.usage.Reset()
-	a.refreshQuota()
-	return a.usage.Report()
 }
 
 // shutdown stops every agent CLI so none outlive the window.
 func (a *App) shutdown(ctx context.Context) {
+	if a.remoteServer != nil {
+		a.remoteServer.Stop()
+	}
 	if a.stopFeed != nil {
 		a.stopFeed()
 	}
 	a.manager.StopAll(ctx)
+	a.devservers.StopAll()
+	a.control.Close()
 	// Last write wins the race with process exit: buffered transcript tails are
 	// only durable once this returns.
 	if a.recorder != nil {
 		_ = a.recorder.Close()
 	}
+	// Pasted screenshots are scratch data; without this they accumulate in the
+	// config directory for the life of the install.
+	a.attachments.Cleanup()
+	if a.db != nil {
+		_ = a.db.Close()
+	}
 }
 
-// ListHistory reports every stored session, newest first.
+// resolveCwd returns an explicit directory, or the active project when a caller
+// sends no directory. It deliberately does not fall back to the app's launch
+// directory: a desktop app is commonly started from a user home directory,
+// which is never an implicit project choice.
 //
-// A Catalyst session is a workspace: the orchestrator conversation plus every
-// agent it spawned. Listing reads only metadata, never transcripts.
-func (a *App) ListHistory() []history.Meta {
-	metas, err := a.historyStore.List()
-	if err != nil {
-		return nil
+// Defaulting here rather than in the frontend means every path into the session
+// layer — orchestrator, spawn, and anything added later — lands in the chosen
+// project without each one having to remember to ask for it.
+func (a *App) resolveCwd(requested string) string {
+	if requested = strings.TrimSpace(requested); requested != "" {
+		return filepath.Clean(requested)
 	}
-	return metas
-}
-
-// LoadHistory reopens one session in full: metadata, the orchestrator
-// transcript, and every agent's transcript.
-func (a *App) LoadHistory(workspaceID string) (history.Session, error) {
-	return a.historyStore.Load(workspaceID)
-}
-
-// DeleteHistory removes a stored session permanently.
-func (a *App) DeleteHistory(workspaceID string) error {
-	return a.recorder.Forget(workspaceID)
-}
-
-// ResumeHistory restarts the agents of a stored session.
-//
-// Every task is attempted; the per-task outcome says whether the agent genuinely
-// continued its old conversation, started fresh in the same directory, or could
-// not start at all. Those are meaningfully different states and the caller is
-// told which it got rather than left to assume.
-func (a *App) ResumeHistory(workspaceID string) (session.ResumeResult, error) {
-	loaded, err := a.historyStore.Load(workspaceID)
-	if err != nil {
-		return session.ResumeResult{}, err
-	}
-
-	requests := make([]session.ResumeRequest, 0, len(loaded.Meta.Tasks))
-	for _, task := range loaded.Meta.Tasks {
-		cwd := loaded.Meta.Workspace.Cwd
-		// A task that ran in a worktree must resume there; that checkout is where
-		// its work actually lives.
-		if task.Worktree != nil && task.Worktree.Path != "" {
-			cwd = task.Worktree.Path
-		}
-		requests = append(requests, session.ResumeRequest{
-			ThreadID:          task.ThreadID,
-			Title:             task.Title,
-			Driver:            task.Driver,
-			Model:             task.Model,
-			Cwd:               cwd,
-			ProviderSessionID: loaded.Meta.Resume[task.ThreadID],
-		})
-	}
-
-	result := a.spawner.Resume(a.ctx, requests)
-	result.WorkspaceID = workspaceID
-
-	// Re-register the revived threads so their new events append to the same
-	// session rather than starting a second copy of it.
-	for _, outcome := range result.Outcomes {
-		if !outcome.Live {
-			continue
-		}
-		for _, task := range loaded.Meta.Tasks {
-			if task.ThreadID == outcome.ThreadID {
-				a.recorder.TrackTask(task)
-				break
-			}
+	if a.projects != nil {
+		if act := a.projects.ActivePath(); act != "" {
+			return act
 		}
 	}
-	return result, nil
+	return ""
 }
 
-func (a *App) ListProviders(force bool) []domain.ProviderSnapshot {
-	return a.registry.Probe(a.ctx, force)
-}
-
-func (a *App) GetProviderSettings(driver string) domain.ProviderSettings {
-	return a.registry.Settings(domain.DriverKind(driver))
-}
-
-func (a *App) UpdateProviderSettings(driver string, settings domain.ProviderSettings) error {
-	return a.registry.SetSettings(domain.DriverKind(driver), settings)
-}
-
-func (a *App) StartSession(driver string, input domain.SessionStartInput) (domain.Session, error) {
-	return a.manager.Start(a.ctx, domain.DriverKind(driver), input)
-}
-
-func (a *App) SendTurn(input domain.SendTurnInput) error {
-	return a.manager.Send(a.ctx, input)
-}
-
-func (a *App) InterruptTurn(threadID string) error {
-	return a.manager.Interrupt(a.ctx, threadID)
-}
-
-func (a *App) RespondToApproval(threadID, requestID, decision string) error {
-	return a.manager.Respond(a.ctx, threadID, requestID, domain.ApprovalDecision(decision))
-}
-
-func (a *App) StopSession(threadID string) error {
-	return a.manager.Stop(a.ctx, threadID)
-}
-
-func (a *App) ListSessions() []domain.Session {
-	return a.manager.Sessions()
-}
-
-// CoordinatorSend starts or reuses the coordinator session for the given
-// selection and sends one message, returning the turn id to correlate events.
-func (a *App) CoordinatorSend(cfg session.Config, text string) (string, error) {
-	return a.coordinator.Send(a.ctx, cfg, text)
-}
-
-func (a *App) CoordinatorInterrupt() error {
-	return a.coordinator.Interrupt(a.ctx)
-}
-
-func (a *App) CoordinatorReset() error {
-	return a.coordinator.Reset(a.ctx)
-}
-
-// NewChat ends every running agent and starts a fresh orchestrator conversation.
-//
-// Stopping the agents is the point rather than a side effect: they hold CLI
-// processes, worktrees and dev servers, and leaving them running while their
-// windows disappear would strand work the user can no longer see or reach.
-// Whatever they produced is already recorded, so the session stays in history.
-func (a *App) NewChat() error {
-	threads := a.manager.Sessions()
-	for _, live := range threads {
-		if live.ThreadID == session.CoordinatorThreadID {
-			continue
-		}
-		_ = a.manager.Stop(a.ctx, live.ThreadID)
-		a.workspaces.SetState(live.ThreadID, domain.TaskClosed)
-		a.recorder.UpdateTaskState(live.ThreadID, domain.TaskClosed, "")
+// requireCwd turns a missing or stale project selection into a useful UI error
+// before a provider can silently inherit Composer's process directory.
+func (a *App) requireCwd(requested string) (string, error) {
+	cwd := a.resolveCwd(requested)
+	if cwd == "" {
+		return "", fmt.Errorf("choose a project folder before starting an agent")
 	}
-
-	// Flushed before the transcript is cut loose, so the session that just ended
-	// is complete on disk the moment it leaves the screen.
-	if a.recorder != nil {
-		_ = a.recorder.FlushAll()
+	info, err := os.Stat(cwd)
+	if err != nil || !info.IsDir() {
+		return "", fmt.Errorf("working directory is unavailable: %s", cwd)
 	}
-	return a.coordinator.Reset(a.ctx)
-}
-
-func (a *App) CoordinatorHistory() []domain.RuntimeEvent {
-	return a.coordinator.History()
-}
-
-// ParseTasks extracts a delegation plan from an orchestrator reply. Returns an
-// empty list for ordinary conversational answers.
-func (a *App) ParseTasks(text string) []session.TaskRequest {
-	return session.ParseTasks(text)
-}
-
-// SpawnTasks starts one agent session per task, optionally isolating each in
-// its own git worktree.
-func (a *App) SpawnTasks(requests []session.SpawnRequest, opts session.SpawnOptions) (session.SpawnResult, error) {
-	return a.spawner.Spawn(a.ctx, requests, opts)
-}
-
-func (a *App) ListWorkspaces() []domain.Workspace {
-	return a.workspaces.List()
-}
-
-func (a *App) WorkspaceTasks(workspaceID string) []domain.Task {
-	return a.workspaces.Tasks(workspaceID)
-}
-
-// IsGitRepo reports whether a directory can back worktree isolation, so the UI
-// can ask about it only when the answer is meaningful. An empty path means the
-// app's working directory, which is what the frontend has before a project is
-// explicitly chosen.
-func (a *App) IsGitRepo(dir string) bool {
-	if dir == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return false
-		}
-		dir = wd
-	}
-	_, ok := git.Open(a.ctx, dir)
-	return ok
-}
-
-// TaskHandoff summarises a finished task's branch: size, commit count, and
-// whether it merges cleanly. Reporting only — Catalyst never merges for you.
-func (a *App) TaskHandoff(threadID string) (domain.TaskHandoff, error) {
-	task, ok := a.workspaces.TaskByThread(threadID)
-	if !ok {
-		return domain.TaskHandoff{}, fmt.Errorf("no task for thread %s", threadID)
-	}
-	if task.Worktree == nil {
-		return domain.TaskHandoff{TaskID: task.ID, Summary: task.Summary}, nil
-	}
-
-	repo, ok := git.Open(a.ctx, task.Worktree.Path)
-	if !ok {
-		return domain.TaskHandoff{}, fmt.Errorf("worktree %s is not a git repository", task.Worktree.Path)
-	}
-
-	handoff, err := repo.Handoff(a.ctx, task.Worktree)
-	if err != nil {
-		return domain.TaskHandoff{}, err
-	}
-	handoff.TaskID = task.ID
-	handoff.Summary = task.Summary
-	return handoff, nil
-}
-
-func (a *App) ThreadHistory(threadID string) []domain.RuntimeEvent {
-	return a.manager.History(threadID)
-}
-
-// ListServers reports every listening process on the machine, grouped by the
-// agent that started it. Agents routinely leave dev servers holding ports after
-// a task ends, and nothing else surfaces which agent is responsible.
-func (a *App) ListServers() ([]servers.Group, error) {
-	owners := a.serverOwners()
-	found, err := a.scanner.Scan(a.ctx, owners)
-	if err != nil {
-		return nil, err
-	}
-	return servers.Grouped(found, owners), nil
-}
-
-// StopServer terminates a listening process by PID.
-func (a *App) StopServer(pid int) error {
-	return a.scanner.Stop(a.ctx, pid, a.serverOwners())
-}
-
-// serverOwners pairs each live agent with its CLI process, which is what the
-// scan walks parent chains toward.
-func (a *App) serverOwners() []servers.Owner {
-	sessions := a.manager.Sessions()
-	owners := make([]servers.Owner, 0, len(sessions))
-	for _, session := range sessions {
-		pid, ok := a.manager.SessionPID(session.ThreadID)
-		if !ok {
-			continue
-		}
-		title := session.ThreadID
-		if task, found := a.workspaces.TaskByThread(session.ThreadID); found && task.Title != "" {
-			title = task.Title
-		}
-		owners = append(owners, servers.Owner{ThreadID: session.ThreadID, Title: title, PID: pid})
-	}
-	return owners
+	return cwd, nil
 }

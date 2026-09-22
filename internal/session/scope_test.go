@@ -6,16 +6,19 @@ import (
 	"testing"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/drivers"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/drivers"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 // planFor runs one orchestrator turn and returns the parsed plan plus the raw
 // reply, so a refusal can be inspected rather than just counted.
 func planFor(t *testing.T, model, prompt string) ([]TaskRequest, string) {
 	t.Helper()
+	if testing.Short() {
+		t.Skip("skipping live CLI test in short mode")
+	}
 
 	manager := NewManager(provider.NewRegistry(drivers.All()...))
 	coordinator := NewCoordinator(manager)

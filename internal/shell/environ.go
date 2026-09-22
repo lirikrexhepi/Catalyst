@@ -13,7 +13,29 @@ import (
 var (
 	baseOnce sync.Once
 	baseEnv  map[string]string
+
+	ambientMu sync.RWMutex
+	ambient   map[string]string
 )
+
+func SetAmbient(env map[string]string) {
+	ambientMu.Lock()
+	defer ambientMu.Unlock()
+	ambient = make(map[string]string, len(env))
+	for key, value := range env {
+		ambient[normalizeKey(key)] = value
+	}
+}
+
+func ambientEnv() map[string]string {
+	ambientMu.RLock()
+	defer ambientMu.RUnlock()
+	out := make(map[string]string, len(ambient))
+	for key, value := range ambient {
+		out[key] = value
+	}
+	return out
+}
 
 // BaseEnvironment returns the process environment enriched, on Unix, with the
 // PATH a login shell would produce. GUI apps launched from Finder or a desktop
@@ -30,8 +52,15 @@ func BaseEnvironment() map[string]string {
 		}
 		baseEnv["PATH"] = MergePath(baseEnv["PATH"], defaultUnixPathCandidates()...)
 	})
-	out := make(map[string]string, len(baseEnv))
+	out := make(map[string]string, len(baseEnv)+4)
 	for k, v := range baseEnv {
+		out[k] = v
+	}
+	for k, v := range ambientEnv() {
+		if k == "PATH" {
+			out[k] = MergePath(v, out[k])
+			continue
+		}
 		out[k] = v
 	}
 	return out
@@ -131,7 +160,7 @@ func readLoginShellPath() string {
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, loginShell, "-lic", "printf '%s' \"$PATH\"")
-	cmd.Env = append(os.Environ(), "CATALYST_PATH_PROBE=1")
+	cmd.Env = append(os.Environ(), "COMPOSER_PATH_PROBE=1")
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

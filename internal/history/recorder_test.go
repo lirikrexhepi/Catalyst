@@ -3,7 +3,7 @@ package history
 import (
 	"testing"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // fakeCoordinator stands in for the live orchestrator conversation.

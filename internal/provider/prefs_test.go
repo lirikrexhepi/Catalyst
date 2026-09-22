@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 func TestPreferredModelSurvivesRestart(t *testing.T) {

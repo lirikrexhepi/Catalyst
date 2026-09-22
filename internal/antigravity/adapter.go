@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/process"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/process"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 // Adapter drives Google's `agy` CLI. Unlike the streaming-stdin agents, agy is
@@ -33,7 +34,7 @@ func NewAdapter(settings domain.ProviderSettings, emit provider.Emitter) *Adapte
 func (a *Adapter) Driver() domain.DriverKind { return domain.DriverAntigravity }
 
 func (a *Adapter) Capabilities() provider.Capabilities {
-	return provider.Capabilities{Resume: true, Plans: false}
+	return provider.Capabilities{Resume: true, Plans: false, Approvals: true}
 }
 
 type session struct {
@@ -48,10 +49,23 @@ type session struct {
 	turnID         string
 	cancelTurn     context.CancelFunc
 	tools          map[int]string
+	textSent       bool
+	streamed       string
+	streamedCut    bool
 	// proc is the process running the current turn. Unlike a session-scoped CLI
 	// this adapter spawns one per prompt, so it is only set while a turn is in
 	// flight — long enough for a dev server the turn starts to be attributed.
 	proc *process.Process
+}
+
+const defaultPrintTimeout = "30m"
+
+func snippet(line []byte) string {
+	const limit = 400
+	if len(line) > limit {
+		return string(line[:limit]) + "..."
+	}
+	return string(line)
 }
 
 func (a *Adapter) binary() string {
@@ -72,9 +86,17 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 		model = a.settings.Model
 	}
 
+	cwd := in.Cwd
+	if cwd == "" {
+		if wd, err := os.Getwd(); err == nil {
+			cwd = wd
+		}
+	}
+	in.Cwd = cwd
+
 	s := &session{
 		threadID:       in.ThreadID,
-		cwd:            in.Cwd,
+		cwd:            cwd,
 		model:          model,
 		options:        in.Options,
 		permission:     in.Permission,
@@ -112,12 +134,16 @@ func (a *Adapter) buildArgs(s *session, prompt string) []string {
 		}
 	}
 
-	// `--mode` only selects the edit workflow; tool approvals are gated
-	// separately and default to request-review, which blocks in print mode.
+	if s.cwd != "" {
+		args = append(args, "--add-dir", s.cwd)
+	}
+	args = append(args, "--print-timeout", a.printTimeout())
+
+	if mode := permissionMode(s.permission); mode != "" {
+		args = append(args, "--mode", mode)
+	}
 	if s.permission == domain.PermissionBypass {
 		args = append(args, "--dangerously-skip-permissions")
-	} else if mode := permissionMode(s.permission); mode != "" {
-		args = append(args, "--mode", mode)
 	}
 
 	s.mu.Lock()
@@ -142,6 +168,13 @@ func permissionMode(mode domain.PermissionMode) string {
 	}
 }
 
+func (a *Adapter) printTimeout() string {
+	if a.settings.PrintTimeout != "" {
+		return a.settings.PrintTimeout
+	}
+	return defaultPrintTimeout
+}
+
 func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 	s, ok := a.lookup(in.ThreadID)
 	if !ok {
@@ -163,6 +196,9 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 	s.turnID = in.TurnID
 	s.cancelTurn = cancelTurn
 	s.tools = make(map[int]string)
+	s.textSent = false
+	s.streamed = ""
+	s.streamedCut = false
 	s.mu.Unlock()
 
 	proc, err := process.Start(turnCtx, process.Spec{
@@ -188,6 +224,43 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 
 	go a.runTurn(turnCtx, s, in.TurnID, proc, cancelTurn)
 	return nil
+}
+
+const maxStreamedSample = 64 * 1024
+
+func (s *session) markText(delta string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.textSent = true
+	if len(s.streamed) >= maxStreamedSample {
+		s.streamedCut = true
+		return
+	}
+	s.streamed += delta
+	if len(s.streamed) > maxStreamedSample {
+		s.streamed = s.streamed[:maxStreamedSample]
+		s.streamedCut = true
+	}
+}
+
+func (s *session) sentText() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.textSent
+}
+
+func (s *session) streamedText() (sample string, cut bool, sent bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.streamed, s.streamedCut, s.textSent
+}
+
+func (s *session) resetText() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.textSent = false
+	s.streamed = ""
+	s.streamedCut = false
 }
 
 func (s *session) finishTurn() string {
@@ -254,7 +327,13 @@ func (a *Adapter) runTurn(ctx context.Context, s *session, turnID string, proc *
 			continue
 		}
 		var envelope Envelope
-		if json.Unmarshal(line, &envelope) != nil {
+		if err := json.Unmarshal(line, &envelope); err != nil {
+			a.emit.Emit(domain.RuntimeEvent{
+				Kind: domain.EventDiagnostic, ThreadID: s.threadID, TurnID: turnID,
+				Driver: domain.DriverAntigravity,
+				Error:  "unreadable " + a.binary() + " frame: " + err.Error(),
+				Text:   snippet(line),
+			})
 			continue
 		}
 		if envelope.Event == "result" {
@@ -302,10 +381,84 @@ func (a *Adapter) InterruptTurn(ctx context.Context, threadID string) error {
 	return nil
 }
 
-// RespondToApproval is unused: agy resolves permissions through --mode rather
-// than negotiating per tool call over the stream.
-func (a *Adapter) RespondToApproval(context.Context, string, string, domain.ApprovalDecision) error {
-	return errors.New("antigravity sessions resolve permissions via mode")
+func (a *Adapter) RespondToApproval(ctx context.Context, threadID, requestID string, decision domain.ApprovalDecision) error {
+	a.mu.RLock()
+	s, ok := a.sessions[threadID]
+	a.mu.RUnlock()
+	if !ok {
+		return errors.New("no active session for thread " + threadID)
+	}
+
+	s.mu.Lock()
+	proc := s.proc
+	s.mu.Unlock()
+
+	choice := "y\n"
+	if decision == domain.ApprovalDeny || decision == domain.ApprovalCancel {
+		choice = "n\n"
+	}
+
+	if proc != nil && proc.Stdin() != nil {
+		_, _ = proc.Stdin().Write([]byte(choice))
+	}
+
+	a.emit.Emit(domain.RuntimeEvent{
+		Kind:      domain.EventApprovalResolved,
+		ThreadID:  threadID,
+		Driver:    domain.DriverAntigravity,
+		Approval:  &domain.ApprovalRequest{RequestID: requestID},
+		Text:      string(decision),
+	})
+	return nil
+}
+
+func (a *Adapter) RespondToQuestion(ctx context.Context, threadID, requestID string, answers []string) error {
+	a.mu.RLock()
+	s, ok := a.sessions[threadID]
+	a.mu.RUnlock()
+	if !ok {
+		return errors.New("no active session for thread " + threadID)
+	}
+
+	// A skip (empty answers) cannot be communicated to the agy CLI as a bare
+	// newline — that causes a MessageAbortedError which silently kills the
+	// agent. Instead, cancel the running turn so the agent can be re-prompted
+	// with a fresh message rather than hanging in a broken state.
+	if len(answers) == 0 {
+		a.emit.Emit(domain.RuntimeEvent{
+			Kind:     domain.EventQuestionAnswered,
+			ThreadID: threadID,
+			Driver:   domain.DriverAntigravity,
+			Text:     "",
+			Question: &domain.QuestionRequest{RequestID: requestID},
+		})
+
+		s.mu.Lock()
+		cancel := s.cancelTurn
+		s.mu.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+		return nil
+	}
+
+	s.mu.Lock()
+	proc := s.proc
+	s.mu.Unlock()
+
+	reply := answers[0] + "\n"
+	if proc != nil && proc.Stdin() != nil {
+		_, _ = proc.Stdin().Write([]byte(reply))
+	}
+
+	a.emit.Emit(domain.RuntimeEvent{
+		Kind:     domain.EventQuestionAnswered,
+		ThreadID: threadID,
+		Driver:   domain.DriverAntigravity,
+		Text:     answers[0],
+		Question: &domain.QuestionRequest{RequestID: requestID},
+	})
+	return nil
 }
 
 func (a *Adapter) StopSession(ctx context.Context, threadID string) error {
@@ -363,4 +516,22 @@ func (a *Adapter) lookup(threadID string) (*session, bool) {
 	defer a.mu.RUnlock()
 	s, ok := a.sessions[threadID]
 	return s, ok
+}
+
+func (a *Adapter) UpdateModel(threadID, model string, options domain.ModelOptions) bool {
+	a.mu.RLock()
+	s, ok := a.sessions[threadID]
+	a.mu.RUnlock()
+	if !ok {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if model != "" {
+		s.model = model
+	}
+	if options != nil {
+		s.options = options
+	}
+	return true
 }

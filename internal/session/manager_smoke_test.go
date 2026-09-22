@@ -7,10 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/drivers"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/drivers"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 func TestProbeDiscoversInstalledClis(t *testing.T) {
@@ -31,6 +31,9 @@ func TestProbeDiscoversInstalledClis(t *testing.T) {
 // TestClaudeRoundTrip exercises the whole stack against the real CLI: spawn,
 // stream-json parsing, event fan-out, and teardown.
 func TestClaudeRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI smoke test in short mode")
+	}
 	env := shell.BaseEnvironment()
 	if _, ok := shell.LookPath("claude", env); !ok {
 		t.Skip("claude CLI not installed")
@@ -65,7 +68,7 @@ func TestClaudeRoundTrip(t *testing.T) {
 	if err := manager.Send(ctx, domain.SendTurnInput{
 		ThreadID: "smoke-1",
 		TurnID:   "turn-1",
-		Text:     "Reply with exactly: CATALYST_OK",
+		Text:     "Reply with exactly: COMPOSER_OK",
 	}); err != nil {
 		t.Fatalf("send turn: %v", err)
 	}
@@ -90,7 +93,7 @@ func TestClaudeRoundTrip(t *testing.T) {
 					t.Error("expected provider session id from init frame")
 				}
 				t.Logf("provider session id: %s", providerSessionID)
-				if !strings.Contains(text.String(), "CATALYST_OK") {
+				if !strings.Contains(text.String(), "COMPOSER_OK") {
 					t.Errorf("unexpected agent text: %q", text.String())
 				}
 				if len(manager.History("smoke-1")) == 0 {

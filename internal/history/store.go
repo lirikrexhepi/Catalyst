@@ -1,7 +1,7 @@
 // Package history persists sessions so a workspace can be reopened after the
 // app restarts.
 //
-// The unit of storage is the workspace, not the thread. Catalyst spawns several
+// The unit of storage is the workspace, not the thread. Composer spawns several
 // agents from one orchestrator request, and reading that request back means
 // reading the orchestrator's side of it together with every agent it started —
 // so all of them live in one directory and load as a set.
@@ -19,6 +19,7 @@ package history
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -27,8 +28,9 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 const (
@@ -45,7 +47,7 @@ type Meta struct {
 	Workspace domain.Workspace `json:"workspace"`
 	Tasks     []domain.Task    `json:"tasks"`
 	// CoordinatorThreadID is the orchestrator conversation that produced this
-	// workspace. Stored explicitly because it is what distinguishes a Catalyst
+	// workspace. Stored explicitly because it is what distinguishes a Composer
 	// session from a single agent's chat log.
 	CoordinatorThreadID string `json:"coordinatorThreadId,omitempty"`
 	// Resume maps a thread id to the provider's own session id, which is what a
@@ -133,16 +135,140 @@ func (s *Store) SaveMeta(meta Meta) error {
 	return writeAtomic(filepath.Join(dir, metaFile), payload)
 }
 
-// LoadMeta reads one workspace's metadata.
+// LoadMeta reads one workspace's metadata, recovering from .tmp or transcripts if damaged.
 func (s *Store) LoadMeta(workspaceID string) (Meta, error) {
 	var meta Meta
-	payload, err := os.ReadFile(filepath.Join(s.workspaceDir(workspaceID), metaFile))
-	if err != nil {
-		return meta, err
+	metaPath := filepath.Join(s.workspaceDir(workspaceID), metaFile)
+	tmpPath := metaPath + ".tmp"
+
+	payload, err := os.ReadFile(metaPath)
+	if err != nil || len(payload) == 0 {
+		// Try reading temp file if main file is missing or empty
+		if tmpBytes, tmpErr := os.ReadFile(tmpPath); tmpErr == nil && len(tmpBytes) > 0 {
+			payload = tmpBytes
+			err = nil
+		}
 	}
-	if err := json.Unmarshal(payload, &meta); err != nil {
-		return meta, err
+
+	valid := false
+	if err == nil {
+		payload = bytes.TrimPrefix(payload, []byte("\xef\xbb\xbf"))
+		payload = bytes.Trim(payload, "\x00\r\n\t ")
+		if len(payload) > 0 && json.Unmarshal(payload, &meta) == nil && meta.Workspace.ID != "" {
+			valid = true
+		}
 	}
+
+	if !valid {
+		// Attempt auto-healing from transcripts so chats never disappear on crashes
+		healed, hErr := s.healMetaFromTranscripts(workspaceID)
+		if hErr == nil {
+			return healed, nil
+		}
+		if err != nil {
+			return meta, err
+		}
+		return meta, errors.New("invalid or empty metadata")
+	}
+
+	metaModified := false
+	if meta.Workspace.ID == "" {
+		meta.Workspace.ID = workspaceID
+		metaModified = true
+	}
+
+	// Resolve actual repository path if Cwd points to a worktree or is empty
+	if meta.Workspace.Cwd != "" && strings.Contains(strings.ToLower(meta.Workspace.Cwd), "worktrees") {
+		if repo := resolveRepoFromWorktree(meta.Workspace.Cwd); repo != "" {
+			meta.Workspace.Cwd = repo
+			metaModified = true
+		}
+	}
+	if meta.Workspace.Cwd == "" {
+		for _, t := range meta.Tasks {
+			if t.Worktree != nil && t.Worktree.Path != "" {
+				if repo := resolveRepoFromWorktree(t.Worktree.Path); repo != "" {
+					meta.Workspace.Cwd = repo
+					metaModified = true
+					break
+				}
+				meta.Workspace.Cwd = t.Worktree.Path
+				metaModified = true
+				break
+			}
+		}
+		if meta.Workspace.Cwd == "" {
+			if wd, gErr := os.Getwd(); gErr == nil {
+				meta.Workspace.Cwd = wd
+				metaModified = true
+			}
+		}
+	}
+
+	// Ensure title is present and meaningful
+	if meta.Workspace.Title == "" || meta.Workspace.Title == "Session" {
+		if meta.Workspace.Prompt != "" {
+			meta.Workspace.Title = shortenText(meta.Workspace.Prompt, 40)
+			metaModified = true
+		} else if len(meta.Tasks) > 0 {
+			for _, t := range meta.Tasks {
+				if t.Title != "" && t.Title != "Agent" && t.Title != "Session" {
+					meta.Workspace.Title = t.Title
+					metaModified = true
+					break
+				} else if t.Prompt != "" {
+					meta.Workspace.Title = shortenText(t.Prompt, 40)
+					metaModified = true
+					break
+				}
+			}
+		}
+	}
+
+	// Ensure UpdatedAt is accurate for chronological sorting
+	if meta.Workspace.UpdatedAt == 0 {
+		for _, t := range meta.Tasks {
+			if t.UpdatedAt > meta.Workspace.UpdatedAt {
+				meta.Workspace.UpdatedAt = t.UpdatedAt
+				metaModified = true
+			}
+			if t.CreatedAt > meta.Workspace.UpdatedAt {
+				meta.Workspace.UpdatedAt = t.CreatedAt
+				metaModified = true
+			}
+		}
+		if meta.Workspace.UpdatedAt == 0 && meta.Workspace.CreatedAt > 0 {
+			meta.Workspace.UpdatedAt = meta.Workspace.CreatedAt
+			metaModified = true
+		}
+	}
+
+	// Enrich tasks with multi-model / multi-driver history if not already recorded
+	dir := s.workspaceDir(workspaceID)
+	for i := range meta.Tasks {
+		t := &meta.Tasks[i]
+		if len(t.Drivers) <= 1 {
+			existingD := t.Drivers
+			if len(existingD) == 0 && t.Driver != "" {
+				existingD = []domain.DriverKind{t.Driver}
+			}
+			existingM := t.Models
+			if len(existingM) == 0 && t.Model != "" {
+				existingM = []string{t.Model}
+			}
+			tPath := filepath.Join(dir, safeName(t.ThreadID)+transcriptExt)
+			d, m := scanTranscriptDriversAndModels(tPath, existingD, existingM)
+			if len(d) > len(t.Drivers) || len(m) > len(t.Models) {
+				t.Drivers = d
+				t.Models = m
+				metaModified = true
+			}
+		}
+	}
+	if metaModified {
+		_ = s.SaveMeta(meta)
+	}
+
 	return meta, nil
 }
 
@@ -216,6 +342,9 @@ func (s *Store) Flush(workspaceID string) error {
 		if err := handle.writer.Flush(); err != nil && firstErr == nil {
 			firstErr = err
 		}
+		if handle.file != nil {
+			_ = handle.file.Sync()
+		}
 	}
 	return firstErr
 }
@@ -230,12 +359,145 @@ func (s *Store) Close() error {
 		if err := handle.writer.Flush(); err != nil && firstErr == nil {
 			firstErr = err
 		}
+		if handle.file != nil {
+			_ = handle.file.Sync()
+		}
 		if err := handle.file.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 		delete(s.open, key)
 	}
 	return firstErr
+}
+
+// RootThreadID extracts the base thread ID before any "-cont-" suffix.
+func RootThreadID(threadID string) string {
+	if idx := strings.Index(threadID, "-cont-"); idx != -1 {
+		return threadID[:idx]
+	}
+	return threadID
+}
+
+// MergeContinuations merges continuation tasks into their original thread tasks.
+// Returns true if any continuations were merged, and a map of contThreadID -> rootThreadID.
+func MergeContinuations(meta *Meta) (bool, map[string]string) {
+	if meta == nil || len(meta.Tasks) == 0 {
+		return false, nil
+	}
+
+	contMap := make(map[string]string) // contThreadID -> rootThreadID
+	var hasCont bool
+	for _, t := range meta.Tasks {
+		root := RootThreadID(t.ThreadID)
+		if root != t.ThreadID {
+			hasCont = true
+			contMap[t.ThreadID] = root
+		}
+	}
+	if !hasCont {
+		return false, nil
+	}
+
+	// Group tasks by root thread ID, preserving order
+	type threadGroup struct {
+		rootID string
+		tasks  []domain.Task
+	}
+	groupOrder := make([]string, 0, len(meta.Tasks))
+	groups := make(map[string]*threadGroup)
+
+	for _, t := range meta.Tasks {
+		root := RootThreadID(t.ThreadID)
+		g, ok := groups[root]
+		if !ok {
+			g = &threadGroup{rootID: root}
+			groups[root] = g
+			groupOrder = append(groupOrder, root)
+		}
+		g.tasks = append(g.tasks, t)
+	}
+
+	mergedTasks := make([]domain.Task, 0, len(groupOrder))
+	for _, rootID := range groupOrder {
+		g := groups[rootID]
+		if len(g.tasks) == 1 {
+			mergedTasks = append(mergedTasks, g.tasks[0])
+			continue
+		}
+
+		// Multiple tasks for this root thread: merge into the primary (first/root) task
+		primary := g.tasks[0]
+		primary.ThreadID = rootID
+
+		// Latest task gives the current driver, model, options, state, and updated timestamp
+		latest := g.tasks[len(g.tasks)-1]
+		if latest.Driver != "" {
+			primary.Driver = latest.Driver
+		}
+		if latest.Model != "" {
+			primary.Model = latest.Model
+		}
+		if latest.Options != nil {
+			primary.Options = latest.Options
+		}
+		if latest.State != "" {
+			primary.State = latest.State
+		}
+		if latest.UpdatedAt > primary.UpdatedAt {
+			primary.UpdatedAt = latest.UpdatedAt
+		}
+		if latest.Worktree != nil {
+			primary.Worktree = latest.Worktree
+		}
+
+		// Collect all drivers and models across the group
+		var allDrivers []domain.DriverKind
+		var allModels []string
+		for _, t := range g.tasks {
+			if len(t.Drivers) > 0 {
+				for _, d := range t.Drivers {
+					if d != "" && !containsDriver(allDrivers, d) {
+						allDrivers = append(allDrivers, d)
+					}
+				}
+			} else if t.Driver != "" && !containsDriver(allDrivers, t.Driver) {
+				allDrivers = append(allDrivers, t.Driver)
+			}
+
+			if len(t.Models) > 0 {
+				for _, m := range t.Models {
+					if m != "" && !containsString(allModels, m) {
+						allModels = append(allModels, m)
+					}
+				}
+			} else if t.Model != "" && !containsString(allModels, t.Model) {
+				allModels = append(allModels, t.Model)
+			}
+		}
+		if len(allDrivers) > 0 {
+			primary.Drivers = allDrivers
+		}
+		if len(allModels) > 0 {
+			primary.Models = allModels
+		}
+
+		// Update resume map
+		if meta.Resume != nil {
+			for _, t := range g.tasks {
+				if rID, ok := meta.Resume[t.ThreadID]; ok && rID != "" {
+					meta.Resume[rootID] = rID
+					if t.ThreadID != rootID {
+						delete(meta.Resume, t.ThreadID)
+					}
+				}
+			}
+		}
+
+		mergedTasks = append(mergedTasks, primary)
+	}
+
+	meta.Tasks = mergedTasks
+	return true, contMap
 }
 
 // List reports every stored workspace, newest first.
@@ -266,6 +528,7 @@ func (s *Store) List() ([]Meta, error) {
 			// crash; skipping it keeps the rest of history usable.
 			continue
 		}
+		MergeContinuations(&meta)
 		out = append(out, meta)
 	}
 
@@ -286,6 +549,7 @@ func (s *Store) Load(workspaceID string) (Session, error) {
 	if err != nil {
 		return loaded, err
 	}
+	merged, contMap := MergeContinuations(&meta)
 	loaded.Meta = meta
 	loaded.Transcripts = make(map[string][]domain.RuntimeEvent)
 
@@ -307,7 +571,112 @@ func (s *Store) Load(workspaceID string) (Session, error) {
 		threadID := strings.TrimSuffix(name, transcriptExt)
 		loaded.Transcripts[threadID] = events
 	}
+
+	// Merge continuation transcripts into root thread transcripts
+	var filesToClean []string
+	if contMap == nil {
+		contMap = make(map[string]string)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, transcriptExt) {
+			continue
+		}
+		tID := strings.TrimSuffix(name, transcriptExt)
+		if idx := strings.Index(tID, "-cont-"); idx != -1 {
+			rootID := tID[:idx]
+			if _, exists := contMap[tID]; !exists {
+				contMap[tID] = rootID
+			}
+		}
+	}
+
+	for contID, rootID := range contMap {
+		contEvents, hasContEvents := loaded.Transcripts[contID]
+		if hasContEvents {
+			rootEvents := loaded.Transcripts[rootID]
+			loaded.Transcripts[rootID] = append(rootEvents, contEvents...)
+			delete(loaded.Transcripts, contID)
+
+			contPath := filepath.Join(dir, safeName(contID)+transcriptExt)
+			rootPath := filepath.Join(dir, safeName(rootID)+transcriptExt)
+			if contBytes, rErr := os.ReadFile(contPath); rErr == nil && len(contBytes) > 0 {
+				if f, aErr := os.OpenFile(rootPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644); aErr == nil {
+					_, _ = f.Write(contBytes)
+					_ = f.Close()
+				}
+			}
+			filesToClean = append(filesToClean, contPath)
+		}
+	}
+
+	if merged || len(filesToClean) > 0 {
+		for _, path := range filesToClean {
+			_ = os.Remove(path)
+		}
+		_ = s.SaveMeta(loaded.Meta)
+	}
+
 	return loaded, nil
+}
+
+// DeleteTask removes an individual task and its transcript. If it was the only task,
+// the entire workspace is deleted.
+func (s *Store) DeleteTask(workspaceID, threadID string) error {
+	if s.disabled || workspaceID == "" || threadID == "" {
+		return nil
+	}
+
+	meta, err := s.LoadMeta(workspaceID)
+	if err != nil {
+		return err
+	}
+	MergeContinuations(&meta)
+
+	if len(meta.Tasks) <= 1 {
+		return s.Delete(workspaceID)
+	}
+
+	rootID := RootThreadID(threadID)
+	var remaining []domain.Task
+	found := false
+	for _, t := range meta.Tasks {
+		if t.ThreadID == threadID || t.ThreadID == rootID || RootThreadID(t.ThreadID) == rootID {
+			found = true
+			continue
+		}
+		remaining = append(remaining, t)
+	}
+	if !found {
+		return nil
+	}
+
+	meta.Tasks = remaining
+	if meta.Resume != nil {
+		delete(meta.Resume, threadID)
+		delete(meta.Resume, rootID)
+	}
+
+	s.mu.Lock()
+	key := workspaceID + "/" + threadID
+	rootKey := workspaceID + "/" + rootID
+	for _, k := range []string{key, rootKey} {
+		if h, ok := s.open[k]; ok {
+			_ = h.writer.Flush()
+			_ = h.file.Close()
+			delete(s.open, k)
+			delete(s.counts, k)
+		}
+	}
+	s.mu.Unlock()
+
+	dir := s.workspaceDir(workspaceID)
+	_ = os.Remove(filepath.Join(dir, safeName(threadID)+transcriptExt))
+	if rootID != threadID {
+		_ = os.Remove(filepath.Join(dir, safeName(rootID)+transcriptExt))
+	}
+
+	return s.SaveMeta(meta)
 }
 
 // Delete removes a workspace and everything recorded under it.
@@ -348,7 +717,7 @@ func readTranscript(path string) ([]domain.RuntimeEvent, error) {
 	for {
 		line, err := reader.ReadBytes('\n')
 		if len(line) > 0 {
-			trimmed := strings.TrimSpace(string(line))
+			trimmed := strings.Trim(string(line), "\r\n\t \x00")
 			if trimmed != "" {
 				var event domain.RuntimeEvent
 				if json.Unmarshal([]byte(trimmed), &event) == nil {
@@ -366,16 +735,207 @@ func readTranscript(path string) ([]domain.RuntimeEvent, error) {
 	return events, nil
 }
 
-// writeAtomic replaces a file via a temp file and rename, so a reader never
-// observes a half-written document.
+// healMetaFromTranscripts reconstructs a valid Meta object from any .jsonl transcripts
+// present in the workspace directory. This guarantees that even if meta.json was wiped,
+// zero-filled, or corrupted by an abrupt crash/kill, the session remains visible and recoverable.
+func (s *Store) healMetaFromTranscripts(workspaceID string) (Meta, error) {
+	var meta Meta
+	dir := s.workspaceDir(workspaceID)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return meta, err
+	}
+
+	meta.Workspace.ID = workspaceID
+	meta.Version = currentVersion
+	meta.Resume = make(map[string]string)
+
+	var allEvents []domain.RuntimeEvent
+	taskMap := make(map[string]*domain.Task)
+	var taskOrder []string
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, transcriptExt) {
+			continue
+		}
+		tID := strings.TrimSuffix(name, transcriptExt)
+		events, err := readTranscript(filepath.Join(dir, name))
+		if err != nil || len(events) == 0 {
+			continue
+		}
+		allEvents = append(allEvents, events...)
+
+		if strings.HasPrefix(tID, "coordinator-") {
+			meta.CoordinatorThreadID = tID
+			continue
+		}
+
+		task := &domain.Task{
+			ID:          "task-" + safeName(tID),
+			WorkspaceID: workspaceID,
+			ThreadID:    tID,
+			State:       domain.TaskComplete,
+		}
+		for _, ev := range events {
+			if ev.At > 0 {
+				if task.CreatedAt == 0 || ev.At < task.CreatedAt {
+					task.CreatedAt = ev.At
+				}
+				if ev.At > task.UpdatedAt {
+					task.UpdatedAt = ev.At
+				}
+			}
+			if ev.Kind == domain.EventUserMessage && task.Prompt == "" && ev.Text != "" {
+				task.Prompt = ev.Text
+				task.Title = shortenText(ev.Text, 35)
+			}
+			if ev.Driver != "" {
+				dKind := domain.DriverKind(strings.ToLower(string(ev.Driver)))
+				if task.Driver == "" {
+					task.Driver = dKind
+				}
+				if !containsDriver(task.Drivers, dKind) {
+					task.Drivers = append(task.Drivers, dKind)
+				}
+			}
+			if ev.Kind == domain.EventTurnFailed {
+				task.State = domain.TaskFailed
+			}
+		}
+		if task.Title == "" {
+			task.Title = "Agent"
+		}
+		taskMap[tID] = task
+		taskOrder = append(taskOrder, tID)
+	}
+
+	if len(allEvents) == 0 {
+		return meta, errors.New("no transcript events found to heal from")
+	}
+
+	for _, tID := range taskOrder {
+		meta.Tasks = append(meta.Tasks, *taskMap[tID])
+	}
+
+	for _, ev := range allEvents {
+		if ev.At > 0 {
+			if meta.Workspace.CreatedAt == 0 || ev.At < meta.Workspace.CreatedAt {
+				meta.Workspace.CreatedAt = ev.At
+			}
+			if ev.At > meta.Workspace.UpdatedAt {
+				meta.Workspace.UpdatedAt = ev.At
+			}
+		}
+		if ev.Kind == domain.EventUserMessage && meta.Workspace.Prompt == "" && ev.Text != "" {
+			meta.Workspace.Prompt = ev.Text
+			meta.Workspace.Title = shortenText(ev.Text, 35)
+		}
+	}
+
+	if meta.Workspace.Title == "" {
+		if len(meta.Tasks) > 0 && meta.Tasks[0].Title != "" {
+			meta.Workspace.Title = meta.Tasks[0].Title
+		} else {
+			meta.Workspace.Title = "Session"
+		}
+	}
+
+	if meta.Workspace.Cwd == "" {
+		for _, t := range meta.Tasks {
+			if t.Worktree != nil && t.Worktree.Path != "" {
+				if repo := resolveRepoFromWorktree(t.Worktree.Path); repo != "" {
+					meta.Workspace.Cwd = repo
+					break
+				}
+			}
+		}
+		if meta.Workspace.Cwd == "" {
+			if wd, err := os.Getwd(); err == nil {
+				meta.Workspace.Cwd = wd
+			}
+		}
+	}
+
+	_ = s.SaveMeta(meta)
+	return meta, nil
+}
+
+func shortenText(s string, limit int) string {
+	s = strings.TrimSpace(s)
+	if len(s) == 0 {
+		return ""
+	}
+	if idx := strings.IndexAny(s, "\r\n"); idx != -1 {
+		s = strings.TrimSpace(s[:idx])
+	}
+	runes := []rune(s)
+	if len(runes) <= limit {
+		return s
+	}
+	return string(runes[:limit]) + "…"
+}
+
+// resolveRepoFromWorktree inspects a worktree directory's .git file or path to find
+// the main repository root where the task originated.
+func resolveRepoFromWorktree(wtPath string) string {
+	if wtPath == "" {
+		return ""
+	}
+	gitFile := filepath.Join(wtPath, ".git")
+	data, err := os.ReadFile(gitFile)
+	if err == nil {
+		content := strings.TrimSpace(string(data))
+		// Format: gitdir: C:/Users/PC/Projects/hobby/orchestrator/.git/worktrees/branch-name
+		if idx := strings.Index(content, "gitdir:"); idx != -1 {
+			gitDir := strings.TrimSpace(content[idx+len("gitdir:"):])
+			norm := strings.ReplaceAll(gitDir, "\\", "/")
+			if wtIdx := strings.Index(norm, "/.git/worktrees"); wtIdx != -1 {
+				return filepath.Clean(norm[:wtIdx])
+			}
+			if gitIdx := strings.LastIndex(norm, "/.git"); gitIdx != -1 {
+				return filepath.Clean(norm[:gitIdx])
+			}
+		}
+	}
+	return ""
+}
+
+// writeAtomic replaces a file via a temp file and rename, forcing a disk sync
+// so that NTFS never commits a zero-length or null-filled directory entry on power loss or crash.
 func writeAtomic(path string, payload []byte) error {
 	temp := path + ".tmp"
-	if err := os.WriteFile(temp, payload, 0o644); err != nil {
+	f, err := os.OpenFile(temp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(temp, path); err != nil {
+	if _, err := f.Write(payload); err != nil {
+		_ = f.Close()
 		_ = os.Remove(temp)
 		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		_ = os.Remove(temp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(temp)
+		return err
+	}
+
+	var renameErr error
+	for attempt := 0; attempt < 5; attempt++ {
+		renameErr = os.Rename(temp, path)
+		if renameErr == nil {
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	_ = os.Remove(path)
+	if err := os.Rename(temp, path); err != nil {
+		_ = os.Remove(temp)
+		return renameErr
 	}
 	return nil
 }
@@ -402,4 +962,88 @@ func safeName(id string) string {
 		name = name[:96]
 	}
 	return name
+}
+
+func containsDriver(list []domain.DriverKind, d domain.DriverKind) bool {
+	for _, item := range list {
+		if strings.EqualFold(string(item), string(d)) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsString(list []string, s string) bool {
+	for _, item := range list {
+		if strings.EqualFold(item, s) {
+			return true
+		}
+	}
+	return false
+}
+
+func scanTranscriptDriversAndModels(path string, existingDrivers []domain.DriverKind, existingModels []string) ([]domain.DriverKind, []string) {
+	file, err := os.Open(path)
+	if err != nil {
+		return existingDrivers, existingModels
+	}
+	defer file.Close()
+
+	drivers := make([]domain.DriverKind, len(existingDrivers))
+	copy(drivers, existingDrivers)
+	models := make([]string, len(existingModels))
+	copy(models, existingModels)
+
+	scanner := bufio.NewScanner(file)
+	// Allow large tokens (up to 1MB per line)
+	buf := make([]byte, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
+
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var partial struct {
+			Kind   string `json:"kind"`
+			Driver string `json:"driver"`
+			Text   string `json:"text"`
+		}
+		if err := json.Unmarshal(line, &partial); err != nil {
+			continue
+		}
+		if partial.Driver != "" {
+			dKind := domain.DriverKind(strings.ToLower(partial.Driver))
+			if !containsDriver(drivers, dKind) {
+				drivers = append(drivers, dKind)
+			}
+		}
+		if partial.Kind == "notice" && strings.Contains(partial.Text, "Switched from ") {
+			text := strings.TrimPrefix(partial.Text, "Switched from ")
+			parts := strings.Split(text, " to ")
+			if len(parts) == 2 {
+				for _, part := range parts {
+					part = strings.TrimSpace(part)
+					subParts := strings.SplitN(part, ": ", 2)
+					if len(subParts) == 2 {
+						dName := strings.TrimSpace(subParts[0])
+						mName := strings.TrimSpace(subParts[1])
+						dKind := domain.DriverKind(strings.ToLower(dName))
+						if dKind != "" && !containsDriver(drivers, dKind) {
+							drivers = append(drivers, dKind)
+						}
+						if mName != "" && !containsString(models, mName) {
+							models = append(models, mName)
+						}
+					} else {
+						dKind := domain.DriverKind(strings.ToLower(part))
+						if dKind != "" && !containsDriver(drivers, dKind) {
+							drivers = append(drivers, dKind)
+						}
+					}
+				}
+			}
+		}
+	}
+	return drivers, models
 }

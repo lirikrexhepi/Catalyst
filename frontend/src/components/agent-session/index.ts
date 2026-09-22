@@ -9,9 +9,15 @@ export * from './EditTool';
 export * from './TodoTool';
 export * from './PlanTool';
 export * from './QuestionTool';
+export * from './ApprovalCard';
 export * from './UserChatBubble';
 export * from './AgentInput';
 export * from './MarkdownText';
 export * from './NoticeDivider';
 export * from './AgentSessionFeed';
+export * from './AgentBrowserView';
+export * from './AgentGitView';
+export * from './AgentTasklistView';
 export * from './AgentWindow';
+export * from './MessageTimestamp';
+

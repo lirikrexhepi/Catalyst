@@ -7,15 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/drivers"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/drivers"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 // TestAntigravityRoundTrip drives two turns so conversation resume is covered:
 // the second turn must reuse the id reported by the first.
 func TestAntigravityRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live CLI smoke test in short mode")
+	}
 	env := shell.BaseEnvironment()
 	if _, ok := shell.LookPath("agy", env); !ok {
 		t.Skip("agy CLI not installed")
@@ -41,7 +44,7 @@ func TestAntigravityRoundTrip(t *testing.T) {
 	}
 	defer manager.StopAll(context.Background())
 
-	firstID := runTurn(t, manager, events, "agy-1", "turn-1", "Reply with exactly: CATALYST_OK", "CATALYST_OK")
+	firstID := runTurn(t, manager, events, "agy-1", "turn-1", "Reply with exactly: COMPOSER_OK", "COMPOSER_OK")
 	if firstID == "" {
 		t.Fatal("expected conversation id from init frame")
 	}
@@ -49,7 +52,7 @@ func TestAntigravityRoundTrip(t *testing.T) {
 
 	// The second turn must reuse the conversation, so the agent still has the
 	// first turn in context.
-	runTurn(t, manager, events, "agy-1", "turn-2", "What word did I ask you to reply with a moment ago?", "CATALYST_OK")
+	runTurn(t, manager, events, "agy-1", "turn-2", "What word did I ask you to reply with a moment ago?", "COMPOSER_OK")
 }
 
 func runTurn(t *testing.T, manager *Manager, events <-chan domain.RuntimeEvent, threadID, turnID, prompt, want string) string {

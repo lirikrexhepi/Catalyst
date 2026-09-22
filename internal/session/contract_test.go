@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // TestEventJSONContract locks the wire shape the frontend reducer switches on.
@@ -50,6 +50,7 @@ func TestEventKindsMatchReducer(t *testing.T) {
 		domain.EventTurnStarted:   "turn.started",
 		domain.EventTurnCompleted: "turn.completed",
 		domain.EventTurnFailed:    "turn.failed",
+		domain.EventNotice:        "notice",
 	}
 	for kind, want := range expected {
 		if string(kind) != want {

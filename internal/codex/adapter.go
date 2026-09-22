@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/jsonrpc"
-	"catalyst/internal/process"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/jsonrpc"
+	"composer/internal/process"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 // Adapter drives one `codex app-server` process. The app-server multiplexes
@@ -108,7 +109,7 @@ func (a *Adapter) connection(ctx context.Context) (*jsonrpc.Conn, error) {
 	}
 
 	newConn := jsonrpc.NewConn(proc.Stdout(), proc.Stdin(), a.handleInbound)
-	initParams := InitializeParams{ClientInfo: Implementation{Name: "catalyst", Title: "Catalyst"}}
+	initParams := InitializeParams{ClientInfo: Implementation{Name: "composer", Title: "Composer"}}
 	if err := newConn.Call(ctx, "initialize", initParams, nil); err != nil {
 		cancel()
 		_ = proc.Shutdown(time.Second)
@@ -162,6 +163,14 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	if err != nil {
 		return domain.Session{}, err
 	}
+
+	cwd := in.Cwd
+	if cwd == "" {
+		if wd, err := os.Getwd(); err == nil {
+			cwd = wd
+		}
+	}
+	in.Cwd = cwd
 
 	model := in.Model
 	if model == "" {
@@ -321,6 +330,10 @@ func mapDecision(decision domain.ApprovalDecision) string {
 	}
 }
 
+func (a *Adapter) RespondToQuestion(ctx context.Context, threadID, requestID string, answers []string) error {
+	return nil
+}
+
 func (a *Adapter) StopSession(ctx context.Context, threadID string) error {
 	a.mu.Lock()
 	t := a.threads[threadID]
@@ -364,6 +377,19 @@ func (a *Adapter) HasSession(threadID string) bool {
 	defer a.mu.RUnlock()
 	_, ok := a.threads[threadID]
 	return ok
+}
+
+func (a *Adapter) UpdateModel(threadID, model string, options domain.ModelOptions) bool {
+	a.mu.RLock()
+	t, ok := a.threads[threadID]
+	a.mu.RUnlock()
+	if !ok || model == "" {
+		return ok
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.model = model
+	return true
 }
 
 // Session reports the thread's current session, including the codex thread id

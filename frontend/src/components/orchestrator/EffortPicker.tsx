@@ -1,7 +1,9 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { useOrchestratorStore } from './useOrchestratorStore';
 import { LiquidGlass } from '../../liquid-glass';
 import { ThinkingEffort, ThinkingMode } from './types';
+import { useTheme } from '../../themes';
 
 export interface EffortPickerProps {
   configuringModelId?: string;
@@ -17,6 +19,8 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
   isFloatingPopup = false,
 }) => {
   const store = useOrchestratorStore();
+  const { currentTheme } = useTheme();
+  const isLight = currentTheme.id === 'light' || currentTheme.id === 'white';
 
   const model = propModelId
     ? store.models.find((m) => m.id === propModelId) || store.getConfiguringModel()
@@ -24,10 +28,17 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
 
   if (!model) return null;
 
+  const hasEfforts = Boolean(
+    (model.effortLevels && model.effortLevels.length > 0) || model.supportsThinking,
+  );
+  if (!hasEfforts) return null;
+
   const provider = store.providers.find((p) => p.id === model.providerId);
   const iconSrc = model.icon || provider?.icon;
   const settings = store.getCurrentModelSettings(model.id);
-  const effortLevels = model.effortLevels || ['Low', 'Medium', 'High', 'Ultra'];
+  const effortLevels = model.effortLevels && model.effortLevels.length > 0
+    ? model.effortLevels
+    : ['Low', 'Medium', 'High', 'Ultra'];
   const supportsThinking = model.supportsThinking !== false;
 
   const handleSelectEffort = (effort: ThinkingEffort) => {
@@ -54,23 +65,24 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
     <LiquidGlass
       variant="panel"
       surface="squircle"
-      radius={16}
-      bezelWidth={18}
-      glassThickness={24}
-      refractionScale={0.8}
-      blur={isFloatingPopup ? 3.0 : 0.4}
-      specularOpacity={0.8}
+      radius={18}
+      bezelWidth={16}
+      glassThickness={28}
+      refractionScale={0.5}
+      blur={0.5}
+      specularOpacity={isLight ? 0.3 : 0.06}
       specularSaturation={6}
       lightAngle={-45}
-      tint={isFloatingPopup ? 'rgba(22, 23, 28, 0.62)' : 'rgba(0, 0, 0, 0.20)'}
-      shadow="apple"
-      border="1px solid rgba(255, 255, 255, 0.18)"
+      tint="var(--theme-card-bg, rgba(18, 18, 18, 0.94))"
+      shadow={isLight ? 'subtle' : 'apple'}
+      border="1px solid var(--theme-card-border, rgba(255, 255, 255, 0.09))"
       className="w-[230px] p-3 text-white shadow-2xl"
-      frost={isFloatingPopup ? 30 : 12}
-      frostSaturation={185}
+      frost={24}
+      frostSaturation={isLight ? 110 : 130}
       style={{
-        boxShadow:
-          '0 20px 48px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.25)',
+        boxShadow: isLight
+          ? '0 20px 48px -6px rgba(0, 0, 0, 0.15), 0 6px 18px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9)'
+          : '0 24px 50px -6px rgba(0, 0, 0, 0.82), 0 8px 24px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.09)',
       }}
     >
       {/* Header with Model Logo & Name (14px) */}
@@ -83,26 +95,13 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
             draggable={false}
           />
         )}
-        <span className="text-[14px] font-medium text-white font-['Geist'] tracking-tight truncate">
+        <span className="text-[13px] font-medium text-white font-['Geist'] tracking-tight truncate">
           {model.name}
         </span>
       </div>
 
       {/* Effort Level 2x2 Grid with Physical Sliding Glass Indicator */}
       <div className="relative grid grid-cols-2 gap-2 my-2.5">
-        {/* Sliding Glass Highlight Pill */}
-        {effortIndex >= 0 && (
-          <div
-            className="absolute rounded-[7px] bg-white/20 border border-white/25 shadow-sm transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none"
-            style={{
-              top: `${effortRow * 38}px`,
-              left: effortCol === 0 ? '0px' : 'calc(50% + 4px)',
-              width: 'calc(50% - 4px)',
-              height: '30px',
-            }}
-          />
-        )}
-
         {effortLevels.map((lvl) => {
           const isSelected = settings.effort === lvl;
 
@@ -114,13 +113,25 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
                 e.stopPropagation();
                 handleSelectEffort(lvl);
               }}
-              className={`relative z-10 h-[30px] rounded-[7px] text-[12px] font-['Geist'] flex items-center justify-center transition-colors duration-150 cursor-pointer active:scale-95 border border-white/10 ${
+              className={`relative z-10 h-[30px] rounded-[8px] text-[12px] font-['Geist'] flex items-center justify-center cursor-pointer active:scale-95 border transition-all ${
                 isSelected
-                  ? 'text-white font-semibold'
-                  : 'text-white/70 hover:text-white bg-white/5 hover:bg-white/10'
+                  ? 'text-white font-medium border-transparent'
+                  : 'text-white/70 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.06]'
               }`}
             >
-              {lvl}
+              {isSelected && (
+                <motion.div
+                  layoutId="effort-level-highlight"
+                  className="absolute inset-0 rounded-[8px] bg-white/[0.12] border border-white/[0.10] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] pointer-events-none"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 440,
+                    damping: 30,
+                    mass: 0.8,
+                  }}
+                />
+              )}
+              <span className="relative z-10">{lvl}</span>
             </button>
           );
         })}
@@ -129,16 +140,8 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
       {/* Thinking Mode Segmented Control with Physical Sliding Glass Indicator */}
       {supportsThinking && (
         <>
-          <div className="h-[1px] bg-white/15 my-2 mx-0.5" />
-          <div className="h-[32px] rounded-[9px] bg-black/30 border border-white/10 p-0.5 relative flex items-center">
-            {/* Sliding glass pill indicator */}
-            <div
-              className="absolute top-0.5 bottom-0.5 rounded-[7px] bg-white/20 border border-white/25 shadow-sm transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] pointer-events-none"
-              style={{
-                left: settings.mode === 'normal' ? '2px' : 'calc(50% + 1px)',
-                width: 'calc(50% - 3px)',
-              }}
-            />
+          <div className="h-[1px] bg-white/[0.08] my-2 mx-0.5" />
+          <div className="h-[32px] rounded-[9px] bg-white/[0.04] border border-white/[0.08] p-0.5 relative flex items-center">
             <button
               type="button"
               onClick={(e) => {
@@ -151,7 +154,19 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
                   : 'text-white/60 hover:text-white/80 font-normal'
               }`}
             >
-              Normal
+              {settings.mode === 'normal' && (
+                <motion.div
+                  layoutId="thinking-mode-highlight"
+                  className="absolute inset-0 rounded-[7px] bg-white/[0.12] border border-white/[0.10] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] pointer-events-none"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 440,
+                    damping: 30,
+                    mass: 0.8,
+                  }}
+                />
+              )}
+              <span className="relative z-10">Normal</span>
             </button>
             <button
               type="button"
@@ -165,7 +180,19 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
                   : 'text-white/60 hover:text-white/80 font-normal'
               }`}
             >
-              Thinking
+              {settings.mode === 'thinking' && (
+                <motion.div
+                  layoutId="thinking-mode-highlight"
+                  className="absolute inset-0 rounded-[7px] bg-white/[0.12] border border-white/[0.10] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] pointer-events-none"
+                  transition={{
+                    type: 'spring',
+                    stiffness: 440,
+                    damping: 30,
+                    mass: 0.8,
+                  }}
+                />
+              )}
+              <span className="relative z-10">Thinking</span>
             </button>
           </div>
         </>

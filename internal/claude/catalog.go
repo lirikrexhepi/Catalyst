@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 // The Claude CLI cannot enumerate its own models, so the catalog is static and

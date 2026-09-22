@@ -9,7 +9,7 @@ import {
 } from '../../../wailsjs/go/main/App';
 import { history, session } from '../../../wailsjs/go/models';
 import { AgentStreamBlock } from '../agent-session';
-import { reduceEvent, RuntimeEvent } from '../agent-session/eventReducer';
+import { reduceEvent, RuntimeEvent, userBlock } from '../agent-session/eventReducer';
 
 /** One agent's restored transcript, ready to render in a window. */
 export interface RestoredTask {
@@ -29,7 +29,7 @@ export interface RestoredTask {
  * A past session, reopened.
  *
  * The orchestrator transcript is carried alongside the agents rather than
- * separately: a Catalyst session is one request and everything it produced, and
+ * separately: a Composer session is one request and everything it produced, and
  * showing the agents without the conversation that created them loses the part
  * that explains why they exist.
  */
@@ -51,7 +51,7 @@ export interface HistoryState {
   refresh: () => Promise<void>;
   open: (workspaceId: string) => Promise<void>;
   resume: (workspaceId: string) => Promise<void>;
-  remove: (workspaceId: string) => Promise<void>;
+  remove: (workspaceId: string, threadId?: string) => Promise<void>;
   /** Ends every running agent and starts a fresh orchestrator conversation. */
   newChat: () => Promise<void>;
   close: () => void;
@@ -69,23 +69,58 @@ function toRestored(loaded: history.Session): RestoredSession {
   const meta = loaded.meta;
   const transcripts = (loaded.transcripts ?? {}) as Record<string, RuntimeEvent[]>;
 
+  const coordinatorBlocks = (() => {
+    const rawEvents = meta.coordinatorThreadId ? transcripts[meta.coordinatorThreadId] : undefined;
+    const coordBlocks = replay(rawEvents);
+    const firstNonNotice = coordBlocks.find((b) => b.type !== 'notice');
+    const prompt = meta.workspace?.prompt;
+    if (firstNonNotice?.type !== 'user' && prompt) {
+      return [
+        userBlock(
+          prompt,
+          `orch-prompt-${meta.coordinatorThreadId || 'coordinator'}`,
+          [],
+          meta.workspace?.createdAt || Date.now(),
+        ),
+        ...coordBlocks,
+      ];
+    }
+    return coordBlocks;
+  })();
+
   return {
     workspaceId: meta.workspace?.id ?? '',
     title: meta.workspace?.title || 'Session',
     cwd: meta.workspace?.cwd ?? '',
     createdAt: meta.workspace?.createdAt ?? 0,
-    coordinatorBlocks: replay(
-      meta.coordinatorThreadId ? transcripts[meta.coordinatorThreadId] : undefined,
-    ),
-    tasks: (meta.tasks ?? []).map((task) => ({
-      threadId: task.threadId,
-      title: task.title,
-      model: task.model,
-      branch: task.worktree?.branch,
-      state: task.state,
-      blocks: replay(transcripts[task.threadId]),
-      isLive: false,
-    })),
+    coordinatorBlocks,
+    tasks: (meta.tasks ?? []).map((task) => {
+      const replayed = replay(transcripts[task.threadId]);
+      const firstNonNotice = replayed.find((b) => b.type !== 'notice');
+      const prompt = task.prompt || meta.workspace?.prompt;
+      const blocks =
+        firstNonNotice?.type !== 'user' && prompt
+          ? [
+              userBlock(
+                prompt,
+                `orch-prompt-${task.threadId}`,
+                [],
+                task.createdAt || meta.workspace?.createdAt || Date.now(),
+              ),
+              ...replayed,
+            ]
+          : replayed;
+
+      return {
+        threadId: task.threadId,
+        title: task.title,
+        model: task.model,
+        branch: task.worktree?.branch,
+        state: task.state,
+        blocks,
+        isLive: false,
+      };
+    }),
   };
 }
 
@@ -143,6 +178,21 @@ export function useHistory(isOpen: boolean, onCleared?: () => void): HistoryStat
     setLoading(true);
     void refresh().finally(() => setLoading(false));
   }, [isOpen, refresh]);
+
+  // Live reactivity: update history list immediately when sessions are created,
+  // agents are launched, or tasks are modified, without requiring an app restart.
+  useEffect(() => {
+    const offHistory = EventsOn('history:changed', () => {
+      void refresh();
+    });
+    const offSpawned = EventsOn('orchestrator:spawned', () => {
+      void refresh();
+    });
+    return () => {
+      offHistory();
+      offSpawned();
+    };
+  }, [refresh]);
 
   const open = useCallback(async (workspaceId: string) => {
     setLoading(true);
@@ -202,9 +252,13 @@ export function useHistory(isOpen: boolean, onCleared?: () => void): HistoryStat
   );
 
   const remove = useCallback(
-    async (workspaceId: string) => {
+    async (workspaceId: string, threadId?: string) => {
       try {
-        await DeleteHistory(workspaceId);
+        if (threadId && (window as any)?.go?.main?.App?.DeleteTaskHistory) {
+          await (window as any).go.main.App.DeleteTaskHistory(workspaceId, threadId);
+        } else {
+          await DeleteHistory(workspaceId);
+        }
         setRestored((previous) => (previous?.workspaceId === workspaceId ? null : previous));
         await refresh();
       } catch (cause) {

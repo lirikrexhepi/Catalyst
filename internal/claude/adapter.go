@@ -7,13 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
-	"catalyst/internal/domain"
-	"catalyst/internal/process"
-	"catalyst/internal/provider"
-	"catalyst/internal/shell"
+	"composer/internal/domain"
+	"composer/internal/process"
+	"composer/internal/provider"
+	"composer/internal/shell"
 )
 
 const defaultBinary = "claude"
@@ -33,14 +35,17 @@ func NewAdapter(settings domain.ProviderSettings, emit provider.Emitter) *Adapte
 func (a *Adapter) Driver() domain.DriverKind { return domain.DriverClaude }
 
 func (a *Adapter) Capabilities() provider.Capabilities {
-	return provider.Capabilities{Resume: true, Plans: true}
+	return provider.Capabilities{Resume: true, Plans: true, Approvals: true}
 }
 
 type session struct {
-	threadID string
-	proc     *process.Process
-	cancel   context.CancelFunc
-	encoder  *json.Encoder
+	threadID   string
+	permission domain.PermissionMode
+	proc       *process.Process
+	cancel     context.CancelFunc
+	encoder    *json.Encoder
+	model      string
+	options    domain.ModelOptions
 
 	mu        sync.Mutex
 	writeMu   sync.Mutex
@@ -75,8 +80,12 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 	if effort := in.Options.String(domain.OptionEffort); effort != "" {
 		args = append(args, "--effort", effort)
 	}
-	if in.Permission != "" {
+	if in.Permission == domain.PermissionBypass {
+		args = append(args, "--permission-mode", "bypassPermissions", "--dangerously-skip-permissions")
+	} else if in.Permission != "" {
 		args = append(args, "--permission-mode", string(in.Permission))
+	} else {
+		args = append(args, "--permission-mode", "default")
 	}
 	// An empty tool list denies every tool, which keeps a planning session from
 	// exploring the repository instead of answering.
@@ -123,13 +132,21 @@ func firstNonEmpty(values ...string) string {
 }
 
 func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput) (domain.Session, error) {
+	cwd := in.Cwd
+	if cwd == "" {
+		if wd, err := os.Getwd(); err == nil {
+			cwd = wd
+		}
+	}
+	in.Cwd = cwd
+
 	env := shell.Merge(shell.BaseEnvironment(), a.settings.Env)
 	procCtx, cancel := context.WithCancel(context.Background())
 
 	proc, err := process.Start(procCtx, process.Spec{
 		Command: a.binary(),
 		Args:    a.buildArgs(in),
-		Cwd:     in.Cwd,
+		Cwd:     cwd,
 		Env:     env,
 	})
 	if err != nil {
@@ -138,10 +155,13 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	}
 
 	s := &session{
-		threadID: in.ThreadID,
-		proc:     proc,
-		cancel:   cancel,
-		encoder:  json.NewEncoder(proc.Stdin()),
+		threadID:   in.ThreadID,
+		permission: in.Permission,
+		proc:       proc,
+		cancel:     cancel,
+		encoder:    json.NewEncoder(proc.Stdin()),
+		model:      in.Model,
+		options:    in.Options,
 	}
 
 	a.mu.Lock()
@@ -262,10 +282,80 @@ func (a *Adapter) InterruptTurn(ctx context.Context, threadID string) error {
 	return s.proc.Shutdown(time.Second)
 }
 
-// RespondToApproval is unused: these CLIs resolve permissions through the
-// session-level mode flag rather than negotiating per tool call.
-func (a *Adapter) RespondToApproval(context.Context, string, string, domain.ApprovalDecision) error {
-	return errors.New("stream-json sessions resolve permissions via permission mode")
+func (a *Adapter) RespondToApproval(ctx context.Context, threadID, requestID string, decision domain.ApprovalDecision) error {
+	s, ok := a.lookup(threadID)
+	if !ok {
+		return errors.New("no active session for thread " + threadID)
+	}
+
+	behavior := "allow"
+	if decision == domain.ApprovalDeny || decision == domain.ApprovalCancel {
+		behavior = "deny"
+	}
+
+	resp := ControlResponse{
+		Type:      "control_response",
+		RequestID: requestID,
+		Response: ControlResponsePayload{
+			Subtype: "success",
+			Response: ControlResponseDecision{
+				Behavior: behavior,
+			},
+		},
+	}
+
+	s.writeMu.Lock()
+	err := s.encoder.Encode(resp)
+	s.writeMu.Unlock()
+	if err != nil {
+		return fmt.Errorf("write control response: %w", err)
+	}
+
+	a.emit.Emit(domain.RuntimeEvent{
+		Kind:      domain.EventApprovalResolved,
+		ThreadID:  threadID,
+		Driver:    domain.DriverClaude,
+		Approval:  &domain.ApprovalRequest{RequestID: requestID},
+		Text:      behavior,
+	})
+	return nil
+}
+
+func (a *Adapter) RespondToQuestion(ctx context.Context, threadID, requestID string, answers []string) error {
+	s, ok := a.lookup(threadID)
+	if !ok {
+		return errors.New("no active session for thread " + threadID)
+	}
+
+	reply := strings.Join(answers, "\n")
+
+	resp := ControlResponse{
+		Type:      "control_response",
+		RequestID: requestID,
+		Response: ControlResponsePayload{
+			Subtype: "success",
+			Response: ControlResponseDecision{
+				Behavior: "allow",
+			},
+		},
+	}
+	data, err := json.Marshal(resp)
+	if err == nil {
+		s.writeMu.Lock()
+		if s.proc != nil && s.proc.Stdin() != nil {
+			_, _ = s.proc.Stdin().Write(append(data, '\n'))
+			_, _ = s.proc.Stdin().Write([]byte(reply + "\n"))
+		}
+		s.writeMu.Unlock()
+	}
+
+	a.emit.Emit(domain.RuntimeEvent{
+		Kind:     domain.EventQuestionAnswered,
+		ThreadID: threadID,
+		Driver:   domain.DriverClaude,
+		Text:     reply,
+	})
+	return nil
 }
 
 func (a *Adapter) StopSession(ctx context.Context, threadID string) error {
@@ -305,6 +395,22 @@ func (a *Adapter) StopAll(ctx context.Context) error {
 func (a *Adapter) HasSession(threadID string) bool {
 	_, ok := a.lookup(threadID)
 	return ok
+}
+
+func (a *Adapter) UpdateModel(threadID, model string, options domain.ModelOptions) bool {
+	s, ok := a.lookup(threadID)
+	if !ok {
+		return false
+	}
+	s.mu.Lock()
+	if model != "" {
+		s.model = model
+	}
+	if options != nil {
+		s.options = options
+	}
+	s.mu.Unlock()
+	return false
 }
 
 // SessionPID reports the CLI process backing a thread, so servers it spawns can

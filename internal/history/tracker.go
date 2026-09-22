@@ -1,6 +1,6 @@
 package history
 
-import "catalyst/internal/domain"
+import "composer/internal/domain"
 
 // CoordinatorBinder is the part of the coordinator history needs: handing over
 // the conversation that produced a workspace.

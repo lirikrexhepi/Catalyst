@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"catalyst/internal/domain"
+	"composer/internal/domain"
 )
 
 func TestResumeRejectsMissingWorkingDirectory(t *testing.T) {
