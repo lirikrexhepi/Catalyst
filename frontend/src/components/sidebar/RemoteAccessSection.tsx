@@ -72,10 +72,10 @@ export const RemoteAccessSection: React.FC = () => {
             <div className="flex flex-col items-center justify-center py-5 px-3 gap-2 text-center">
               <div className="w-5 h-5 border-2 border-[#38bdf8] border-t-transparent rounded-full animate-spin" />
               <div className="text-[12px] font-medium text-white/90">
-                {info?.downloading ? 'Downloading Cloudflare Gateway...' : 'Establishing Secure Remote Tunnel...'}
+                Establishing Secure Remote Tunnel...
               </div>
               <div className="text-[11px] text-white/50 max-w-[240px]">
-                Connecting via Cloudflare so your phone can reach this PC from any external mobile network.
+                Connecting via Tailscale Funnel so your phone can reach this PC from anywhere.
               </div>
             </div>
           ) : (
@@ -130,7 +130,7 @@ export const RemoteAccessSection: React.FC = () => {
               <div className="flex items-center justify-between text-[10px] text-white/40 pt-1">
                 <span className="flex items-center gap-1.5 text-emerald-400">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                  Cloudflare Tunnel Active (Worldwide / Cell Data)
+                  Tailscale Funnel Active (Stable URL)
                 </span>
                 <span className="text-white/60 font-mono">
                   {info.activeClients} connected

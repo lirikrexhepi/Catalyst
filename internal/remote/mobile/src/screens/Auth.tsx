@@ -57,6 +57,15 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
     setScanning(false)
   }
 
+  useEffect(() => {
+    if (!scanning) return
+    const video = videoRef.current
+    const stream = streamRef.current
+    if (!video || !stream) return
+    video.srcObject = stream
+    void video.play().catch(() => undefined)
+  }, [scanning])
+
   const startScan = async () => {
     setError(null)
     stoppedRef.current = false
@@ -67,11 +76,6 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
       })
       streamRef.current = stream
       setScanning(true)
-      const video = videoRef.current
-      if (video) {
-        video.srcObject = stream
-        await video.play().catch(() => undefined)
-      }
       const tick = async () => {
         if (stoppedRef.current) return
         const videoEl = videoRef.current

@@ -102,8 +102,8 @@ func (s *Server) Start(ctx context.Context) error {
 	s.cancelFeed = cancel
 	go s.broadcastEvents(events)
 
-	// Try starting Cloudflare zero-config tunnel if available
-	go s.tunnel.StartCloudflareTunnel(ctx)
+	// Publish through Tailscale Funnel for stable worldwide access
+	go s.tunnel.StartPublicTunnel(ctx)
 
 	go func() {
 		logger.Infof("RemoteServer", "Mobile remote gateway listening on 0.0.0.0:%d", s.port)

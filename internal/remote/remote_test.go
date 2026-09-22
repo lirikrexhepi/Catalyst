@@ -67,7 +67,7 @@ func TestGenerateQRCode(t *testing.T) {
 
 func TestTunnelManager(t *testing.T) {
 	tm := NewTunnelManager(4545)
-	tm.publicURL = "https://test-tunnel.trycloudflare.com"
+	tm.publicURL = "https://test-machine.tail00000.ts.net"
 	public, best, _, _, _ := tm.Status("secret")
 
 	if !strings.Contains(public, "token=secret") {

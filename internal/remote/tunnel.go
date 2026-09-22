@@ -1,214 +1,143 @@
 package remote
 
 import (
-	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"composer/internal/logger"
 )
 
 type TunnelManager struct {
-	mu           sync.RWMutex
-	port         int
-	publicURL    string
-	tailscaleURL string
-	cmd          *exec.Cmd
-	cancel       context.CancelFunc
-	downloading  bool
-	connecting   bool
-	lastError    string
+	mu        sync.RWMutex
+	port      int
+	publicURL string
+	connecting bool
+	lastError  string
 }
 
 func NewTunnelManager(port int) *TunnelManager {
 	return &TunnelManager{port: port}
 }
 
-// ensureCloudflared checks for an existing cloudflared binary or downloads it automatically.
-func (tm *TunnelManager) ensureCloudflared(ctx context.Context) string {
-	if p, err := exec.LookPath("cloudflared"); err == nil {
-		return p
-	}
+var funnelURLRegex = regexp.MustCompile(`https://[A-Za-z0-9.-]+\.ts\.net`)
 
-	userProfile := os.Getenv("USERPROFILE")
-	localApp := os.Getenv("LOCALAPPDATA")
-	if localApp == "" && userProfile != "" {
-		localApp = filepath.Join(userProfile, "AppData", "Local")
-	}
-
-	candidates := []string{
-		filepath.Join(localApp, "cloudflared", "cloudflared.exe"),
-		filepath.Join(userProfile, "bin", "cloudflared.exe"),
-		`C:\Program Files\cloudflared\cloudflared.exe`,
-		`C:\Program Files (x86)\cloudflared\cloudflared.exe`,
-	}
-	for _, cand := range candidates {
-		if cand != "" {
-			if info, statErr := os.Stat(cand); statErr == nil && !info.IsDir() {
-				logger.Infof("RemoteTunnel", "Found cloudflared at %s", cand)
-				return cand
-			}
-		}
-	}
-
-	if localApp == "" {
-		return ""
-	}
-
-	targetDir := filepath.Join(localApp, "cloudflared")
-	_ = os.MkdirAll(targetDir, 0755)
-	dest := filepath.Join(targetDir, "cloudflared.exe")
-
-	tm.mu.Lock()
-	tm.downloading = true
-	tm.mu.Unlock()
-	defer func() {
-		tm.mu.Lock()
-		tm.downloading = false
-		tm.mu.Unlock()
-	}()
-
-	logger.Infof("RemoteTunnel", "Downloading cloudflared for worldwide remote access...")
-	dlURL := "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
-	req, err := http.NewRequestWithContext(ctx, "GET", dlURL, nil)
-	if err != nil {
-		tm.mu.Lock()
-		tm.lastError = err.Error()
-		tm.mu.Unlock()
-		return ""
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logger.Errorf("RemoteTunnel", "Failed to download cloudflared: %v", err)
-		tm.mu.Lock()
-		tm.lastError = err.Error()
-		tm.mu.Unlock()
-		return ""
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		errStr := fmt.Sprintf("Download returned HTTP %d", resp.StatusCode)
-		logger.Errorf("RemoteTunnel", "%s", errStr)
-		tm.mu.Lock()
-		tm.lastError = errStr
-		tm.mu.Unlock()
-		return ""
-	}
-
-	tmpDest := dest + ".part"
-	out, err := os.Create(tmpDest)
-	if err != nil {
-		return ""
-	}
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		_ = out.Close()
-		_ = os.Remove(tmpDest)
-		return ""
-	}
-	_ = out.Close()
-	_ = os.Rename(tmpDest, dest)
-
-	logger.Infof("RemoteTunnel", "cloudflared successfully provisioned: %s", dest)
-	return dest
-}
-
-// StartCloudflareTunnel starts a secure public tunnel via Cloudflare Quick Tunnels.
-// This allows immediate remote access from university or cellular mobile data
-// without opening router ports or requiring the same Wi-Fi.
-func (tm *TunnelManager) StartCloudflareTunnel(ctx context.Context) {
+// StartPublicTunnel publishes the remote server through Tailscale Funnel.
+// The Funnel URL is stable across restarts, unlike ephemeral quick tunnels.
+// It is started automatically with the remote server and torn down on Stop.
+func (tm *TunnelManager) StartPublicTunnel(ctx context.Context) {
 	tm.mu.Lock()
 	tm.connecting = true
 	tm.lastError = ""
 	tm.mu.Unlock()
 
-	cloudflaredPath := tm.ensureCloudflared(ctx)
-	if cloudflaredPath == "" {
+	if _, err := exec.LookPath("tailscale"); err != nil {
 		tm.mu.Lock()
 		tm.connecting = false
-		tm.lastError = "Could not locate or download cloudflared"
+		tm.lastError = "Tailscale is not installed. Install it from tailscale.com/download, sign in, then retry."
 		tm.mu.Unlock()
 		return
 	}
 
-	tunnelCtx, cancel := context.WithCancel(ctx)
-	tm.mu.Lock()
-	tm.cancel = cancel
-	cmd := exec.CommandContext(tunnelCtx, cloudflaredPath, "tunnel", "--url", fmt.Sprintf("http://127.0.0.1:%d", tm.port))
-	setSysProcAttr(cmd)
-	tm.cmd = cmd
-	tm.mu.Unlock()
+	target := fmt.Sprintf("http://127.0.0.1:%d", tm.port)
 
-	cmd.Stdout = io.Discard
-	stderr, err := cmd.StderrPipe()
+	if url := funnelStatusURL(ctx, target); url != "" {
+		tm.mu.Lock()
+		tm.publicURL = url
+		tm.connecting = false
+		tm.mu.Unlock()
+		logger.Infof("RemoteTunnel", "Tailscale Funnel already serving: %s", url)
+		return
+	}
+
+	runCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(runCtx, "tailscale", "funnel", "--bg", target).CombinedOutput()
+	output := string(out)
 	if err != nil {
+		msg := strings.TrimSpace(output)
+		if strings.Contains(msg, "Funnel is not enabled") {
+			msg = "Funnel is not enabled on your tailnet. Run: tailscale funnel --bg " + target + " once in PowerShell after approving it in the Tailscale admin console."
+		} else if msg == "" {
+			msg = err.Error()
+		}
 		tm.mu.Lock()
 		tm.connecting = false
-		tm.lastError = err.Error()
+		tm.lastError = msg
 		tm.mu.Unlock()
+		logger.Errorf("RemoteTunnel", "Failed to start Tailscale Funnel: %s", msg)
 		return
 	}
 
-	if err := cmd.Start(); err != nil {
-		logger.Errorf("RemoteTunnel", "Failed to start cloudflared: %v", err)
+	if match := funnelURLRegex.FindString(output); match != "" {
 		tm.mu.Lock()
+		tm.publicURL = match
 		tm.connecting = false
-		tm.lastError = err.Error()
 		tm.mu.Unlock()
+		logger.Infof("RemoteTunnel", "Tailscale Funnel established: %s", match)
 		return
 	}
 
-	logger.Infof("RemoteTunnel", "cloudflared process started (PID=%d)", cmd.Process.Pid)
+	if url := funnelStatusURL(ctx, target); url != "" {
+		tm.mu.Lock()
+		tm.publicURL = url
+		tm.connecting = false
+		tm.mu.Unlock()
+		logger.Infof("RemoteTunnel", "Tailscale Funnel established: %s", url)
+		return
+	}
 
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		urlRegex := regexp.MustCompile(`https://[a-zA-Z0-9-]+\.trycloudflare\.com`)
-		for scanner.Scan() {
-			line := scanner.Text()
-			tm.mu.RLock()
-			alreadySet := tm.publicURL != ""
-			tm.mu.RUnlock()
+	tm.mu.Lock()
+	tm.connecting = false
+	tm.lastError = "Tailscale Funnel started but no public URL was found"
+	tm.mu.Unlock()
+}
 
-			if !alreadySet {
-				if match := urlRegex.FindString(line); match != "" {
-					tm.mu.Lock()
-					tm.publicURL = match
-					tm.connecting = false
-					tm.mu.Unlock()
-					logger.Infof("RemoteTunnel", "Cloudflare worldwide public tunnel established: %s", match)
+// funnelStatusURL reads `tailscale serve status --json` and returns the public
+// Funnel URL whose handler proxies the given target, or "" if none.
+func funnelStatusURL(ctx context.Context, target string) string {
+	runCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(runCtx, "tailscale", "serve", "status", "--json").Output()
+	if err != nil {
+		return ""
+	}
+	var status struct {
+		Web map[string]struct {
+			Handlers map[string]struct {
+				Proxy string `json:"Proxy"`
+			} `json:"Handlers"`
+		} `json:"Web"`
+	}
+	if err := json.Unmarshal(out, &status); err != nil {
+		return ""
+	}
+	for hostport, svc := range status.Web {
+		for _, h := range svc.Handlers {
+			if h.Proxy == target {
+				host := hostport
+				if i := strings.LastIndex(host, ":"); i >= 0 {
+					host = host[:i]
 				}
+				return "https://" + host
 			}
 		}
-		_ = cmd.Wait()
-		tm.mu.Lock()
-		if tm.publicURL == "" {
-			tm.connecting = false
-			if tm.lastError == "" {
-				tm.lastError = "Cloudflare tunnel exited before connection was established"
-			}
-			logger.Errorf("RemoteTunnel", "%s", tm.lastError)
-		}
-		tm.mu.Unlock()
-	}()
+	}
+	return ""
 }
 
 func (tm *TunnelManager) Stop() {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
-	if tm.cancel != nil {
-		tm.cancel()
-	}
-	if tm.cmd != nil && tm.cmd.Process != nil {
-		_ = tm.cmd.Process.Kill()
+	if tm.publicURL != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		_ = exec.CommandContext(ctx, "tailscale", "funnel", "--https=443", "off").Run()
 	}
 	tm.publicURL = ""
 	tm.connecting = false
@@ -230,12 +159,7 @@ func (tm *TunnelManager) Status(token string) (public, best string, connecting, 
 	}
 
 	public = withToken(tm.publicURL)
+	best = public
 
-	if tm.publicURL != "" {
-		best = public
-	} else if tm.tailscaleURL != "" {
-		best = withToken(tm.tailscaleURL)
-	}
-
-	return public, best, tm.connecting, tm.downloading, tm.lastError
+	return public, best, tm.connecting, false, tm.lastError
 }
