@@ -5,9 +5,12 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -27,16 +30,53 @@ const (
 )
 
 type AuthManager struct {
-	mu       sync.RWMutex
-	token    string
-	pin      string
-	failures []time.Time
+	mu          sync.RWMutex
+	token       string
+	pin         string
+	storagePath string
+	failures    []time.Time
 }
 
-func NewAuthManager() *AuthManager {
+type authPersist struct {
+	Token string `json:"token"`
+	PIN   string `json:"pin"`
+}
+
+func NewAuthManager(storagePath ...string) *AuthManager {
 	a := &AuthManager{}
 	a.Regenerate()
+	if len(storagePath) > 0 && storagePath[0] != "" {
+		a.SetStoragePath(storagePath[0])
+	}
 	return a
+}
+
+func (a *AuthManager) SetStoragePath(path string) {
+	if path == "" {
+		return
+	}
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.storagePath = path
+
+	if data, err := os.ReadFile(path); err == nil {
+		var p authPersist
+		if json.Unmarshal(data, &p) == nil && len(p.Token) >= 32 && p.PIN != "" {
+			a.token = p.Token
+			a.pin = p.PIN
+			return
+		}
+	}
+	a.saveLocked()
+}
+
+func (a *AuthManager) saveLocked() {
+	if a.storagePath == "" {
+		return
+	}
+	_ = os.MkdirAll(filepath.Dir(a.storagePath), 0755)
+	data, _ := json.MarshalIndent(authPersist{Token: a.token, PIN: a.pin}, "", "  ")
+	_ = os.WriteFile(a.storagePath, data, 0600)
 }
 
 func (a *AuthManager) Regenerate() {
@@ -51,6 +91,7 @@ func (a *AuthManager) Regenerate() {
 	n, _ := rand.Int(rand.Reader, big.NewInt(90000000))
 	a.pin = fmt.Sprintf("%0*d", pinDigits, n.Int64()+10000000)
 	a.failures = nil
+	a.saveLocked()
 }
 
 func (a *AuthManager) Token() string {

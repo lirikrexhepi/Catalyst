@@ -158,6 +158,12 @@ func (s *Server) Stop() {
 	logger.Infof("RemoteServer", "Remote server stopped")
 }
 
+func (s *Server) SetStoragePath(path string) {
+	if s != nil && s.auth != nil {
+		s.auth.SetStoragePath(path)
+	}
+}
+
 func (s *Server) registerRoutes(mux *http.ServeMux) {
 	// Static web assets (SPA — serve index.html for all non-asset routes)
 	webContent, err := fs.Sub(webAssets, "mobile/dist")

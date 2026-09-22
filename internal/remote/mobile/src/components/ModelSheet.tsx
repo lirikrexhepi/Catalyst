@@ -15,6 +15,8 @@ interface ModelSheetProps {
 /** Provider, model and that model's options (effort, thinking…). */
 export default function ModelSheet({ value, title = 'Model', onChange, onClose }: ModelSheetProps) {
   const providers = useStore((s) => s.providers)
+  const providersLoaded = useStore((s) => s.providersLoaded)
+  const providersLoading = useStore((s) => s.providersLoading)
   const [refreshing, setRefreshing] = useState(false)
   const [driver, setDriver] = useState(value?.driver || providers[0]?.driver || '')
 
@@ -57,11 +59,27 @@ export default function ModelSheet({ value, title = 'Model', onChange, onClose }
       }
     >
       {providers.length === 0 ? (
-        <div className="empty" style={{ padding: 0 }}>
-          <strong>No agent CLIs found</strong>
-          Install Claude Code, Codex, Antigravity or OpenCode on your PC, then refresh. If the desktop
-          already lists them, pull to reconnect — the phone reads the same probe.
-        </div>
+        !providersLoaded || providersLoading || refreshing ? (
+          <div className="empty" style={{ padding: '24px 16px', textAlign: 'center' }}>
+            <RefreshCw size={24} className="spin" style={{ margin: '0 auto 12px', opacity: 0.7 }} />
+            <strong>Checking for agent CLIs…</strong>
+            <div className="sub" style={{ marginTop: 6, fontSize: 13 }}>
+              Detecting Antigravity, Claude Code, Codex or OpenCode on your PC
+            </div>
+          </div>
+        ) : (
+          <div className="empty" style={{ padding: 0 }}>
+            <strong>No agent CLIs found</strong>
+            Install Claude Code, Codex, Antigravity or OpenCode on your PC, then refresh. If the desktop
+            already lists them, tap retry below — the phone reads the same probe.
+            <div style={{ marginTop: 14 }}>
+              <button className="btn" onClick={() => void refresh()} disabled={refreshing || providersLoading}>
+                <RefreshCw size={16} className={refreshing || providersLoading ? 'spin' : undefined} aria-hidden="true" />
+                {refreshing || providersLoading ? 'Checking your PC…' : 'Retry detection'}
+              </button>
+            </div>
+          </div>
+        )
       ) : (
         <>
           {providers.length > 1 && (

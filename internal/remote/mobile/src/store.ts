@@ -47,16 +47,37 @@ interface State {
   summariesLoaded: boolean
   threads: Record<string, ThreadState>
   providers: ProviderInfo[]
+  providersLoaded: boolean
+  providersLoading: boolean
   connection: Connection
   /** Model picked on the phone for a thread's next sends; overrides its summary. */
   choices: Record<string, ModelChoice>
 }
 
+const PROVIDERS_CACHE_KEY = 'orchestrator_providers_cache'
+
+function loadCachedProviders(): ProviderInfo[] {
+  try {
+    const raw = localStorage.getItem(PROVIDERS_CACHE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {
+    /* ignore */
+  }
+  return []
+}
+
+const initialProviders = loadCachedProviders()
+
 let state: State = {
   summaries: [],
   summariesLoaded: false,
   threads: {},
-  providers: [],
+  providers: initialProviders,
+  providersLoaded: initialProviders.length > 0,
+  providersLoading: false,
   connection: 'connecting',
   choices: loadChoices(),
 }
@@ -245,12 +266,25 @@ export async function refreshSummaries() {
 }
 
 export async function loadProviders(refresh = false) {
-  if (!refresh && state.providers.length > 0) return
+  if (state.providersLoading) return
+  if (!refresh && state.providersLoaded && state.providers.length > 0) return
+  set({ providersLoading: true })
   try {
     const providers = await api.models(refresh)
-    set({ providers: Array.isArray(providers) ? providers : [] })
+    if (Array.isArray(providers)) {
+      if (providers.length > 0) {
+        try {
+          localStorage.setItem(PROVIDERS_CACHE_KEY, JSON.stringify(providers))
+        } catch {
+          /* private mode */
+        }
+      }
+      set({ providers, providersLoaded: true, providersLoading: false })
+      return
+    }
+    set({ providersLoaded: true, providersLoading: false })
   } catch {
-    /* keep what we have */
+    set({ providersLoaded: true, providersLoading: false })
   }
 }
 
@@ -445,10 +479,12 @@ export function startSync() {
     backoff = 1000
     if (!socket || socket.readyState !== WebSocket.OPEN) connect()
     else void refreshSummaries()
+    if (state.providers.length === 0) void loadProviders()
   })
   window.addEventListener('online', () => {
     backoff = 1000
     connect()
+    if (state.providers.length === 0) void loadProviders()
   })
 }
 

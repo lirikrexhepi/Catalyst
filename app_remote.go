@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ func (a *App) GetRemoteInfo() remote.RemoteInfo {
 func (a *App) StartRemoteServer(port int) (remote.RemoteInfo, error) {
 	if a.remoteServer == nil {
 		a.remoteServer = remote.NewServer(port, a.manager, a.coordinator, a.orchestrator, a.spawner, a.projects, a.recorder, a.historyStore)
+		a.remoteServer.SetStoragePath(filepath.Join(configRoot(), "remote_auth.json"))
 		a.wireRemote()
 	}
 	if err := a.remoteServer.Start(context.Background()); err != nil {

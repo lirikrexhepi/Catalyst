@@ -194,6 +194,8 @@ function lastUsed(): { cwd?: string; choice?: ModelChoice; autoApprove?: boolean
 /** New chat: pick a project and model, and the first message starts the agent. */
 function NewChat({ openDrawer, go }: ChatProps) {
   const providers = useStore((s) => s.providers)
+  const providersLoaded = useStore((s) => s.providersLoaded)
+  const providersLoading = useStore((s) => s.providersLoading)
   const remembered = useRef(lastUsed()).current
   const [projects, setProjects] = useState<Project[]>([])
   const [cwd, setCwd] = useState(remembered.cwd || '')
@@ -229,6 +231,10 @@ function NewChat({ openDrawer, go }: ChatProps) {
 
   const create = async (prompt: string): Promise<boolean> => {
     if (!choice?.driver) {
+      if (!providersLoaded || providersLoading) {
+        setError('Detecting agent CLIs on your PC, please wait a moment...')
+        return false
+      }
       setError('No agent CLI is available on your PC. Check Settings on the desktop.')
       return false
     }
@@ -258,7 +264,7 @@ function NewChat({ openDrawer, go }: ChatProps) {
       <TopBar
         openDrawer={openDrawer}
         go={go}
-        pill={providers.length === 0 ? 'Loading models' : choiceLabel(choice, providers)}
+        pill={providers.length === 0 ? (!providersLoaded || providersLoading ? 'Checking CLIs…' : 'No agent CLIs') : choiceLabel(choice, providers)}
         onPill={() => setSheet('model')}
       />
       <div className="scroll" style={{ display: 'flex', flexDirection: 'column' }}>

@@ -84,26 +84,35 @@ function url(path: string): string {
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = getToken()
-  const res = await fetch(url(path), {
-    credentials: 'same-origin',
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  })
-  if (!res.ok) {
-    let detail = `${res.status}`
-    try {
-      const body = await res.json()
-      if (body && typeof body.error === 'string' && body.error) detail = body.error
-    } catch { /* ignore */ }
-    // Marked so callers can tell a server answer (do not retry the send)
-    // from a network failure (safe to retry over the socket).
-    throw Object.assign(new Error(detail), { status: res.status })
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), 20000)
+  try {
+    const res = await fetch(url(path), {
+      credentials: 'same-origin',
+      signal: options?.signal || controller.signal,
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options?.headers ?? {}),
+      },
+    })
+    clearTimeout(timeoutId)
+    if (!res.ok) {
+      let detail = `${res.status}`
+      try {
+        const body = await res.json()
+        if (body && typeof body.error === 'string' && body.error) detail = body.error
+      } catch { /* ignore */ }
+      // Marked so callers can tell a server answer (do not retry the send)
+      // from a network failure (safe to retry over the socket).
+      throw Object.assign(new Error(detail), { status: res.status })
+    }
+    return res.json() as Promise<T>
+  } catch (e) {
+    clearTimeout(timeoutId)
+    throw e
   }
-  return res.json() as Promise<T>
 }
 
 /** True when the request never got an HTTP answer, so a retry cannot double-send. */

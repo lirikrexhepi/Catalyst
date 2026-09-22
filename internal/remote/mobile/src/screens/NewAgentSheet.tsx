@@ -20,6 +20,8 @@ function lastUsed(): { cwd?: string; choice?: ModelChoice; autoApprove?: boolean
 /** Start an agent on a project with a chosen model and effort. */
 export default function NewAgentSheet({ onClose, onStarted }: { onClose: () => void; onStarted: (threadId: string) => void }) {
   const providers = useStore((s) => s.providers)
+  const providersLoaded = useStore((s) => s.providersLoaded)
+  const providersLoading = useStore((s) => s.providersLoading)
   const remembered = lastUsed()
   const [projects, setProjects] = useState<Project[]>([])
   const [cwd, setCwd] = useState(remembered.cwd || '')
@@ -54,6 +56,14 @@ export default function NewAgentSheet({ onClose, onStarted }: { onClose: () => v
   const ready = prompt.trim() && cwd && choice?.driver && !starting
 
   const start = async () => {
+    if (!choice?.driver) {
+      if (!providersLoaded || providersLoading) {
+        setError('Detecting agent CLIs on your PC, please wait a moment...')
+        return
+      }
+      setError('No agent CLI is available on your PC.')
+      return
+    }
     if (!ready || !choice) return
     setStarting(true)
     setError(null)
@@ -78,7 +88,7 @@ export default function NewAgentSheet({ onClose, onStarted }: { onClose: () => v
       onClose={onClose}
       footer={
         <button className="btn primary grow" disabled={!ready} onClick={() => void start()}>
-          {starting ? 'Starting agent' : 'Start agent'}
+          {starting ? 'Starting agent' : !choice?.driver && (!providersLoaded || providersLoading) ? 'Checking CLIs…' : 'Start agent'}
         </button>
       }
     >
