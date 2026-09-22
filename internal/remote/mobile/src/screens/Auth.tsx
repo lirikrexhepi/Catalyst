@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import jsQR from 'jsqr'
-import { api, applyScannedLink } from '../api'
+import { api, applyScannedLink, getBase, getToken } from '../api'
+import { runDiagnostics, maskToken, DiagResult } from '../debug'
 
 export default function AuthScreen({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false)
@@ -8,6 +9,10 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
   const [paste, setPaste] = useState('')
   const [scanning, setScanning] = useState(false)
   const [scanSupported, setScanSupported] = useState(false)
+  const [showDiag, setShowDiag] = useState(false)
+  const [diagRunning, setDiagRunning] = useState(false)
+  const [diagResults, setDiagResults] = useState<DiagResult[] | null>(null)
+  const [copied, setCopied] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -34,9 +39,34 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
         return
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Connection failed.')
+      setError(`Connection failed: ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       setBusy(false)
+    }
+  }
+
+  const runDiag = async () => {
+    setDiagRunning(true)
+    setDiagResults(null)
+    try {
+      setDiagResults(await runDiagnostics(getBase(), getToken()))
+    } finally {
+      setDiagRunning(false)
+    }
+  }
+
+  const copyDiag = async () => {
+    const payload = JSON.stringify({
+      server: getBase(),
+      token: maskToken(getToken()),
+      results: diagResults,
+    }, null, 2)
+    try {
+      await navigator.clipboard.writeText(payload)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setError('Clipboard blocked. Screenshot this screen instead.')
     }
   }
 
@@ -183,7 +213,47 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
       )}
 
       <canvas ref={canvasRef} style={{ display: 'none' }} />
-      {error && <div style={{ color: '#f87171', fontSize: 12, marginTop: 12, maxWidth: 280 }}>{error}</div>}
+      {error && <div style={{ color: '#f87171', fontSize: 12, marginTop: 12, maxWidth: 300, wordBreak: 'break-word' }}>{error}</div>}
+
+      <div style={{ width: '100%', maxWidth: 300, marginTop: 16 }}>
+        <button
+          onClick={() => { setShowDiag(v => !v); if (!showDiag && !diagResults) void runDiag() }}
+          style={{ fontSize: 12, color: 'var(--text-mut)', cursor: 'pointer' }}
+        >
+          {showDiag ? 'Hide connection details ▲' : 'Show connection details ▼'}
+        </button>
+        {showDiag && (
+          <div style={{ marginTop: 8, textAlign: 'left', fontSize: 11, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 10 }}>
+            <div style={{ marginBottom: 4, wordBreak: 'break-all' }}><b>Server:</b> {getBase() || '(none saved)'}</div>
+            <div style={{ marginBottom: 8 }}><b>Token:</b> {maskToken(getToken())}</div>
+            {diagRunning && <div style={{ color: 'var(--text-mut)' }}>Running tests...</div>}
+            {diagResults && diagResults.map((r, i) => (
+              <div key={i} style={{ marginBottom: 6, wordBreak: 'break-word' }}>
+                <span style={{ color: r.ok ? '#34d399' : '#f87171', fontWeight: 700 }}>{r.ok ? '✓' : '✗'} </span>
+                <b>{r.name}</b>
+                <div style={{ color: 'var(--text-sec)', paddingLeft: 16 }}>{r.detail}</div>
+              </div>
+            ))}
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                onClick={() => void runDiag()}
+                disabled={diagRunning}
+                style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: 12, cursor: 'pointer' }}
+              >
+                Re-run tests
+              </button>
+              {diagResults && (
+                <button
+                  onClick={() => void copyDiag()}
+                  style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', color: 'white', fontSize: 12, cursor: 'pointer' }}
+                >
+                  {copied ? 'Copied!' : 'Copy results'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
       {!scanSupported && !scanning && (
         <p style={{ color: 'var(--text-mut)', fontSize: 12, maxWidth: 280, marginTop: 16 }}>
           This browser can't use the camera — paste the link from your PC above.
