@@ -12,13 +12,14 @@ interface Props {
   wsLastMessage: ServerMessage | null
   wsSend: (msg: object) => boolean
   wsConnected: boolean
+  hideBack?: boolean
 }
 
 function isCoordinatorThread(threadId: string): boolean {
   return threadId === 'coordinator' || threadId.startsWith('coordinator-')
 }
 
-export default function CoordinatorChat({ projectName, pop, wsLastMessage, wsSend, wsConnected }: Props) {
+export default function CoordinatorChat({ projectName, pop, wsLastMessage, wsSend, wsConnected, hideBack }: Props) {
   const [events, setEvents] = useState<RuntimeEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -103,11 +104,12 @@ export default function CoordinatorChat({ projectName, pop, wsLastMessage, wsSen
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <NavHeader
         title={title}
-        onBack={pop}
+        onBack={hideBack ? undefined : pop}
+        subtitle={wsConnected ? undefined : 'offline — reconnecting'}
         rightAction={
-          <span style={{ fontSize: 11, color: wsConnected ? '#34d399' : '#f87171', fontWeight: 600 }}>
-            {wsConnected ? '● live' : '○ offline'}
-          </span>
+          wsConnected
+            ? <span className="live-dot" />
+            : <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)' }} />
         }
       />
 

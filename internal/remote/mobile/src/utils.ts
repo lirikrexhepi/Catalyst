@@ -59,6 +59,25 @@ export function formatRelative(ms: number): string {
   return `${Math.floor(diff/86400)}d`
 }
 
+const AVATAR_GRADIENTS: Array<[string, string]> = [
+  ['#ff9f0a', '#ff375f'],
+  ['#0a84ff', '#5e5ce6'],
+  ['#30d158', '#0a84ff'],
+  ['#bf5af2', '#ff375f'],
+  ['#64d2ff', '#0a84ff'],
+  ['#ffd60a', '#ff9f0a'],
+  ['#5e5ce6', '#bf5af2'],
+  ['#ff453a', '#ff9f0a'],
+]
+
+export function avatarGradient(name: string): [string, string] {
+  let h = 0
+  for (let i = 0; i < name.length; i++) {
+    h = (h * 31 + name.charCodeAt(i)) >>> 0
+  }
+  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]
+}
+
 export function stateColor(state: TaskState): string {
   switch (state) {
     case 'running': return '#38bdf8'

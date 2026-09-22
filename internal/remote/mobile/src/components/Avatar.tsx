@@ -1,4 +1,5 @@
 import React from 'react'
+import { avatarGradient } from '../utils'
 
 interface AvatarProps {
   name: string
@@ -6,23 +7,26 @@ interface AvatarProps {
   active?: boolean
 }
 
-export default function Avatar({ name, size = 40, active = false }: AvatarProps) {
-  const letter = name.charAt(0).toUpperCase()
-  
+export default function Avatar({ name, size = 56, active = false }: AvatarProps) {
+  const letter = (name.trim().charAt(0) || '•').toUpperCase()
+  const [from, to] = avatarGradient(name || 'x')
+
   return (
     <div
       style={{
         width: size,
         height: size,
         borderRadius: '50%',
-        background: active ? 'rgba(56,189,248,0.20)' : 'rgba(255,255,255,0.10)',
+        background: `linear-gradient(135deg, ${from}, ${to})`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        color: active ? '#38bdf8' : '#fff',
-        fontSize: size * 0.4,
-        fontWeight: 600,
-        flexShrink: 0
+        color: '#fff',
+        fontSize: size * 0.42,
+        fontWeight: 700,
+        flexShrink: 0,
+        letterSpacing: '0.02em',
+        boxShadow: active ? `0 0 0 2px var(--bg-main), 0 0 0 4px ${from}` : 'none',
       }}
     >
       {letter}

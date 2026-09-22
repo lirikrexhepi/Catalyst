@@ -374,6 +374,10 @@ func (s *Server) handleSendAgent(w http.ResponseWriter, r *http.Request) {
 		TurnID:   turnID,
 		Text:     body.Text,
 	}); err != nil {
+		if strings.Contains(err.Error(), "no active session") {
+			http.Error(w, `{"error":"session_ended"}`, http.StatusGone)
+			return
+		}
 		http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
 		return
 	}

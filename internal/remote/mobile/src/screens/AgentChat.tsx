@@ -61,8 +61,13 @@ export default function AgentChat({ threadId, title, pop, wsLastMessage, wsSend,
     try {
       await api.sendAgent(threadId, text)
     } catch (e: unknown) {
-      const ok = wsSend({ action: 'send_agent', threadId, text })
-      if (!ok) setError(e instanceof Error ? e.message : 'Send failed')
+      const msg = e instanceof Error ? e.message : 'Send failed'
+      if (msg.includes('session_ended')) {
+        setError('This agent has finished and can no longer receive messages. Start a new task from its project to continue.')
+      } else {
+        const ok = wsSend({ action: 'send_agent', threadId, text })
+        if (!ok) setError(msg)
+      }
     } finally {
       setSending(false)
     }
@@ -99,10 +104,11 @@ export default function AgentChat({ threadId, title, pop, wsLastMessage, wsSend,
       <NavHeader
         title={title}
         onBack={pop}
+        subtitle={wsConnected ? undefined : 'offline — reconnecting'}
         rightAction={
-          <span style={{ fontSize: 11, color: wsConnected ? '#34d399' : '#f87171', fontWeight: 600 }}>
-            {wsConnected ? '● live' : '○ offline'}
-          </span>
+          wsConnected
+            ? <span className="live-dot" />
+            : <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)' }} />
         }
       />
 

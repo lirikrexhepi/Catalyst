@@ -5,7 +5,6 @@ import { groupAgentsByProject, formatRelative } from '../utils'
 import NavHeader from '../components/NavHeader'
 import Row from '../components/Row'
 import Avatar from '../components/Avatar'
-import { setToken } from '../api'
 
 interface Props {
   push: (s: Screen) => void
@@ -22,7 +21,7 @@ export default function ProjectList({ push }: Props) {
       try {
         const [agents, history] = await Promise.all([
           api.agents(),
-          api.history().catch(() => []) // ok if fails
+          api.history().catch(() => [])
         ])
         if (mounted) {
           setProjects(groupAgentsByProject(agents))
@@ -31,8 +30,8 @@ export default function ProjectList({ push }: Props) {
           }
           setLoading(false)
         }
-      } catch (e) {
-        console.error(e)
+      } catch {
+        if (mounted) setLoading(false)
       }
     }
 
@@ -46,45 +45,41 @@ export default function ProjectList({ push }: Props) {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <NavHeader
-        title="Orchestrator"
-        large
-        rightAction={
-          <button
-            onClick={() => { setToken(''); window.location.reload() }}
-            style={{ fontSize: 12, color: 'var(--text-mut)', cursor: 'pointer' }}
-          >
-            Disconnect
-          </button>
-        }
-      />
-      
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <Row 
-          avatar={<Avatar name="C" active />}
-          title="Coordinator"
-          subtitle={coordinatorEvent?.text || "Global orchestrator"}
-          timestamp={coordinatorEvent ? formatRelative(coordinatorEvent.at) : undefined}
-          onClick={() => push({ id: 'coordinator' })}
-        />
+      <NavHeader title="Chats" large />
+
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 110 }}>
+        <div className="rise">
+          <Row
+            avatar={<Avatar name="Coordinator" />}
+            title="Coordinator"
+            subtitle={coordinatorEvent?.text || 'Global orchestrator'}
+            timestamp={coordinatorEvent ? formatRelative(coordinatorEvent.at) : undefined}
+            ticks={!!coordinatorEvent}
+            onClick={() => push({ id: 'coordinator' })}
+          />
+        </div>
+
+        <div style={{ height: 8 }} />
 
         {loading && projects.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-mut)' }}>Loading...</div>
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14 }}>Loading...</div>
         ) : projects.length === 0 ? (
-          <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14 }}>
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14, lineHeight: 1.5 }}>
             No active projects
+            <div style={{ fontSize: 12.5, marginTop: 6 }}>Spawn agents from the desktop to see them here.</div>
           </div>
         ) : (
-          projects.map(p => (
-            <Row
-              key={p.path}
-              avatar={<Avatar name={p.name} active={p.runningCount > 0} />}
-              title={p.name}
-              subtitle={`${p.agents.length} agent${p.agents.length === 1 ? '' : 's'}, ${p.runningCount} running`}
-              badge={p.runningCount}
-              timestamp={formatRelative(p.lastActivity)}
-              onClick={() => push({ id: 'agents', projectPath: p.path, projectName: p.name })}
-            />
+          projects.map((p, i) => (
+            <div className="rise" key={p.path} style={{ animationDelay: `${Math.min(i * 30, 240)}ms` }}>
+              <Row
+                avatar={<Avatar name={p.name} active={p.runningCount > 0} />}
+                title={p.name}
+                subtitle={`${p.agents.length} agent${p.agents.length === 1 ? '' : 's'}${p.runningCount > 0 ? `, ${p.runningCount} running` : ''}`}
+                timestamp={p.lastActivity ? formatRelative(p.lastActivity) : undefined}
+                badge={p.runningCount}
+                onClick={() => push({ id: 'agents', projectPath: p.path, projectName: p.name })}
+              />
+            </div>
           ))
         )}
       </div>

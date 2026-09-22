@@ -1,79 +1,89 @@
 import React from 'react'
-import { ChevronLeft } from 'lucide-react'
 
 interface NavHeaderProps {
   title: string
+  subtitle?: string
   onBack?: () => void
   rightAction?: React.ReactNode
   large?: boolean
+  transparent?: boolean
 }
 
-export default function NavHeader({ title, onBack, rightAction, large }: NavHeaderProps) {
+export default function NavHeader({ title, subtitle, onBack, rightAction, large, transparent }: NavHeaderProps) {
   return (
-    <div style={{
-      background: 'rgba(3,3,3,0.85)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      borderBottom: '1px solid var(--border-div)',
-      position: 'sticky',
-      top: 0,
-      zIndex: 10,
-      width: '100%'
-    }}>
-      <div className="safe-top" style={{
-        height: 44,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 16px',
-        position: 'relative'
-      }}>
-        {/* Left */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+    <div
+      className="safe-top"
+      style={{
+        background: transparent ? 'transparent' : 'rgba(0,0,0,0.72)',
+        WebkitBackdropFilter: transparent ? 'none' : 'blur(24px) saturate(180%)',
+        backdropFilter: transparent ? 'none' : 'blur(24px) saturate(180%)',
+        borderBottom: transparent ? 'none' : '0.5px solid var(--border-div)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        width: '100%',
+      }}
+    >
+      <div
+        style={{
+          minHeight: 54,
+          display: 'grid',
+          gridTemplateColumns: 'minmax(72px, 1fr) auto minmax(72px, 1fr)',
+          alignItems: 'center',
+          padding: '6px 8px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
           {onBack && (
-            <button 
+            <button
               onClick={onBack}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                color: 'var(--text-sec)',
-                cursor: 'pointer',
-                marginRight: 8,
-                marginLeft: -8
+                color: 'var(--accent)',
+                fontSize: 17,
+                padding: '8px 10px 8px 2px',
               }}
             >
-              <ChevronLeft size={24} />
-              <span style={{ fontSize: 14 }}>Back</span>
+              <svg width="13" height="21" viewBox="0 0 13 21" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 2L3 10.5 11 19" />
+              </svg>
+              <span style={{ marginLeft: 2 }}>Back</span>
             </button>
           )}
         </div>
-        
-        {/* Center */}
-        <div style={{
-          position: 'absolute',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          fontSize: 17,
-          fontWeight: 600,
-          color: 'var(--text-pri)',
-          pointerEvents: 'none',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          maxWidth: '50%'
-        }}>
-          {!large && title}
+
+        <div style={{ textAlign: 'center', minWidth: 0, maxWidth: '52vw' }}>
+          {!large && (
+            <>
+              <div
+                style={{
+                  fontSize: 17,
+                  fontWeight: 700,
+                  color: 'var(--text-pri)',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                {title}
+              </div>
+              {!!subtitle && (
+                <div style={{ fontSize: 11, color: 'var(--text-mut)', marginTop: 1 }}>{subtitle}</div>
+              )}
+            </>
+          )}
         </div>
 
-        {/* Right */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: 6 }}>
           {rightAction}
         </div>
       </div>
-      
-      {/* Large Title */}
+
       {large && (
-        <div style={{ padding: '8px 16px 12px' }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700 }}>{title}</h1>
+        <div style={{ padding: '2px 16px 12px' }}>
+          <h1 style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{title}</h1>
         </div>
       )}
     </div>

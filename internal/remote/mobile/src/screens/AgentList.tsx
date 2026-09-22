@@ -4,13 +4,23 @@ import { api } from '../api'
 import NavHeader from '../components/NavHeader'
 import Row from '../components/Row'
 import Avatar from '../components/Avatar'
-import StatusPill from '../components/StatusPill'
 
 interface Props {
   projectPath: string
   projectName: string
   push: (s: Screen) => void
   pop: () => void
+}
+
+function statusLabel(state: string): string {
+  switch (state) {
+    case 'running': return 'active now'
+    case 'complete': return 'finished'
+    case 'failed': return 'failed'
+    case 'pending': return 'starting'
+    case 'closed': return 'closed'
+    default: return state
+  }
 }
 
 export default function AgentList({ projectPath, projectName, push, pop }: Props) {
@@ -30,9 +40,7 @@ export default function AgentList({ projectPath, projectName, push, pop }: Props
           })
           setAgents(filtered)
         }
-      } catch (e) {
-        console.error(e)
-      }
+      } catch { /* keep previous */ }
     }
     fetchAgents()
     const interval = setInterval(fetchAgents, 3000)
@@ -45,14 +53,18 @@ export default function AgentList({ projectPath, projectName, push, pop }: Props
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <NavHeader title={projectName} onBack={pop} />
-      
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        <Row 
-          avatar={<Avatar name="C" active />}
+
+      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 24 }}>
+        <Row
+          avatar={<Avatar name="Coordinator" />}
           title="Coordinator"
           subtitle="Send task to this project"
           onClick={() => push({ id: 'coordinator', projectPath, projectName })}
         />
+
+        <div style={{ padding: '10px 16px 4px', fontSize: 12.5, fontWeight: 700, color: 'var(--text-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Agents · {agents.length}
+        </div>
 
         {agents.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14 }}>
@@ -64,14 +76,9 @@ export default function AgentList({ projectPath, projectName, push, pop }: Props
               key={a.threadId}
               avatar={<Avatar name={a.title} active={a.state === 'running'} />}
               title={a.title}
-              subtitle={
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>{a.model}</span>
-                  <span>•</span>
-                  <StatusPill state={a.state} />
-                </div>
-              }
+              subtitle={`${a.model} · ${statusLabel(a.state)}`}
               timestamp={a.branch}
+              badge={a.state === 'running' ? 1 : 0}
               onClick={() => push({ id: 'agent-chat', threadId: a.threadId, title: a.title, cwd: a.cwd })}
             />
           ))

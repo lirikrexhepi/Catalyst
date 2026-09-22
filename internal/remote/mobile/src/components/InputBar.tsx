@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { Send, Square } from 'lucide-react'
 
 interface InputBarProps {
   placeholder?: string
@@ -9,7 +8,7 @@ interface InputBarProps {
   disabled?: boolean
 }
 
-export default function InputBar({ placeholder = 'Message...', onSend, onStop, isRunning, disabled }: InputBarProps) {
+export default function InputBar({ placeholder = 'Message', onSend, onStop, isRunning, disabled }: InputBarProps) {
   const [text, setText] = useState('')
 
   const handleSend = () => {
@@ -18,63 +17,72 @@ export default function InputBar({ placeholder = 'Message...', onSend, onStop, i
     setText('')
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
-
   return (
-    <div className="safe-bottom" style={{
-      background: 'rgba(3,3,3,0.90)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      borderTop: '1px solid var(--border-div)',
-      padding: '8px 16px',
-      width: '100%',
-      position: 'relative' // If fixed bottom needed, parent screen wrapper manages it
-    }}>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <input 
+    <div className="safe-bottom" style={{ padding: '6px 10px 10px', background: 'transparent' }}>
+      <div
+        className="glass"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          borderRadius: 28,
+          padding: '6px 6px 6px 16px',
+          minHeight: 52,
+        }}
+      >
+        <input
           value={text}
           onChange={e => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault()
+              handleSend()
+            }
+          }}
           placeholder={placeholder}
           disabled={disabled}
-          style={{
-            flex: 1,
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.08)',
-            borderRadius: 20,
-            padding: '10px 16px',
-            fontSize: 15,
-            color: 'white'
-          }}
+          style={{ flex: 1, fontSize: 16, color: '#fff', background: 'transparent', minWidth: 0 }}
         />
-        
+
         {isRunning && onStop ? (
-          <button onClick={onStop} style={{
-            width: 36, height: 36,
-            borderRadius: 12,
-            background: 'rgba(255,255,255,0.10)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer'
-          }}>
-            <Square size={16} fill="white" color="white" />
+          <button
+            onClick={onStop}
+            aria-label="Stop"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ width: 13, height: 13, borderRadius: 3.5, background: '#fff' }} />
           </button>
         ) : (
-          text.trim().length > 0 && (
-            <button onClick={handleSend} disabled={disabled} style={{
-              width: 36, height: 36,
+          <button
+            onClick={handleSend}
+            disabled={disabled || !text.trim()}
+            aria-label="Send"
+            style={{
+              width: 40,
+              height: 40,
               borderRadius: '50%',
-              background: 'var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer'
-            }}>
-              <Send size={16} color="white" style={{ marginLeft: 2 }} />
-            </button>
-          )
+              background: text.trim() ? 'var(--accent)' : 'rgba(255,255,255,0.10)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+              opacity: text.trim() ? 1 : 0.6,
+              transition: 'background 160ms',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+              <path d="M3.4 20.4l17.5-8.4L3.4 3.6l-.01 6.53L14 12 3.39 13.87l.01 6.53z" />
+            </svg>
+          </button>
         )}
       </div>
     </div>
