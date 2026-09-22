@@ -1,100 +1,91 @@
 import React, { useEffect, useState } from 'react'
-import { Screen, Project, RuntimeEvent } from '../types'
+import { RemoteAgentView } from '../types'
 import { api } from '../api'
-import { formatRelative } from '../utils'
-import NavHeader from '../components/NavHeader'
 import Row from '../components/Row'
 import Avatar from '../components/Avatar'
 
 interface Props {
-  push: (s: Screen) => void
+  projectPath: string
+  projectName: string
+  onOpenAgent: (threadId: string, title: string) => void
+  onOpenCoordinator: () => void
 }
 
-export default function ProjectList({ push }: Props) {
-  const [projects, setProjects] = useState<Project[]>([])
-  const [loading, setLoading] = useState(true)
-  const [coordinatorEvent, setCoordinatorEvent] = useState<RuntimeEvent | null>(null)
+function statusLabel(a: RemoteAgentView): string {
+  const bits = [a.model]
+  if (a.branch) bits.push(a.branch)
+  switch (a.state) {
+    case 'running': bits.push(a.live ? 'active now' : 'running'); break
+    case 'complete': bits.push('finished'); break
+    case 'failed': bits.push('failed'); break
+    case 'pending': bits.push('starting'); break
+    case 'closed': bits.push('closed'); break
+    default: bits.push(a.state)
+  }
+  return bits.filter(Boolean).join(' · ')
+}
+
+export default function ProjectList({ projectPath, onOpenAgent, onOpenCoordinator }: Props) {
+  const [agents, setAgents] = useState<RemoteAgentView[]>([])
 
   useEffect(() => {
     let mounted = true
-    const fetchData = async () => {
+    const fetchAgents = async () => {
       try {
-        const [projs, history] = await Promise.all([
-          api.projects(),
-          api.history().catch(() => [])
-        ])
+        const projs = await api.projects()
         if (mounted) {
-          setProjects(Array.isArray(projs) ? projs : [])
-          if (history && history.length > 0) {
-            setCoordinatorEvent(history[history.length - 1])
-          }
-          setLoading(false)
+          const proj = projs.find(p => p.path === projectPath)
+          const list = (proj?.agents ?? []).slice()
+          list.sort((a, b) => {
+            const ar = a.live && a.state === 'running' ? 0 : 1
+            const br = b.live && b.state === 'running' ? 0 : 1
+            if (ar !== br) return ar - br
+            return a.threadId.localeCompare(b.threadId)
+          })
+          setAgents(list)
         }
-      } catch {
-        if (mounted) setLoading(false)
-      }
+      } catch { /* keep previous */ }
     }
-
-    fetchData()
-    const interval = setInterval(fetchData, 3000)
+    fetchAgents()
+    const interval = setInterval(fetchAgents, 3000)
     return () => {
       mounted = false
       clearInterval(interval)
     }
-  }, [])
+  }, [projectPath])
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <NavHeader title="Chats" large />
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 24 }}>
+        <Row
+          avatar={<Avatar name="Coordinator" size={48} />}
+          title="Coordinator"
+          subtitle="Send task to this project"
+          onClick={onOpenCoordinator}
+        />
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 100 }}>
-        <SectionLabel text="Coordinator" />
-        <div className="rise">
-          <Row
-            avatar={<Avatar name="Coordinator" />}
-            title="Coordinator"
-            subtitle={coordinatorEvent?.text || 'Global orchestrator'}
-            timestamp={coordinatorEvent ? formatRelative(coordinatorEvent.at) : undefined}
-            ticks={!!coordinatorEvent}
-            onClick={() => push({ id: 'coordinator' })}
-          />
+        <div style={{ padding: '10px 16px 4px', fontSize: 12.5, fontWeight: 700, color: 'var(--text-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Agents · {agents.length}
         </div>
 
-        <SectionLabel text={`Projects · ${projects.length}`} />
-        {loading && projects.length === 0 ? (
-          <div style={{ padding: 28, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14 }}>Loading...</div>
-        ) : projects.length === 0 ? (
-          <div style={{ padding: 36, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14, lineHeight: 1.5 }}>
-            No projects yet
-            <div style={{ fontSize: 12.5, marginTop: 6 }}>Add a project on the desktop to see it here.</div>
+        {agents.length === 0 ? (
+          <div style={{ padding: 28, textAlign: 'center', color: 'var(--text-mut)', fontSize: 14 }}>
+            No agents in this project
           </div>
         ) : (
-          projects.map((p, i) => (
-            <div className="rise" key={p.id || p.path} style={{ animationDelay: `${Math.min(i * 30, 240)}ms` }}>
-              <Row
-                avatar={<Avatar name={p.name} active={p.runningCount > 0} />}
-                title={p.name}
-                subtitle={
-                  p.totalAgents === 0
-                    ? 'No agents'
-                    : `${p.totalAgents} agent${p.totalAgents === 1 ? '' : 's'}${p.runningCount > 0 ? `, ${p.runningCount} running` : ''}`
-                }
-                timestamp={p.lastActivity ? formatRelative(p.lastActivity) : undefined}
-                badge={p.runningCount}
-                onClick={() => push({ id: 'agents', projectPath: p.path, projectName: p.name })}
-              />
-            </div>
+          agents.map(a => (
+            <Row
+              key={a.threadId}
+              avatar={<Avatar name={a.title} size={48} active={a.live && a.state === 'running'} />}
+              title={a.title}
+              subtitle={statusLabel(a)}
+              timestamp={a.branch}
+              badge={a.live && a.state === 'running' ? 1 : 0}
+              onClick={() => onOpenAgent(a.threadId, a.title)}
+            />
           ))
         )}
       </div>
-    </div>
-  )
-}
-
-function SectionLabel({ text }: { text: string }) {
-  return (
-    <div style={{ padding: '12px 16px 4px', fontSize: 12.5, fontWeight: 700, color: 'var(--text-mut)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-      {text}
     </div>
   )
 }

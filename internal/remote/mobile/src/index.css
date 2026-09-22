@@ -35,6 +35,11 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+html, body {
+  overflow-x: clip;
+  max-width: 100%;
+}
+
 body {
   background: var(--bg-main);
   color: var(--text-pri);
@@ -44,6 +49,10 @@ body {
   overflow: hidden;
   height: 100dvh;
   overscroll-behavior: none;
+}
+
+img, svg, video, canvas, pre, table {
+  max-width: 100%;
 }
 
 #root {

@@ -1,51 +1,14 @@
 import React, { useState } from 'react'
 import { RuntimeEvent } from '../types'
 import { formatTime } from '../utils'
+import { cleanOutput, summarizeToolInput, isNoiseResult } from '../format'
+import Markdown from './Markdown'
 
 interface ChatBubbleProps {
   event: RuntimeEvent
   isUser?: boolean
-  grouped?: boolean
   onApprove?: (requestId: string, decision: string) => void
   onAnswer?: (requestId: string, answers: string[]) => void
-}
-
-const BUBBLE_MAX = '78%'
-
-function Outgoing({ text, at }: { text?: string; at: number }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '1.5px 12px 1.5px 60px' }}>
-      <div style={{ position: 'relative', maxWidth: BUBBLE_MAX, background: 'linear-gradient(180deg, #1f9bf0, #0a84ff)', borderRadius: '18px 18px 5px 18px', padding: '8px 11px 7px', boxShadow: '0 1px 1px rgba(0,0,0,0.35)' }}>
-        <span style={{ fontSize: 16, lineHeight: 1.4, color: '#fff', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {text}
-          <span style={{ display: 'inline-block', width: 44 }} />
-        </span>
-        <span style={{ position: 'absolute', right: 9, bottom: 6, fontSize: 11, color: 'rgba(255,255,255,0.75)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-          {formatTime(at)}
-          <svg width="15" height="10" viewBox="0 0 18 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1.5 6.5L4.5 9.5 11 2.5" />
-            <path d="M7 7.5l2.5 2.5L17 3" />
-          </svg>
-        </span>
-      </div>
-    </div>
-  )
-}
-
-function Incoming({ children, at }: { children: React.ReactNode; at: number }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'flex-start', padding: '1.5px 60px 1.5px 12px' }}>
-      <div style={{ position: 'relative', maxWidth: BUBBLE_MAX, background: 'rgba(38,38,42,0.92)', borderRadius: '5px 18px 18px 18px', padding: '8px 11px 7px', boxShadow: '0 1px 1px rgba(0,0,0,0.35)' }}>
-        <div style={{ fontSize: 16, lineHeight: 1.4, color: '#fff', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {children}
-          <span style={{ display: 'inline-block', width: 38 }} />
-        </div>
-        <span style={{ position: 'absolute', right: 9, bottom: 6, fontSize: 11, color: 'var(--text-mut)' }}>
-          {formatTime(at)}
-        </span>
-      </div>
-    </div>
-  )
 }
 
 export default function ChatBubble({ event, isUser = false, onApprove, onAnswer }: ChatBubbleProps) {
@@ -54,50 +17,73 @@ export default function ChatBubble({ event, isUser = false, onApprove, onAnswer 
   switch (kind) {
     case 'user.message':
       if (!text) return null
-      return <Outgoing text={text} at={at} />
+      return (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '5px 14px 5px 56px', maxWidth: '100%' }}>
+          <div style={{ maxWidth: '100%', background: 'rgba(255,255,255,0.13)', borderRadius: 22, padding: '9px 15px', minWidth: 0 }}>
+            <div style={{ fontSize: 16, lineHeight: 1.5, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
+              <Markdown content={text} />
+            </div>
+          </div>
+        </div>
+      )
 
     case 'agent.message':
       if (!text) return null
-      return <Incoming at={at}>{text}</Incoming>
+      return (
+        <div style={{ padding: '5px 18px', maxWidth: '100%', minWidth: 0 }}>
+          <div style={{ fontSize: 16, lineHeight: 1.62, color: 'var(--text-pri)' }}>
+            <Markdown content={text} />
+          </div>
+        </div>
+      )
 
     case 'agent.thought':
       if (!text) return null
       return (
-        <div style={{ padding: '3px 16px', fontSize: 13.5, fontStyle: 'italic', color: 'var(--text-mut)', lineHeight: 1.45 }}>
-          {text.length > 220 ? text.slice(0, 220) + '…' : text}
+        <div style={{ padding: '2px 18px', fontSize: 13, fontStyle: 'italic', color: 'var(--text-mut)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+          {text.length > 200 ? text.slice(0, 200) + '…' : text}
         </div>
       )
 
-    case 'tool.call':
+    case 'tool.call': {
+      const summary = summarizeToolInput(tool?.input)
       return (
-        <Incoming at={at}>
-          <span style={{ display: 'block', color: 'var(--accent)', fontSize: 12, textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em', marginBottom: 3 }}>
+        <div style={{ padding: '3px 18px', display: 'flex', alignItems: 'baseline', gap: 7, maxWidth: '100%' }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', flexShrink: 0 }}>
             {tool?.name || 'Tool'}
           </span>
-          <span style={{ color: 'var(--text-mut)', fontSize: 13.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-            {JSON.stringify(tool?.input || {})}
-          </span>
-        </Incoming>
-      )
-
-    case 'tool.result':
-      return (
-        <div style={{ padding: '2px 16px', fontSize: 13, color: 'var(--text-mut)' }}>
-          {tool?.output ? (tool.output.length > 140 ? tool.output.slice(0, 140) + '…' : tool.output) : 'Done'}
+          {!!summary && (
+            <span style={{ fontSize: 13, color: 'var(--text-mut)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'ui-monospace, Menlo, monospace' }}>
+              {summary}
+            </span>
+          )}
         </div>
       )
+    }
+
+    case 'tool.result': {
+      const raw = tool?.output ?? text ?? ''
+      if (isNoiseResult(raw)) return null
+      return (
+        <div style={{ margin: '4px 18px', padding: '9px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.045)', border: '0.5px solid var(--border-div)', maxWidth: '100%' }}>
+          <div style={{ fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 12.5, lineHeight: 1.55, color: 'var(--text-sec)', whiteSpace: 'pre-wrap', wordBreak: 'break-all', overflowWrap: 'anywhere' }}>
+            {cleanOutput(raw, 800)}
+          </div>
+        </div>
+      )
+    }
 
     case 'plan': {
       if (!plan || plan.length === 0) return null
       return (
-        <Incoming at={at}>
-          <span style={{ display: 'block', fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>Plan updated</span>
-          <ul style={{ paddingLeft: 17, margin: 0, color: 'var(--text-sec)', fontSize: 14 }}>
+        <div style={{ padding: '5px 18px', maxWidth: '100%' }}>
+          <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 4 }}>Plan updated</div>
+          <ul style={{ paddingLeft: 18, margin: 0, color: 'var(--text-sec)', fontSize: 14, lineHeight: 1.55 }}>
             {plan.map((p, i) => (
-              <li key={i} style={{ marginBottom: 2 }}>{p.content}</li>
+              <li key={i} style={{ marginBottom: 2, overflowWrap: 'anywhere' }}>{p.content}</li>
             ))}
           </ul>
-        </Incoming>
+        </div>
       )
     }
 
@@ -115,19 +101,19 @@ export default function ChatBubble({ event, isUser = false, onApprove, onAnswer 
 
     case 'turn.started':
     case 'session.started':
+    case 'turn.completed':
       return null
 
     case 'session.stopped':
       return <Centered text="Session ended" />
 
-    case 'turn.completed':
-      return null
-
     case 'turn.failed': {
       const raw = error || text || 'Turn failed'
       const friendly = raw.includes('no active session')
         ? 'This agent has finished and can no longer receive messages. Start a new task from its project to continue.'
-        : raw
+        : raw.includes('session_ended')
+          ? 'This agent has finished and can no longer receive messages. Start a new task from its project to continue.'
+          : raw
       return <Centered text={friendly} color="#ff6961" />
     }
 
@@ -142,18 +128,32 @@ export default function ChatBubble({ event, isUser = false, onApprove, onAnswer 
     case 'provider.status':
     case 'usage':
       if (!text && !error) return null
-      return <Centered text={error || text || kind} />
+      return <Centered text={cleanOutput(error || text || kind, 300)} />
 
     default:
-      if (text) return <Incoming at={at}>{text}</Incoming>
+      if (text) {
+        return (
+          <div style={{ padding: '5px 18px', fontSize: 15, lineHeight: 1.6, overflowWrap: 'anywhere' }}>
+            <Markdown content={text} />
+          </div>
+        )
+      }
       return null
   }
 }
 
+export function Time({ at, light }: { at: number; light?: boolean }) {
+  return (
+    <span style={{ fontSize: 11, color: light ? 'rgba(255,255,255,0.7)' : 'var(--text-mut)' }}>
+      {formatTime(at)}
+    </span>
+  )
+}
+
 function Centered({ text, color = 'var(--text-mut)' }: { text: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 24px' }}>
-      <div className="glass" style={{ fontSize: 12.5, fontWeight: 600, color, borderRadius: 16, padding: '5px 13px', textAlign: 'center', maxWidth: '88%' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 24px', maxWidth: '100%' }}>
+      <div className="glass" style={{ fontSize: 12.5, fontWeight: 600, color, borderRadius: 16, padding: '5px 13px', textAlign: 'center', maxWidth: '100%', overflowWrap: 'anywhere' }}>
         {text}
       </div>
     </div>
@@ -178,11 +178,11 @@ function ApprovalView({ event, onApprove }: { event: RuntimeEvent; onApprove?: (
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 12px' }}>
-      <div className="glass" style={{ width: '100%', maxWidth: 340, borderRadius: 20, padding: '13px 14px', borderColor: 'rgba(255,214,10,0.35)' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 14px', maxWidth: '100%' }}>
+      <div className="glass" style={{ width: '100%', borderRadius: 20, padding: '13px 14px', borderColor: 'rgba(255,214,10,0.35)' }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--amber)', letterSpacing: '0.06em', marginBottom: 4 }}>PERMISSION NEEDED</div>
-        <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 3 }}>{event.approval?.title || 'Permission Request'}</div>
-        {!!event.approval?.detail && <div style={{ fontSize: 13.5, color: 'var(--text-sec)', marginBottom: 10, lineHeight: 1.4 }}>{event.approval.detail}</div>}
+        <div style={{ fontSize: 15.5, fontWeight: 700, marginBottom: 3, overflowWrap: 'anywhere' }}>{event.approval?.title || 'Permission Request'}</div>
+        {!!event.approval?.detail && <div style={{ fontSize: 13.5, color: 'var(--text-sec)', marginBottom: 10, lineHeight: 1.4, overflowWrap: 'anywhere' }}>{event.approval.detail}</div>}
         <div style={{ display: 'flex', gap: 8 }}>
           {options.map(o => (
             <button
@@ -224,12 +224,12 @@ function QuestionView({ event, onAnswer }: { event: RuntimeEvent; onAnswer?: (re
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 12px' }}>
-      <div className="glass" style={{ width: '100%', maxWidth: 340, borderRadius: 20, padding: '13px 14px' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 14px', maxWidth: '100%' }}>
+      <div className="glass" style={{ width: '100%', borderRadius: 20, padding: '13px 14px' }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)', letterSpacing: '0.06em', marginBottom: 8 }}>QUESTION</div>
         {questions.map((q, qi) => (
           <div key={qi} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 7 }}>{q.question}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 7, overflowWrap: 'anywhere' }}>{q.question}</div>
             {(q.options || []).map(opt => (
               <button
                 key={opt}
@@ -245,6 +245,7 @@ function QuestionView({ event, onAnswer }: { event: RuntimeEvent; onAnswer?: (re
                   background: selected[qi] === opt ? 'var(--accent)' : 'rgba(255,255,255,0.09)',
                   color: '#fff',
                   fontWeight: selected[qi] === opt ? 700 : 400,
+                  overflowWrap: 'anywhere',
                 }}
               >
                 {opt}

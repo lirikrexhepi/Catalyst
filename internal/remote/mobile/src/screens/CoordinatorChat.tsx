@@ -2,24 +2,25 @@ import React, { useEffect, useState, useRef } from 'react'
 import { RuntimeEvent, ServerMessage } from '../types'
 import { api } from '../api'
 import { mergeEvents, threadRunning } from '../events'
-import NavHeader from '../components/NavHeader'
+import { collapseFeed } from '../format'
 import ChatBubble from '../components/ChatBubble'
 import InputBar from '../components/InputBar'
 
 interface Props {
-  projectName?: string
-  pop: () => void
   wsLastMessage: ServerMessage | null
   wsSend: (msg: object) => boolean
-  wsConnected: boolean
+  pop?: () => void
+  wsConnected?: boolean
   hideBack?: boolean
+  bare?: boolean
 }
 
 function isCoordinatorThread(threadId: string): boolean {
   return threadId === 'coordinator' || threadId.startsWith('coordinator-')
 }
 
-export default function CoordinatorChat({ projectName, pop, wsLastMessage, wsSend, wsConnected, hideBack }: Props) {
+export default function CoordinatorChat(props: Props) {
+  const { wsLastMessage, wsSend } = props
   const [events, setEvents] = useState<RuntimeEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -32,7 +33,7 @@ export default function CoordinatorChat({ projectName, pop, wsLastMessage, wsSen
     api.history().then(hist => {
       if (mounted) setEvents(Array.isArray(hist) ? hist : [])
     }).catch((e) => {
-      if (mounted) setError(e?.message || 'Failed to load history')
+      if (mounted) setError(e instanceof Error ? e.message : 'Failed to load history')
     }).finally(() => {
       if (mounted) setLoading(false)
     })
@@ -98,35 +99,28 @@ export default function CoordinatorChat({ projectName, pop, wsLastMessage, wsSen
     }
   }
 
-  const title = projectName ? `Coordinator — ${projectName}` : 'Coordinator'
+  const visible = collapseFeed(events)
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <NavHeader
-        title={title}
-        onBack={hideBack ? undefined : pop}
-        subtitle={wsConnected ? undefined : 'offline — reconnecting'}
-        rightAction={
-          wsConnected
-            ? <span className="live-dot" />
-            : <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--red)' }} />
-        }
-      />
-
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {error && (
-        <div style={{ margin: '8px 16px 0', padding: '8px 12px', borderRadius: 8, background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.3)', fontSize: 12, color: '#fca5a5' }}>
+        <div style={{ margin: '8px 14px 0', padding: '9px 12px', borderRadius: 12, background: 'rgba(248,113,113,0.12)', border: '0.5px solid rgba(248,113,113,0.3)', fontSize: 13, color: '#fca5a5', overflowWrap: 'anywhere' }}>
           {error}
         </div>
       )}
 
-      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1 }} />
-        {loading && events.length === 0 ? (
+      <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', padding: '8px 0' }}>
+        {loading && visible.length === 0 ? (
           <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-mut)', fontSize: 13 }}>Loading messages...</div>
-        ) : events.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-mut)', fontSize: 13 }}>No messages yet. Send the first task below.</div>
+        ) : visible.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-pri)', fontSize: 21, fontWeight: 800, letterSpacing: '-0.01em' }}>
+            What can I do for you?
+            <div style={{ fontSize: 13.5, fontWeight: 400, color: 'var(--text-mut)', marginTop: 8 }}>
+              Ask the coordinator to plan work across your projects.
+            </div>
+          </div>
         ) : (
-          events.map((ev, i) => (
+          visible.map((ev, i) => (
             <ChatBubble
               key={`${ev.seq}-${i}`}
               event={ev}
@@ -136,7 +130,7 @@ export default function CoordinatorChat({ projectName, pop, wsLastMessage, wsSen
             />
           ))
         )}
-        <div style={{ height: 16 }} />
+        <div style={{ height: 12 }} />
       </div>
 
       <InputBar

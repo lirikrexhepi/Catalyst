@@ -2,10 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { api, getBase, setToken, setBase } from '../api'
 import { maskToken } from '../debug'
 import { getToken } from '../api'
-import NavHeader from '../components/NavHeader'
 import Avatar from '../components/Avatar'
 
-export default function SettingsScreen() {
+export default function SettingsScreen(_props: { bare?: boolean }) {
   const [server] = useState(getBase())
   const [agents, setAgents] = useState({ total: 0, running: 0 })
 
@@ -24,10 +23,8 @@ export default function SettingsScreen() {
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <NavHeader title="Settings" large />
-
-      <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 110 }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingBottom: 24 }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '12px 0 20px' }}>
           <Avatar name="Orchestrator" size={88} active />
           <div style={{ fontSize: 21, fontWeight: 800, marginTop: 12, letterSpacing: '-0.01em' }}>Orchestrator</div>
