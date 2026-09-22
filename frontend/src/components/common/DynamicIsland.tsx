@@ -404,6 +404,17 @@ function formatResets(resetsAtSeconds: number): string {
   return `Resets ${dayName} ${timeStr}`;
 }
 
+function compactCount(value: number): string {
+  if (!value) return '0';
+  if (value < 1000) return `${value}`;
+  if (value < 1_000_000) {
+    const v = value / 1000;
+    return `${v >= 100 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, '')}K`;
+  }
+  const v = value / 1_000_000;
+  return `${v >= 100 ? Math.round(v) : v.toFixed(1).replace(/\.0$/, '')}M`;
+}
+
 // Clean OpenAI swirl icon
 const OpenAISwirlIcon: React.FC<{ className?: string }> = ({ className = 'w-3 h-3' }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -505,6 +516,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
 
   const sessionUsedPercent = typeof sessionLimit?.usedPercent === 'number' ? sessionLimit.usedPercent : 0;
   const weeklyUsedPercent = typeof weeklyLimit?.usedPercent === 'number' ? weeklyLimit.usedPercent : 0;
+  const hasQuota = sessionLimit !== null || weeklyLimit !== null;
 
   // Theme color for selected model (inspired by user Image 2)
   const modelTheme = useMemo(() => {
@@ -1132,55 +1144,75 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               </button>
             </div>
 
-            {/* Current Session Limit (Matching Image 2) */}
-            <div className="flex flex-col gap-1.5 my-1">
-              <div className="flex items-center justify-between text-[11px] font-['Geist']">
-                <span className="text-white/60">Current session</span>
-                <span className="text-[#8E8E93] text-[10px]">
-                  {sessionLimit?.resetsAt ? formatResets(sessionLimit.resetsAt) : ''}
+            {!hasQuota ? (
+              <div className="flex flex-col gap-1.5 my-1">
+                <div className="flex items-center justify-between text-[11px] font-['Geist']">
+                  <span className="text-white/60">This run</span>
+                </div>
+                <div className="flex items-center gap-3 text-[11px] font-['Geist'] text-white/80 tabular-nums">
+                  <span>↓ {compactCount(driverData?.inputTokens ?? 0)} in</span>
+                  <span>↑ {compactCount(driverData?.outputTokens ?? 0)} out</span>
+                  {(driverData?.costUsd ?? 0) > 0 && (
+                    <span>${(driverData?.costUsd ?? 0).toFixed(2)}</span>
+                  )}
+                </div>
+                <span className="text-[10px] text-white/45 font-['Geist']">
+                  No quota — sign in to OpenCode Go for limits
                 </span>
               </div>
+            ) : (
+              <>
+                {/* Current Session Limit (Matching Image 2) */}
+                <div className="flex flex-col gap-1.5 my-1">
+                  <div className="flex items-center justify-between text-[11px] font-['Geist']">
+                    <span className="text-white/60">Current session</span>
+                    <span className="text-[#8E8E93] text-[10px]">
+                      {sessionLimit?.resetsAt ? formatResets(sessionLimit.resetsAt) : ''}
+                    </span>
+                  </div>
 
-              {/* Progress bar matching Image 2 */}
-              <div className={`h-[4px] rounded-full ${isLight ? 'bg-black/[0.08]' : 'bg-white/[0.12]'} overflow-hidden`}>
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min(100, Math.max(sessionUsedPercent > 0 ? 3 : 0, sessionUsedPercent))}%`,
-                    backgroundColor: modelTheme.barColor,
-                  }}
-                />
-              </div>
+                  {/* Progress bar matching Image 2 */}
+                  <div className={`h-[4px] rounded-full ${isLight ? 'bg-black/[0.08]' : 'bg-white/[0.12]'} overflow-hidden`}>
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, Math.max(sessionUsedPercent > 0 ? 3 : 0, sessionUsedPercent))}%`,
+                        backgroundColor: modelTheme.barColor,
+                      }}
+                    />
+                  </div>
 
-              <span className="text-[10px] text-white/80 font-medium font-['Geist']">
-                {sessionUsedPercent}% Used
-              </span>
-            </div>
+                  <span className="text-[10px] text-white/80 font-medium font-['Geist']">
+                    {sessionUsedPercent}% Used
+                  </span>
+                </div>
 
-            {/* All Models / Weekly Limit (Matching Image 2) */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between text-[11px] font-['Geist']">
-                <span className="text-white/60">All models</span>
-                <span className="text-[#8E8E93] text-[10px]">
-                  {weeklyLimit?.resetsAt ? formatResets(weeklyLimit.resetsAt) : ''}
-                </span>
-              </div>
+                {/* All Models / Weekly Limit (Matching Image 2) */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-['Geist']">
+                    <span className="text-white/60">All models</span>
+                    <span className="text-[#8E8E93] text-[10px]">
+                      {weeklyLimit?.resetsAt ? formatResets(weeklyLimit.resetsAt) : ''}
+                    </span>
+                  </div>
 
-              {/* Progress bar matching Image 2 */}
-              <div className={`h-[4px] rounded-full ${isLight ? 'bg-black/[0.08]' : 'bg-white/[0.12]'} overflow-hidden`}>
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${Math.min(100, Math.max(weeklyUsedPercent > 0 ? 3 : 0, weeklyUsedPercent))}%`,
-                    backgroundColor: '#10b981', // Green from Image 2
-                  }}
-                />
-              </div>
+                  {/* Progress bar matching Image 2 */}
+                  <div className={`h-[4px] rounded-full ${isLight ? 'bg-black/[0.08]' : 'bg-white/[0.12]'} overflow-hidden`}>
+                    <div
+                      className="h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, Math.max(weeklyUsedPercent > 0 ? 3 : 0, weeklyUsedPercent))}%`,
+                        backgroundColor: '#10b981', // Green from Image 2
+                      }}
+                    />
+                  </div>
 
-              <span className="text-[10px] text-white/80 font-medium font-['Geist']">
-                {weeklyUsedPercent}% Used
-              </span>
-            </div>
+                  <span className="text-[10px] text-white/80 font-medium font-['Geist']">
+                    {weeklyUsedPercent}% Used
+                  </span>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
