@@ -55,12 +55,12 @@ export default function Drawer({ open, onClose, projects, selection, onSelect, o
         }}
       />
       <div
-        className="safe-top"
         style={{
           position: 'absolute',
           top: 0,
           bottom: 0,
           left: 0,
+          paddingTop: 'max(14px, env(safe-area-inset-top, 0px))',
           width: 'min(84vw, 330px)',
           maxWidth: '100%',
           background: 'rgba(14,14,17,0.92)',

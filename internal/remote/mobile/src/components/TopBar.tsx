@@ -9,7 +9,7 @@ interface TopBarProps {
 
 export default function TopBar({ title, onMenu, onNewChat, live }: TopBarProps) {
   return (
-    <div className="safe-top" style={{ padding: '8px 12px 4px', display: 'flex', alignItems: 'center', gap: 10, maxWidth: '100%' }}>
+    <div style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 0px))', paddingRight: 12, paddingBottom: 4, paddingLeft: 12, display: 'flex', alignItems: 'center', gap: 10, maxWidth: '100%' }}>
       <button
         onClick={onMenu}
         aria-label="Menu"
