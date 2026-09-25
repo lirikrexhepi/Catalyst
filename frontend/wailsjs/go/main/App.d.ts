@@ -63,12 +63,6 @@ export function GitFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<domain
 
 export function GitOverview():Promise<Array<domain.WorktreeChanges>>;
 
-export function ProjectFile(arg1:string,arg2:string):Promise<files.Content>;
-
-export function ProjectTree(arg1:string,arg2:string):Promise<Array<files.Entry>>;
-
-export function ProjectTreeStatus(arg1:string):Promise<files.TreeStatus>;
-
 export function ImportClaudeCodeSession(arg1:string):Promise<string>;
 
 export function InterruptTurn(arg1:string):Promise<void>;
@@ -116,6 +110,12 @@ export function OrchestratorStopAgent(arg1:string):Promise<void>;
 export function ParseTasks(arg1:string):Promise<Array<session.TaskRequest>>;
 
 export function PreviewAttachment(arg1:string):Promise<string>;
+
+export function ProjectFile(arg1:string,arg2:string):Promise<files.Content>;
+
+export function ProjectTree(arg1:string,arg2:string):Promise<Array<files.Entry>>;
+
+export function ProjectTreeStatus(arg1:string):Promise<files.TreeStatus>;
 
 export function RecapPrompt(arg1:string):Promise<string>;
 
