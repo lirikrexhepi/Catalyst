@@ -644,6 +644,7 @@ export namespace domain {
 	    cacheReadTokens?: number;
 	    cacheWriteTokens?: number;
 	    contextWindow?: number;
+	    contextTokens?: number;
 	    costUsd?: number;
 	
 	    static createFrom(source: any = {}) {
@@ -657,6 +658,7 @@ export namespace domain {
 	        this.cacheReadTokens = source["cacheReadTokens"];
 	        this.cacheWriteTokens = source["cacheWriteTokens"];
 	        this.contextWindow = source["contextWindow"];
+	        this.contextTokens = source["contextTokens"];
 	        this.costUsd = source["costUsd"];
 	    }
 	}

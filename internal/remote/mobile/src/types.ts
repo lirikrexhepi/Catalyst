@@ -69,6 +69,7 @@ export interface RuntimeEvent {
   stopReason?: string
   error?: string
   rateLimits?: Array<{ window: string; status?: string; usedPercent?: number; resetsAt?: number }>
+  usage?: { contextTokens?: number; contextWindow?: number }
 }
 
 export interface ServerMessage {

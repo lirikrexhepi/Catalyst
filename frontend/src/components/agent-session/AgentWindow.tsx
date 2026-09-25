@@ -13,6 +13,8 @@ import { TextShimmer } from './TextShimmer';
 import { AgentStreamBlock, TodoToolBlockData } from './types';
 import { AgentTasklistView } from './AgentTasklistView';
 import { useSmoothScroll } from '../common/useSmoothScroll';
+import { ContextRing } from './ContextRing';
+import type { ContextUsage } from './contextUsage';
 
 export type AgentSessionStatus = 'working' | 'finished' | 'idle' | 'error';
 
@@ -27,6 +29,7 @@ export interface AgentWindowProps {
   workStartedAt?: number;
   /** Duration of the most recent finished turn in ms; shown when idle. */
   lastTurnMs?: number;
+  contextUsage?: ContextUsage;
   /** Retained for backward compatibility */
   initialPosition?: { x: number; y: number };
   initialSize?: { width: number; height: number };
@@ -89,6 +92,7 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
   status,
   workStartedAt,
   lastTurnMs,
+  contextUsage,
   modelId,
   streamBlocks,
   isFocused = false,
@@ -384,6 +388,7 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
                   </span>
                 )}
               </div>
+              <ContextRing usage={contextUsage} isLight={isLight} />
             </div>
 
             <div className="flex items-center gap-2 shrink-0">

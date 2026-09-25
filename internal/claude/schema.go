@@ -45,12 +45,13 @@ type Envelope struct {
 	ParentToolUseID string `json:"parent_tool_use_id,omitempty"`
 	UUID            string `json:"uuid,omitempty"`
 
-	IsError    bool    `json:"is_error,omitempty"`
-	StopReason string  `json:"stop_reason,omitempty"`
-	Result     string  `json:"result,omitempty"`
-	TotalCost  float64 `json:"total_cost_usd,omitempty"`
-	NumTurns   int     `json:"num_turns,omitempty"`
-	Usage      *Usage  `json:"usage,omitempty"`
+	IsError    bool                  `json:"is_error,omitempty"`
+	StopReason string                `json:"stop_reason,omitempty"`
+	Result     string                `json:"result,omitempty"`
+	TotalCost  float64               `json:"total_cost_usd,omitempty"`
+	NumTurns   int                   `json:"num_turns,omitempty"`
+	Usage      *Usage                `json:"usage,omitempty"`
+	ModelUsage map[string]ModelUsage `json:"modelUsage,omitempty"`
 
 	RateLimitInfo *RateLimitInfo  `json:"rate_limit_info,omitempty"`
 	RequestID     string          `json:"request_id,omitempty"`

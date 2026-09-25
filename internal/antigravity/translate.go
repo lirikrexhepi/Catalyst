@@ -89,6 +89,10 @@ func (a *Adapter) handleStep(s *session, turnID string, step *StepUpdate) {
 	if step.Usage != nil {
 		event := a.event(s, turnID, domain.EventUsage)
 		event.Usage = convertUsage(step.Usage)
+		event.Usage.ContextTokens = step.Usage.TotalTokens
+		if event.Usage.ContextTokens == 0 {
+			event.Usage.ContextTokens = step.Usage.InputTokens + step.Usage.OutputTokens
+		}
 		a.emit.Emit(event)
 	}
 }

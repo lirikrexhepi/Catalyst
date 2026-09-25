@@ -46,7 +46,7 @@ type RuntimeEvent struct {
 	// event belongs to, so consumers merge streamed deltas into the right block
 	// and start a new one when the item changes. Empty for legacy events.
 	ItemID string `json:"itemId,omitempty"`
-	At         int64      `json:"at"`
+	At     int64  `json:"at"`
 
 	Text       string           `json:"text,omitempty"`
 	Delta      bool             `json:"delta,omitempty"`
@@ -113,6 +113,7 @@ type Usage struct {
 	CacheReadTokens  int64   `json:"cacheReadTokens,omitempty"`
 	CacheWriteTokens int64   `json:"cacheWriteTokens,omitempty"`
 	ContextWindow    int64   `json:"contextWindow,omitempty"`
+	ContextTokens    int64   `json:"contextTokens,omitempty"`
 	CostUSD          float64 `json:"costUsd,omitempty"`
 }
 

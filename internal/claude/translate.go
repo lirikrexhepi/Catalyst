@@ -26,6 +26,7 @@ func (a *Adapter) handleEnvelope(s *session, envelope *Envelope) {
 	switch envelope.Type {
 	case "system":
 		if envelope.Subtype == "init" {
+			s.noteModel(envelope.Model)
 			event := a.event(s, domain.EventSessionStarted)
 			event.Text = s.providerSessionID()
 			a.emit.Emit(event)
@@ -181,6 +182,9 @@ func (a *Adapter) handleAssistant(s *session, envelope *Envelope) {
 	if envelope.Message.Usage != nil {
 		event := a.event(s, domain.EventUsage)
 		event.Usage = convertUsage(envelope.Message.Usage, 0)
+		u := envelope.Message.Usage
+		event.Usage.ContextTokens = u.InputTokens + u.CacheReadInputTokens + u.CacheCreationInputTokens + u.OutputTokens
+		event.Usage.ContextWindow = s.contextLimit()
 		a.emit.Emit(event)
 	}
 }
@@ -247,10 +251,15 @@ func (a *Adapter) handleResult(s *session, envelope *Envelope) {
 	s.currentMsgID = ""
 	s.mu.Unlock()
 
+	for _, model := range envelope.ModelUsage {
+		s.noteContextWindow(model.ContextWindow)
+	}
 	if envelope.Usage != nil {
+		usage := convertUsage(envelope.Usage, envelope.TotalCost)
+		usage.ContextWindow = s.contextLimit()
 		a.emit.Emit(domain.RuntimeEvent{
 			Kind: domain.EventUsage, ThreadID: s.threadID, TurnID: turnID, Driver: domain.DriverClaude,
-			Usage: convertUsage(envelope.Usage, envelope.TotalCost),
+			Usage: usage,
 		})
 	}
 

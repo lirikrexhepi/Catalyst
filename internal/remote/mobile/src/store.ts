@@ -40,6 +40,7 @@ export interface ThreadState {
   turnMs: Record<string, number>
   queued: QueuedMessage[]
   sending: boolean
+  context?: { tokens: number; window?: number }
 }
 
 export type Connection = 'connecting' | 'live' | 'offline'
@@ -128,10 +129,17 @@ function patchThread(threadId: string, patch: (t: ThreadState) => ThreadState) {
 
 /** Folds events into a thread, tracking busy state and turn durations. */
 function fold(t: ThreadState, events: RuntimeEvent[]): ThreadState {
-  let { blocks, busy, turnStartedAt, turnMs } = t
+  let { blocks, busy, turnStartedAt, turnMs, context } = t
   let lastSeq = t.lastSeq
   let durations: Record<string, number> | null = null
   for (const event of events) {
+    if (event.kind === 'usage') {
+      const tokens = event.usage?.contextTokens || context?.tokens
+      const window = event.usage?.contextWindow || context?.window
+      if (tokens) context = { tokens, window }
+      if (event.seq > lastSeq) lastSeq = event.seq
+      continue
+    }
     blocks = reduceEvent(blocks, event)
     if (event.seq > lastSeq) lastSeq = event.seq
     if (event.kind === 'turn.started') {
@@ -146,7 +154,7 @@ function fold(t: ThreadState, events: RuntimeEvent[]): ThreadState {
       turnStartedAt = undefined
     }
   }
-  return { ...t, blocks, busy, turnStartedAt, lastSeq, turnMs: durations ?? turnMs }
+  return { ...t, blocks, busy, turnStartedAt, lastSeq, turnMs: durations ?? turnMs, context }
 }
 
 const saveTimers = new Map<string, number>()

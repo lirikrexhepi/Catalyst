@@ -11,6 +11,7 @@ import { effectiveChoice, interrupt, loadProviders, loadThread, message, refresh
 import type { DevServer, ModelChoice, Project } from '../types'
 import { PreviewLauncher, PreviewScreen } from './Preview'
 import { providerIcon } from '../components/providerIcons'
+import ContextMeter from '../components/ContextMeter'
 
 interface ChatProps {
   threadId: string | null
@@ -133,6 +134,7 @@ function Conversation({ threadId, openDrawer, go }: ChatProps & { threadId: stri
       <div className="chat-title">
         {title}
         {summary?.projectName ? ` · ${summary.projectName}` : ''}
+        <ContextMeter usage={thread?.context} />
       </div>
 
       <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

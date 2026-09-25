@@ -987,6 +987,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                     status={task.isBusy ? 'working' : 'idle'}
                     workStartedAt={task.workStartedAt}
                     lastTurnMs={task.lastTurnMs}
+                    contextUsage={task.context}
                     modelId={task.model}
                     streamBlocks={task.blocks}
                     isFocused={viewMode === 'deck' ? isCenter : false}

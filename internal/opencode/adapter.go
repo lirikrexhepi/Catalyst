@@ -39,6 +39,10 @@ type Adapter struct {
 	bySession        map[string]*thread
 	pending          map[string]string
 	pendingQuestions map[string]string
+
+	limitsMu sync.Mutex
+	limits   map[string]map[string]int64
+	limitsAt map[string]time.Time
 }
 
 type thread struct {
@@ -267,7 +271,7 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 	variant := t.options.String(domain.OptionEffort)
 	model := t.model
 	t.mu.Unlock()
-	request := PromptRequest{Model: parseModelRef(model), Variant: variant, Parts: parts}
+	request := PromptRequest{Model: parseModelRef(model), Variant: variant, System: provider.RuntimeInstructions, Parts: parts}
 	if err := api.do(ctx, http.MethodPost, "/session/"+t.sessionID+"/prompt_async", request, nil); err != nil {
 		t.mu.Lock()
 		t.turnID = ""
@@ -485,4 +489,3 @@ func parseModelRef(raw string) *ModelRef {
 	}
 	return &ModelRef{ProviderID: "opencode", ModelID: raw}
 }
-

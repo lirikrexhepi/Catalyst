@@ -137,6 +137,10 @@ svg { flex-shrink: 0; }
 .working .dot { width: 10px; height: 10px; background: var(--text); animation: pulse 1.2s ease-in-out infinite; }
 .timer, .when { font-variant-numeric: tabular-nums; color: var(--text-3); font-size: 13px; }
 .chat-title { font-size: 13px; color: var(--text-3); text-align: center; padding: 0 24px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-meter { font-variant-numeric: tabular-nums; }
+.ctx-meter svg { display: inline-block; vertical-align: -1px; margin-right: 3px; }
+.ctx-meter.warm { color: #ffd60a; }
+.ctx-meter.hot { color: var(--fault); }
 .empty { padding: 48px 28px; text-align: center; color: var(--text-3); font-size: 15px; }
 .empty strong { display: block; color: var(--text); font-size: 20px; font-weight: 600; margin-bottom: 6px; }
 

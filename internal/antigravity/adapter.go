@@ -188,7 +188,7 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 	for _, file := range in.Files {
 		prompt += "\n@" + file.Path
 	}
-	prompt += "\n\n" + runtimeInstructions
+	prompt += "\n\n" + provider.RuntimeInstructions
 
 	turnCtx, cancelTurn := context.WithCancel(context.Background())
 	s.mu.Lock()

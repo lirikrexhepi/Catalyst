@@ -19,6 +19,7 @@ import {
 import { domain, history, session } from '../../../wailsjs/go/models';
 import { AgentStreamBlock } from '../agent-session';
 import { reduceEvent, RuntimeEvent, userBlock } from '../agent-session/eventReducer';
+import { ContextUsage, latestContext, nextContext } from '../agent-session/contextUsage';
 import { useOrchestratorStore } from './useOrchestratorStore';
 import { toModelOptions } from './orchestratorData';
 
@@ -45,6 +46,7 @@ export interface SpawnedTask {
   workStartedAt?: number;
   /** Duration of the most recent finished turn, in milliseconds. */
   lastTurnMs?: number;
+  context?: ContextUsage;
 }
 
 export interface Spawner {
@@ -187,6 +189,10 @@ function lastTurnDuration(events: RuntimeEvent[] | undefined): number | undefine
 
 /** Folds one runtime event into a task card's state. */
 function applyEvent(task: SpawnedTask, event: RuntimeEvent): SpawnedTask {
+  if (event.kind === 'usage') {
+    const context = nextContext(task.context, event);
+    return context === task.context ? task : { ...task, context };
+  }
   const blocks = reduceEvent(task.blocks, event);
   if (event.kind === 'turn.started') {
     return { ...task, blocks, isBusy: true, isLive: true, workStartedAt: event.at || Date.now() };
@@ -1046,6 +1052,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
           driver: (t as any).driver,
           blocks,
           lastTurnMs: lastTurnDuration(threadEvents),
+          context: latestContext(threadEvents),
           isBusy: false,
           workspaceId: targetWorkspaceId,
           isLive: false,

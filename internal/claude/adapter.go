@@ -72,6 +72,9 @@ type session struct {
 	turnID    string
 	sessionID string
 
+	runningModel  string
+	contextWindow int64
+
 	// interrupting marks a turn the user stopped, so its result maps to a
 	// cancelled completion rather than an error.
 	interrupting bool
@@ -140,6 +143,12 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 	if settings := sessionSettings(in.Options); settings != "" {
 		args = append(args, "--settings", settings)
 	}
+	if thinkingSummaries(in.Options) {
+		args = append(args, "--thinking-display", "summarized")
+	}
+	if !in.PlanOnly {
+		args = append(args, "--append-system-prompt", provider.RuntimeInstructions)
+	}
 	return append(args, shell.TokenizeArgs(a.settings.LaunchArgs)...)
 }
 
@@ -151,6 +160,9 @@ func sessionSettings(options domain.ModelOptions) string {
 	if options.Bool(domain.OptionFastMode) {
 		fields["fastMode"] = true
 	}
+	if thinkingSummaries(options) {
+		fields["showThinkingSummaries"] = true
+	}
 	if len(fields) == 0 {
 		return ""
 	}
@@ -159,6 +171,11 @@ func sessionSettings(options domain.ModelOptions) string {
 		return ""
 	}
 	return string(encoded)
+}
+
+func thinkingSummaries(options domain.ModelOptions) bool {
+	_, set := options[domain.OptionThinking]
+	return !set || options.Bool(domain.OptionThinking)
 }
 
 func firstNonEmpty(values ...string) string {

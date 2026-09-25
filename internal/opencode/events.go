@@ -262,6 +262,8 @@ func (a *Adapter) onMessageUpdated(raw json.RawMessage) {
 		CacheReadTokens:  info.Tokens.Cache.Read,
 		CacheWriteTokens: info.Tokens.Cache.Write,
 		CostUSD:          info.Cost,
+		ContextTokens:    info.Tokens.Input + info.Tokens.Output + info.Tokens.Reasoning + info.Tokens.Cache.Read + info.Tokens.Cache.Write,
+		ContextWindow:    a.contextLimit(t, info.ProviderID, info.ModelID),
 	}
 	a.emit.Emit(event)
 }

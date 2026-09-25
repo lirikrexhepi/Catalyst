@@ -35,6 +35,7 @@ type PromptRequest struct {
 	Agent     string    `json:"agent,omitempty"`
 	// Variant selects a model variant (reasoning effort such as "high").
 	Variant string `json:"variant,omitempty"`
+	System  string `json:"system,omitempty"`
 	Parts   []any  `json:"parts"`
 }
 
@@ -64,9 +65,10 @@ type MessageInfo struct {
 }
 
 type Tokens struct {
-	Input  int64 `json:"input"`
-	Output int64 `json:"output"`
-	Cache  struct {
+	Input     int64 `json:"input"`
+	Output    int64 `json:"output"`
+	Reasoning int64 `json:"reasoning"`
+	Cache     struct {
 		Read  int64 `json:"read"`
 		Write int64 `json:"write"`
 	} `json:"cache"`
