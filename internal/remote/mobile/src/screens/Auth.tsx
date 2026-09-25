@@ -164,7 +164,10 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
         <div className="pair-spacer" />
 
         <div className="pair-card">
-          <div className="pair-brand">the orchestrator.</div>
+          <div className="pair-brand">
+            <img src="/icon-192.png" alt="" className="pair-brand-icon" />
+            <span>the orchestrator.</span>
+          </div>
           <h1 className="pair-title">
             Your agents, from<br />your pocket
           </h1>

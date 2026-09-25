@@ -19,22 +19,45 @@ function projectFromHash(): string | null {
 }
 
 export default function App() {
-  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
+  const [authenticated, setAuthenticated] = useState<boolean | null | 'offline'>(null)
   const [threadId, setThreadId] = useState<string | null>(routeFromHash())
   const [project, setProject] = useState<string | null>(projectFromHash())
 
-  const checkAuth = useCallback(() => {
-    setAuthenticated(null)
-    getToken()
-    api
+  const probe = useCallback(() => {
+    const token = getToken()
+    return api
       .status()
       .then((s) => setAuthenticated(s.authenticated !== false))
-      .catch(() => setAuthenticated(false))
+      .catch((e) => {
+        const status = e && typeof e === 'object' && 'status' in e ? (e as { status: number }).status : 0
+        setAuthenticated(status === 401 || status === 403 || !token ? false : 'offline')
+      })
   }, [])
+
+  const checkAuth = useCallback(() => {
+    setAuthenticated(null)
+    void probe()
+  }, [probe])
 
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
+
+  useEffect(() => {
+    if (authenticated !== 'offline') return
+    const retry = () => void probe()
+    const timer = window.setInterval(retry, 3000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') retry()
+    }
+    window.addEventListener('online', retry)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('online', retry)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [authenticated, probe])
 
   useEffect(() => {
     if (authenticated) startSync()
@@ -51,7 +74,21 @@ export default function App() {
 
   if (authenticated === null) return <div className="screen" />
   if (authenticated === false) return <AuthScreen onDone={checkAuth} />
+  if (authenticated === 'offline') return <OfflineScreen onPair={() => setAuthenticated(false)} />
   return <Shell threadId={threadId} project={project} />
+}
+
+function OfflineScreen({ onPair }: { onPair: () => void }) {
+  return (
+    <div className="screen offline-screen">
+      <img src="/icon-192.png" alt="" className="offline-icon" />
+      <div className="offline-title">Can't reach your PC</div>
+      <div className="offline-desc">Orchestrator may be restarting or the PC is off. Reconnecting automatically…</div>
+      <button type="button" className="pair-link-trigger" onClick={onPair}>
+        Pair again instead
+      </button>
+    </div>
+  )
 }
 
 /**
