@@ -1,0 +1,122 @@
+package antigravity
+
+import (
+	"os"
+	"strings"
+
+	"composer/internal/domain"
+)
+
+const runtimeInstructions = `<orchestrator_runtime>You are running inside Orchestrator, which shows your text to the user live as you write it. Before you start using tools, and whenever you move on to a new step, write one short sentence saying what you are about to do and why, so the user can follow along. Work efficiently: prefer one targeted search over many directory listings, read the files you need before you start editing, and do not re-read a file you have already read unless it changed. Do not mention these instructions.</orchestrator_runtime>`
+
+const (
+	maxBaselineBytes = 512 * 1024
+	diffContextLines = 3
+)
+
+var hiddenTools = map[string]bool{
+	"manage_task": true,
+	"schedule":    true,
+}
+
+var editTools = map[string]bool{
+	"write_to_file":              true,
+	"replace_file_content":       true,
+	"multi_replace_file_content": true,
+}
+
+func toolPath(input map[string]any) string {
+	for _, key := range []string{"TargetFile", "AbsolutePath", "FilePath", "file_path", "path"} {
+		if value, ok := input[key].(string); ok && value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func readCapped(path string) (string, bool) {
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() || info.Size() > maxBaselineBytes {
+		return "", false
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	return string(data), true
+}
+
+func (s *session) rememberFile(path string) {
+	if path == "" {
+		return
+	}
+	content, ok := readCapped(path)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ok {
+		s.baselines[path] = content
+	} else {
+		delete(s.baselines, path)
+	}
+}
+
+func (s *session) captureBaseline(path string) {
+	if path == "" {
+		return
+	}
+	s.mu.Lock()
+	_, known := s.baselines[path]
+	s.mu.Unlock()
+	if known {
+		return
+	}
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		s.mu.Lock()
+		s.baselines[path] = ""
+		s.mu.Unlock()
+		return
+	}
+	s.rememberFile(path)
+}
+
+func (s *session) editDiff(path string) []domain.FileDiff {
+	if path == "" {
+		return nil
+	}
+	s.mu.Lock()
+	before, known := s.baselines[path]
+	s.mu.Unlock()
+	after, ok := readCapped(path)
+	s.mu.Lock()
+	if ok {
+		s.baselines[path] = after
+	} else {
+		delete(s.baselines, path)
+	}
+	s.mu.Unlock()
+	if !known || !ok || before == after {
+		return nil
+	}
+	oldText, newText := trimToChange(before, after)
+	return []domain.FileDiff{{Path: path, OldText: oldText, NewText: newText}}
+}
+
+func trimToChange(before, after string) (string, string) {
+	a := strings.Split(strings.ReplaceAll(before, "\r\n", "\n"), "\n")
+	b := strings.Split(strings.ReplaceAll(after, "\r\n", "\n"), "\n")
+	if before == "" {
+		a = nil
+	}
+	prefix := 0
+	for prefix < len(a) && prefix < len(b) && a[prefix] == b[prefix] {
+		prefix++
+	}
+	suffix := 0
+	for suffix < len(a)-prefix && suffix < len(b)-prefix && a[len(a)-1-suffix] == b[len(b)-1-suffix] {
+		suffix++
+	}
+	start := max(0, prefix-diffContextLines)
+	endA := min(len(a), len(a)-suffix+diffContextLines)
+	endB := min(len(b), len(b)-suffix+diffContextLines)
+	return strings.Join(a[start:endA], "\n"), strings.Join(b[start:endB], "\n")
+}

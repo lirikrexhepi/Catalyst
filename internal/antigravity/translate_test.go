@@ -20,7 +20,7 @@ func newTestAdapter() (*Adapter, *session, *[]domain.RuntimeEvent) {
 		captured = append(captured, event)
 	})
 	a := NewAdapter(domain.ProviderSettings{}, emit)
-	s := &session{threadID: "t1", cwd: `C:\repo`, permission: domain.PermissionBypass, tools: make(map[int]string)}
+	s := &session{threadID: "t1", cwd: `C:\repo`, permission: domain.PermissionBypass, tools: make(map[int]string), baselines: make(map[string]string)}
 	return a, s, &captured
 }
 

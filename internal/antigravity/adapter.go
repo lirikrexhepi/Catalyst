@@ -56,6 +56,8 @@ type session struct {
 	// this adapter spawns one per prompt, so it is only set while a turn is in
 	// flight — long enough for a dev server the turn starts to be attributed.
 	proc *process.Process
+
+	baselines map[string]string
 }
 
 const defaultPrintTimeout = "30m"
@@ -102,6 +104,7 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 		permission:     in.Permission,
 		conversationID: in.Resume,
 		tools:          make(map[int]string),
+		baselines:      make(map[string]string),
 	}
 
 	a.mu.Lock()
@@ -185,6 +188,7 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 	for _, file := range in.Files {
 		prompt += "\n@" + file.Path
 	}
+	prompt += "\n\n" + runtimeInstructions
 
 	turnCtx, cancelTurn := context.WithCancel(context.Background())
 	s.mu.Lock()

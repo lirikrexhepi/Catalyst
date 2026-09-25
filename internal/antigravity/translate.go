@@ -117,6 +117,21 @@ func (a *Adapter) handleTool(s *session, turnID string, step *StepUpdate) {
 		}
 	}
 
+	if hiddenTools[step.ToolName] {
+		return
+	}
+	path := toolPath(tool.Input)
+	if editTools[step.ToolName] {
+		if seen == "" {
+			s.captureBaseline(path)
+		}
+		if tool.Status == domain.ToolCompleted {
+			tool.Diffs = s.editDiff(path)
+		}
+	} else if step.ToolName == "view_file" && tool.Status == domain.ToolCompleted {
+		s.rememberFile(path)
+	}
+
 	if step.ToolName == "ask_permission" || step.ToolName == "ask_custom_permission" {
 		title := "Permission Request"
 		detail := ""
