@@ -158,7 +158,7 @@ func (c *Coordinator) SendWithContext(
 	handoff := c.pendingHandoff
 	c.pendingHandoff = ""
 	if !c.primed {
-		body = SystemPrompt + "\n\n---\n\n" + text
+		body = SystemPrompt + "\n\n---\n\n" + body
 		c.primed = true
 	}
 	if handoff != "" {

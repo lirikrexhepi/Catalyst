@@ -311,6 +311,8 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+const SessionNote = "<remote_session>The user is sending this from their phone through Orchestrator's remote app, not from the PC.</remote_session>"
+
 type sendBody struct {
 	ThreadID string           `json:"threadId"`
 	Text     string           `json:"text"`
@@ -334,7 +336,7 @@ func (s *Server) handleThreadSend(w http.ResponseWriter, r *http.Request) {
 			cfg.Driver, cfg.Model, cfg.Options = c.Driver, c.Model, c.Options
 		}
 		s.orchestrator.Remember(cfg)
-		turnID, err := s.coordinator.SendWithFiles(ctx, cfg, body.Text, body.Files)
+		turnID, err := s.coordinator.SendWithContext(ctx, cfg, body.Text, SessionNote, body.Files)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, err)
 			return

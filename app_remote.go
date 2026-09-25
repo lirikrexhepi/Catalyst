@@ -125,7 +125,7 @@ func (a *App) remoteSendAgent(ctx context.Context, threadID, text string, files 
 	turnID := fmt.Sprintf("%s-turn-%d", threadID, time.Now().UnixMilli())
 	a.manager.RecordUserMessage(threadID, turnID, text, files...)
 	a.workspaces.SetState(threadID, domain.TaskRunning)
-	return a.manager.Send(ctx, domain.SendTurnInput{ThreadID: threadID, TurnID: turnID, Text: text, Files: files})
+	return a.manager.Send(ctx, domain.SendTurnInput{ThreadID: threadID, TurnID: turnID, Text: text + "\n\n" + remote.SessionNote, Files: files})
 }
 
 // remoteNewAgent starts an agent from the phone and puts it on the desktop
