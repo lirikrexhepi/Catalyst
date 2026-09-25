@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestWantsHeadless(t *testing.T) {
 	cases := map[string]bool{
@@ -32,4 +35,18 @@ func splitArgs(line string) []string {
 		field += string(r)
 	}
 	return out
+}
+
+func TestWaitPIDArg(t *testing.T) {
+	cases := map[string]int{
+		"--headless --wait-pid=4312": 4312,
+		"--headless":                 0,
+		"--headless --wait-pid=abc":  0,
+		"--wait-pid=-3 --headless":   0,
+	}
+	for line, want := range cases {
+		if got := waitPIDArg(append([]string{"orchestrator.exe"}, strings.Fields(line)...)); got != want {
+			t.Errorf("%q: got %d, want %d", line, got, want)
+		}
+	}
 }

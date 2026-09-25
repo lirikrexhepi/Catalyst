@@ -66,6 +66,10 @@ export function GetAllUserPreferences() {
   return window['go']['main']['App']['GetAllUserPreferences']();
 }
 
+export function GetBackgroundSettings() {
+  return window['go']['main']['App']['GetBackgroundSettings']();
+}
+
 export function GetProjectMemory(arg1) {
   return window['go']['main']['App']['GetProjectMemory'](arg1);
 }
@@ -278,8 +282,16 @@ export function ServerLogs(arg1) {
   return window['go']['main']['App']['ServerLogs'](arg1);
 }
 
+export function SetKeepRunningOnClose(arg1) {
+  return window['go']['main']['App']['SetKeepRunningOnClose'](arg1);
+}
+
 export function SetProviderPermission(arg1, arg2) {
   return window['go']['main']['App']['SetProviderPermission'](arg1, arg2);
+}
+
+export function SetStartMode(arg1) {
+  return window['go']['main']['App']['SetStartMode'](arg1);
 }
 
 export function SetUserPreference(arg1, arg2) {

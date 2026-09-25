@@ -4,6 +4,7 @@ import {projects} from '../models';
 import {attachments} from '../models';
 import {domain} from '../models';
 import {session} from '../models';
+import {main} from '../models';
 import {remote} from '../models';
 import {claudeimport} from '../models';
 import {history} from '../models';
@@ -42,6 +43,8 @@ export function DiscardAttachment(arg1:string):Promise<void>;
 export function GetAgentTasks(arg1:string):Promise<Array<domain.PlanEntry>>;
 
 export function GetAllUserPreferences():Promise<Record<string, string>>;
+
+export function GetBackgroundSettings():Promise<main.BackgroundSettings>;
 
 export function GetProjectMemory(arg1:string):Promise<string>;
 
@@ -149,7 +152,11 @@ export function SendTurn(arg1:domain.SendTurnInput):Promise<void>;
 
 export function ServerLogs(arg1:string):Promise<Array<string>>;
 
+export function SetKeepRunningOnClose(arg1:boolean):Promise<main.BackgroundSettings>;
+
 export function SetProviderPermission(arg1:string,arg2:boolean):Promise<void>;
+
+export function SetStartMode(arg1:string):Promise<main.BackgroundSettings>;
 
 export function SetUserPreference(arg1:string,arg2:string):Promise<void>;
 

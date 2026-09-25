@@ -1256,6 +1256,29 @@ export namespace history {
 
 }
 
+export namespace main {
+	
+	export class BackgroundSettings {
+	    startMode: string;
+	    keepRunningOnClose: boolean;
+	    supported: boolean;
+	    exePath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BackgroundSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.startMode = source["startMode"];
+	        this.keepRunningOnClose = source["keepRunningOnClose"];
+	        this.supported = source["supported"];
+	        this.exePath = source["exePath"];
+	    }
+	}
+
+}
+
 export namespace projects {
 	
 	export class Project {

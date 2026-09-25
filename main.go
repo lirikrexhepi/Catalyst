@@ -4,6 +4,7 @@ import (
 	"embed"
 	"os"
 	"path/filepath"
+	"time"
 
 	"composer/internal/logger"
 
@@ -30,6 +31,9 @@ func main() {
 	logger.Infof("Main", "Starting Orchestrator, PID=%d", os.Getpid())
 
 	if wantsHeadless(os.Args) {
+		if pid := waitPIDArg(os.Args); pid > 0 {
+			waitForExit(pid, time.Minute)
+		}
 		// Checked before NewApp so a duplicate never opens the database.
 		if headlessRunning() {
 			logger.Infof("Main", "A headless instance is already running; exiting")

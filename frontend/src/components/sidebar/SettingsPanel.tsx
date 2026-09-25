@@ -8,6 +8,7 @@ import { useTheme } from '../../themes';
 import { providerIcon } from '../orchestrator/providerIcons';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
 import { RemoteAccessSection } from './RemoteAccessSection';
+import { BackgroundSection } from './BackgroundSection';
 import { GetUserPreference, SetUserPreference } from '../../../wailsjs/go/main/App';
 
 export interface SettingsPanelProps {
@@ -282,6 +283,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </div>
           )}
         </div>
+
+        <BackgroundSection isLight={isLight} />
 
         {/* Remote Phone Access from University / Cell */}
         <RemoteAccessSection />
