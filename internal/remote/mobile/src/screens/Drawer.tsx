@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react'
-import { Search, Settings, PenSquare, Workflow } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { Folder, Search, Settings, PenSquare, Workflow } from 'lucide-react'
+import { api } from '../api'
+import AddProjectSheet from './AddProjectSheet'
 import { prettyModel, relative } from '../format'
 import { useStore } from '../store'
 import SettingsSheet from './SettingsSheet'
-import type { ThreadSummary } from '../types'
+import type { Project, ThreadSummary } from '../types'
 
 const DAY = 86_400_000
 
@@ -36,12 +38,34 @@ function ChatRow({ t, current, go }: { t: ThreadSummary; current: boolean; go: (
   )
 }
 
-export default function Drawer({ current, go }: { current: string | null; go: (id: string | null) => void }) {
+interface DrawerProps {
+  current: string | null
+  /** Path of the project screen being shown, if any. */
+  project: string | null
+  go: (id: string | null) => void
+  openProject: (path: string) => void
+}
+
+export default function Drawer({ current, project, go, openProject }: DrawerProps) {
   const summaries = useStore((s) => s.summaries)
   const loaded = useStore((s) => s.summariesLoaded)
   const connection = useStore((s) => s.connection)
   const [query, setQuery] = useState('')
   const [settings, setSettings] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [adding, setAdding] = useState(false)
+
+  const loadProjects = useCallback(() => {
+    api
+      .projects()
+      .then((list) => setProjects(Array.isArray(list) ? list : []))
+      .catch(() => {})
+  }, [])
+  useEffect(() => {
+    loadProjects()
+    window.addEventListener('focus', loadProjects)
+    return () => window.removeEventListener('focus', loadProjects)
+  }, [loadProjects])
 
   const coordinator = summaries.find((t) => t.kind === 'coordinator')
   const groups = useMemo(() => {
@@ -85,6 +109,26 @@ export default function Drawer({ current, go }: { current: string | null; go: (i
           {coordinator?.busy && <span className="dot pulse" aria-label="Working" />}
         </button>
 
+        <section>
+          <div className="nav-h">
+            Projects
+            <button onClick={() => setAdding(true)}>Add</button>
+          </div>
+          {projects.map((p) => (
+            <button key={p.path} className="nav-item" aria-current={project === p.path} onClick={() => openProject(p.path)}>
+              <Folder size={21} aria-hidden="true" />
+              <span className="grow">{p.name}</span>
+              {p.runningAgents > 0 && <span className="dot pulse" aria-label="Agents working" />}
+            </button>
+          ))}
+          {projects.length === 0 && (
+            <button className="nav-item" onClick={() => setAdding(true)}>
+              <Folder size={21} aria-hidden="true" />
+              <span className="grow sub">Add a project folder</span>
+            </button>
+          )}
+        </section>
+
         {groups.map(([name, rows]) => (
           <section key={name}>
             <div className="nav-h">{name}</div>
@@ -108,6 +152,16 @@ export default function Drawer({ current, go }: { current: string | null; go: (i
         </button>
       </div>
       {settings && <SettingsSheet onClose={() => setSettings(false)} />}
+      {adding && (
+        <AddProjectSheet
+          onClose={() => setAdding(false)}
+          onAdded={(p) => {
+            setAdding(false)
+            loadProjects()
+            openProject(p.path)
+          }}
+        />
+      )}
     </>
   )
 }

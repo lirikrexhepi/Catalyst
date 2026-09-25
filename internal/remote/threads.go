@@ -42,6 +42,10 @@ type Hooks struct {
 	NewAgent   func(ctx context.Context, req NewAgentRequest) (string, error)
 	SaveUpload func(name, mime, payload string) (domain.FileRef, error)
 	Servers    func() []servers.Group
+	// PowerOff shuts the PC down. Only set when the app runs headless.
+	PowerOff func() error
+	// Workspace backs the phone's project explorer, diffs and folder picker.
+	Workspace WorkspaceHooks
 }
 
 // SetHooks installs the app-level hooks.

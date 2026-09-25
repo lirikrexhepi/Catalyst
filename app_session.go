@@ -10,7 +10,6 @@ import (
 	"composer/internal/logger"
 	"composer/internal/session"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) StartSession(driver string, input domain.SessionStartInput) (domain.Session, error) {
@@ -143,7 +142,7 @@ func (a *App) SpawnTasks(requests []session.SpawnRequest, opts session.SpawnOpti
 			_ = a.sessionService.CreateSession(a.ctx, task.ThreadID, task.Title, cwd, string(task.Driver), task.Model, branch)
 		}
 	}
-	runtime.EventsEmit(a.ctx, historyChangedChannel)
+	a.emit(historyChangedChannel)
 	return res, err
 }
 

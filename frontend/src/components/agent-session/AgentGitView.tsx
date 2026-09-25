@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { domain } from '../../../wailsjs/go/models';
+import { files } from '../../../wailsjs/go/models';
 import { DiffView } from '../git/DiffView';
-import { FileKey, GitState } from '../git/useGit';
+import { GitState } from '../git/useGit';
+import { FilePreview } from '../files/FilePreview';
+import { FileTree } from '../files/FileTree';
+import { repoPath } from '../files/status';
+import { useProjectTree } from '../files/useProjectTree';
 import { GitBranch, FolderOpen, Copy, Check, RefreshCw } from 'lucide-react';
+
+/** Left pane: the project's files, its uncommitted changes, or its history. */
+type LeftTab = 'files' | 'changes' | 'commits';
 import { ClipboardSetText } from '../../../wailsjs/runtime/runtime';
 
 export interface AgentGitViewProps {
@@ -39,6 +46,33 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
   className = '',
 }) => {
   const [copiedNotice, setCopiedNotice] = useState<string | null>(null);
+  const [leftTab, setLeftTab] = useState<LeftTab>('changes');
+  const [treeFile, setTreeFile] = useState<string | null>(null);
+  const [treeMode, setTreeMode] = useState<'diff' | 'file'>('diff');
+
+  // Find the worktree lane matching this agent
+  const matchingLane =
+    git?.lanes.find(
+      (l) =>
+        (threadId && l.threadId === threadId) ||
+        (branch && l.branch === branch) ||
+        (l.title && threadId && l.title.includes(threadId)),
+    ) ||
+    git?.lanes.find((l) => l.isMain) ||
+    git?.activeLane ||
+    git?.lanes[0] ||
+    null;
+
+  useEffect(() => {
+    if (git && matchingLane && git.activeLanePath !== matchingLane.path) {
+      git.selectLane(matchingLane.path);
+    }
+  }, [matchingLane?.path, git?.activeLanePath, git?.selectLane]);
+
+  // The explorer is rooted at this agent's checkout; a new checkout starts clean.
+  const treeRoot = matchingLane?.path ?? null;
+  const tree = useProjectTree(treeRoot, leftTab === 'files');
+  useEffect(() => setTreeFile(null), [treeRoot]);
 
   if (!git) {
     return (
@@ -48,26 +82,30 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
     );
   }
 
-  // Find the worktree lane matching this agent
-  const matchingLane =
-    git.lanes.find(
-      (l) =>
-        (threadId && l.threadId === threadId) ||
-        (branch && l.branch === branch) ||
-        (l.title && threadId && l.title.includes(threadId)),
-    ) ||
-    git.lanes.find((l) => l.isMain) ||
-    git.activeLane ||
-    git.lanes[0] ||
-    null;
+  const treeStatus = treeFile ? tree.status?.files?.[treeFile] : undefined;
+  // A deleted file has nothing on disk to open, and an unchanged one no diff.
+  const treeHasDiff = !!treeStatus && treeStatus !== 'deleted';
 
-  useEffect(() => {
-    if (matchingLane && git.activeLanePath !== matchingLane.path) {
-      git.selectLane(matchingLane.path);
+  const openTreeFile = (entry: files.Entry) => {
+    setTreeFile(entry.path);
+    const status = tree.status?.files?.[entry.path];
+    if (status && status !== 'deleted') {
+      setTreeMode('diff');
+      git.selectFile({
+        path: repoPath(tree.status?.prefix, entry.path),
+        staged: !!tree.status?.staged?.[entry.path],
+      });
+    } else {
+      setTreeMode('file');
     }
-  }, [matchingLane?.path, git.activeLanePath, git.selectLane]);
+  };
 
-  const files = matchingLane?.files ?? [];
+  const tabClass = (on: boolean) =>
+    `flex-1 py-1 rounded-[6px] text-[11px] font-medium font-['Geist'] text-center transition-all cursor-pointer ${
+      on ? 'bg-white/15 text-white shadow-sm font-semibold' : 'text-white/45 hover:text-white/80'
+    }`;
+
+  const changedFiles = matchingLane?.files ?? [];
   const commits = matchingLane?.commits ?? [];
 
   const copy = async (text: string, label: string) => {
@@ -108,9 +146,9 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
             </span>
           </div>
 
-          {files.length > 0 && (
+          {changedFiles.length > 0 && (
             <span className="text-[11px] font-medium font-['Geist'] text-white/45">
-              {files.length} changed file{files.length === 1 ? '' : 's'}
+              {changedFiles.length} changed file{changedFiles.length === 1 ? '' : 's'}
             </span>
           )}
         </div>
@@ -128,7 +166,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
             </button>
           )}
 
-          {files.length > 0 && (
+          {changedFiles.length > 0 && (
             <button
               type="button"
               title="Copy Unified Diff"
@@ -152,7 +190,10 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
           <button
             type="button"
             title="Refresh Git status"
-            onClick={() => void git.refresh()}
+            onClick={() => {
+              void git.refresh();
+              if (leftTab === 'files') void tree.refresh();
+            }}
             className="w-[26px] h-[26px] rounded-[6px] flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
           >
             <RefreshCw size={13} className={git.isLoading ? 'animate-spin' : ''} />
@@ -163,38 +204,39 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
       {/* Main Git Content: Left File List + Right Diff View */}
       <div className="flex-1 min-h-0 flex gap-2.5 pt-2.5">
         {/* Left File/History List */}
-        <div className="w-[240px] shrink-0 flex flex-col min-h-0 rounded-xl bg-black/40 overflow-hidden">
+        <div className="w-[260px] shrink-0 flex flex-col min-h-0 rounded-xl bg-black/40 overflow-hidden">
           <div className="flex items-center p-1 bg-white/[0.02]">
-            <button
-              type="button"
-              onClick={() => git.selectView({ kind: 'changes' })}
-              className={`flex-1 py-1 rounded-[6px] text-[11px] font-medium font-['Geist'] text-center transition-all cursor-pointer ${
-                git.view.kind === 'changes'
-                  ? 'bg-white/15 text-white shadow-sm font-semibold'
-                  : 'text-white/45 hover:text-white/80'
-              }`}
-            >
-              Changes {files.length > 0 && `(${files.length})`}
+            <button type="button" onClick={() => setLeftTab('files')} className={tabClass(leftTab === 'files')}>
+              Files
             </button>
             <button
               type="button"
-              onClick={() =>
-                commits[0] && git.selectView({ kind: 'commit', sha: commits[0].sha })
-              }
-              className={`flex-1 py-1 rounded-[6px] text-[11px] font-medium font-['Geist'] text-center transition-all cursor-pointer ${
-                git.view.kind === 'commit'
-                  ? 'bg-white/15 text-white shadow-sm font-semibold'
-                  : 'text-white/45 hover:text-white/80'
-              }`}
+              onClick={() => {
+                setLeftTab('changes');
+                git.selectView({ kind: 'changes' });
+              }}
+              className={tabClass(leftTab === 'changes')}
+            >
+              Changes {changedFiles.length > 0 && `(${changedFiles.length})`}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLeftTab('commits');
+                if (commits[0]) git.selectView({ kind: 'commit', sha: commits[0].sha });
+              }}
+              className={tabClass(leftTab === 'commits')}
             >
               Commits {commits.length > 0 && `(${commits.length})`}
             </button>
           </div>
 
-          {/* Files / Commits List */}
+          {/* Files / Changes / Commits List */}
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-1">
-            {git.view.kind === 'changes' ? (
-              files.length === 0 ? (
+            {leftTab === 'files' ? (
+              <FileTree tree={tree} selected={treeFile} onSelect={openTreeFile} />
+            ) : leftTab === 'changes' ? (
+              changedFiles.length === 0 ? (
                 <div className="flex flex-col items-center justify-center text-center p-5 h-full">
                   <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex items-center justify-center mb-2">
                     <GitBranch size={16} className="text-white/35" />
@@ -207,7 +249,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
                   </span>
                 </div>
               ) : (
-                files.map((file, idx) => {
+                changedFiles.map((file, idx) => {
                   const isSelected =
                     git.selectedFile?.path === file.path &&
                     git.selectedFile?.staged === file.staged;
@@ -271,16 +313,64 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
 
         {/* Right Diff Viewport */}
         <div className="flex-1 min-h-0 rounded-xl bg-[#0d0f12] overflow-hidden flex flex-col">
-          <DiffView
-            diffs={git.diffs}
-            isLoading={git.isDiffLoading}
-            error={git.diffError}
-            placeholder={
-              files.length === 0
-                ? 'No modified files to display.'
-                : 'Select a file to inspect its diff.'
-            }
-          />
+          {leftTab === 'files' ? (
+            !treeFile || !treeRoot ? (
+              <div className="flex-1 min-h-0 grid place-items-center p-6">
+                <p className="text-[12px] font-['Geist'] text-white/35 text-center">
+                  Select a file to open it. Changed files open on their diff.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.07] shrink-0">
+                  <span className="text-[11.5px] font-medium font-['Geist'] text-white/80 tracking-tight truncate flex-1 min-w-0">
+                    {treeFile}
+                  </span>
+                  {treeHasDiff && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {(['diff', 'file'] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setTreeMode(mode)}
+                          className={`h-[20px] px-2 rounded-[5px] text-[10.5px] font-medium font-['Geist'] transition-all cursor-pointer ${
+                            treeMode === mode ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white/80'
+                          }`}
+                        >
+                          {mode === 'diff' ? 'Diff' : 'File'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {treeHasDiff && treeMode === 'diff' ? (
+                  <DiffView
+                    diffs={git.diffs}
+                    isLoading={git.isDiffLoading}
+                    error={git.diffError}
+                    placeholder="Loading diff…"
+                  />
+                ) : treeStatus === 'deleted' ? (
+                  <div className="flex-1 min-h-0 grid place-items-center">
+                    <p className="text-[12px] font-['Geist'] text-white/40">This file was deleted.</p>
+                  </div>
+                ) : (
+                  <FilePreview root={treeRoot} path={treeFile} />
+                )}
+              </>
+            )
+          ) : (
+            <DiffView
+              diffs={git.diffs}
+              isLoading={git.isDiffLoading}
+              error={git.diffError}
+              placeholder={
+                changedFiles.length === 0
+                  ? 'No modified files to display.'
+                  : 'Select a file to inspect its diff.'
+              }
+            />
+          )}
         </div>
       </div>
     </div>

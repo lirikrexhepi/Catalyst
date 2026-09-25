@@ -45,6 +45,10 @@ const orchestratorSpawnedChannel = "orchestrator:spawned"
 
 const historyChangedChannel = "history:changed"
 
+// projectsChangedChannel tells the window its saved project list changed
+// somewhere else, such as a folder added from the phone.
+const projectsChangedChannel = "projects:changed"
+
 type App struct {
 	ctx          context.Context
 	registry     *provider.Registry
@@ -66,6 +70,13 @@ type App struct {
 	memory       *memory.Store
 	remoteServer *remote.Server
 	stopFeed     func()
+
+	// headless is set when the app runs without a window (see headless.go).
+	// Window-bound calls check it, since Wails' runtime exits the process when
+	// handed a context it did not create.
+	headless bool
+	// requestStop ends a headless run; nil in the desktop app.
+	requestStop func(reason string)
 
 	db             *sqlite.DB
 	sessionService *service.SessionService
@@ -175,6 +186,12 @@ func historyRoot() string {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	runtime.WindowShow(ctx)
+	a.startCore(ctx)
+}
+
+// startCore brings up everything that does not need a window: stored history,
+// the phone gateway, and the event feed. The desktop and headless modes share it.
+func (a *App) startCore(ctx context.Context) {
 	a.enableManagedServers()
 	a.rehydrateFromHistory()
 	if a.remoteServer != nil {
@@ -195,23 +212,23 @@ func (a *App) startup(ctx context.Context) {
 				_ = a.sessionService.CreateSession(a.ctx, task.ThreadID, task.Title, cwd, string(task.Driver), task.Model, branch)
 			}
 		}
-		runtime.EventsEmit(a.ctx, orchestratorSpawnedChannel, result)
+		a.emit(orchestratorSpawnedChannel, result)
 	})
 
 	a.devservers.OnChange(func() {
-		runtime.EventsEmit(ctx, serversChangedChannel)
+		a.emit(serversChangedChannel)
 	})
 
 	a.quota.OnUpdate(func() {
-		runtime.EventsEmit(ctx, quotaChangedChannel)
+		a.emit(quotaChangedChannel)
 	})
 	a.opencodeQuota.OnUpdate(func() {
-		runtime.EventsEmit(ctx, quotaChangedChannel)
+		a.emit(quotaChangedChannel)
 	})
 
 	if a.recorder != nil {
 		a.recorder.OnChanged(func() {
-			runtime.EventsEmit(ctx, historyChangedChannel)
+			a.emit(historyChangedChannel)
 		})
 	}
 
@@ -232,7 +249,7 @@ func (a *App) pumpEvents(ctx context.Context, events <-chan domain.RuntimeEvent)
 		if len(batch) == 0 {
 			return
 		}
-		runtime.EventsEmit(ctx, runtimeEventsChannel, batch)
+		a.emit(runtimeEventsChannel, batch)
 		batch = make([]domain.RuntimeEvent, 0, eventBatchLimit)
 	}
 
@@ -244,6 +261,10 @@ func (a *App) pumpEvents(ctx context.Context, events <-chan domain.RuntimeEvent)
 				return
 			}
 			a.observe(event)
+			if a.headless {
+				// No window to batch for; the phone gateway has its own feed.
+				continue
+			}
 			// Consecutive deltas of one streamed item become a single event.
 			if n := len(batch); n > 0 && event.Delta && sameStreamItem(batch[n-1], event) {
 				batch[n-1].Text += event.Text

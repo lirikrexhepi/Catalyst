@@ -45,6 +45,7 @@ type Server struct {
 	running      bool
 	hooks        Hooks
 	previews     *PreviewManager
+	local        *LocalControl
 }
 
 func NewServer(
@@ -113,7 +114,7 @@ func (s *Server) Start(ctx context.Context) error {
 	go s.broadcastEvents(events)
 
 	// Publish through Tailscale Funnel for stable worldwide access
-	go s.tunnel.StartPublicTunnel(ctx)
+	go s.tunnel.KeepPublicTunnel(ctx)
 
 	go func() {
 		logger.Infof("RemoteServer", "Mobile remote gateway listening on 0.0.0.0:%d", s.port)
@@ -221,6 +222,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/preview/start", s.requireAuth(s.handlePreviewStart))
 	mux.HandleFunc("/api/preview/stop", s.requireAuth(s.handlePreviewStop))
 	mux.HandleFunc("/api/ws", s.handleWebSocket)
+	mux.HandleFunc("/api/system/shutdown", s.requireAuth(s.handleSystemShutdown))
+	s.registerWorkspaceRoutes(mux)
+	mux.HandleFunc("/api/local/instance", s.handleLocalInstance)
+	mux.HandleFunc("/api/local/shutdown", s.handleLocalShutdown)
 }
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -260,6 +265,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 		Project:       activeProj,
 		TotalAgents:   len(agents),
 		RunningAgents: running,
+		CanPowerOff:   s.currentHooks().PowerOff != nil,
 	})
 }
 

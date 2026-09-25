@@ -153,6 +153,16 @@ func (s *Store) ActivePath() string {
 // Add records a directory, returning the existing entry when it is already
 // known so adding the same folder twice selects it rather than duplicating it.
 func (s *Store) Add(path string, isGit bool) (Project, error) {
+	return s.add(path, isGit, true)
+}
+
+// Remember records a directory without selecting it. The phone adds projects
+// this way so it never switches the project the desktop is working in.
+func (s *Store) Remember(path string, isGit bool) (Project, error) {
+	return s.add(path, isGit, false)
+}
+
+func (s *Store) add(path string, isGit bool, activate bool) (Project, error) {
 	clean, err := normalize(path)
 	if err != nil {
 		return Project{}, err
@@ -168,7 +178,9 @@ func (s *Store) Add(path string, isGit bool) (Project, error) {
 		s.saved.Seq++
 		s.saved.Projects[i].UsedAt = time.Now().UnixMilli()
 		s.saved.Projects[i].Order = s.saved.Seq
-		s.saved.ActiveID = existing.ID
+		if activate {
+			s.saved.ActiveID = existing.ID
+		}
 		updated := s.saved.Projects[i]
 		s.mu.Unlock()
 		if err := s.persist(); err != nil {
@@ -189,7 +201,9 @@ func (s *Store) Add(path string, isGit bool) (Project, error) {
 		Order:   s.saved.Seq,
 	}
 	s.saved.Projects = append(s.saved.Projects, project)
-	s.saved.ActiveID = project.ID
+	if activate {
+		s.saved.ActiveID = project.ID
+	}
 	s.mu.Unlock()
 
 	if err := s.persist(); err != nil {

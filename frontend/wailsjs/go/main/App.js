@@ -102,6 +102,18 @@ export function GitFileDiff(arg1, arg2, arg3) {
   return window['go']['main']['App']['GitFileDiff'](arg1, arg2, arg3);
 }
 
+export function ProjectFile(arg1, arg2) {
+  return window['go']['main']['App']['ProjectFile'](arg1, arg2);
+}
+
+export function ProjectTree(arg1, arg2) {
+  return window['go']['main']['App']['ProjectTree'](arg1, arg2);
+}
+
+export function ProjectTreeStatus(arg1) {
+  return window['go']['main']['App']['ProjectTreeStatus'](arg1);
+}
+
 export function GitOverview() {
   return window['go']['main']['App']['GitOverview']();
 }

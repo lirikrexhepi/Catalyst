@@ -3,17 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"composer/internal/domain"
+	"composer/internal/git"
+	"composer/internal/projects"
 	"composer/internal/logger"
 	"composer/internal/remote"
 	"composer/internal/servers"
 	"composer/internal/session"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 func (a *App) GetRemoteInfo() remote.RemoteInfo {
@@ -57,7 +59,32 @@ func (a *App) wireRemote() {
 	if a.remoteServer == nil {
 		return
 	}
+	var powerOff func() error
+	if a.headless {
+		// Only offered headless: with the window open someone is at the PC.
+		powerOff = a.remotePowerOff
+	}
 	a.remoteServer.SetHooks(remote.Hooks{
+		PowerOff: powerOff,
+		Workspace: remote.WorkspaceHooks{
+			GitOverview: a.remoteGitOverview,
+			GitFileDiff: func(ctx context.Context, checkout, file string, staged bool) (domain.DiffFile, error) {
+				if _, err := a.treeRoot(ctx, checkout); err != nil {
+					return domain.DiffFile{}, err
+				}
+				return a.GitFileDiff(checkout, file, staged)
+			},
+			GitCommitDiff: func(ctx context.Context, checkout, sha string) ([]domain.DiffFile, error) {
+				if _, err := a.treeRoot(ctx, checkout); err != nil {
+					return nil, err
+				}
+				return a.GitCommitDiff(checkout, sha)
+			},
+			Tree:       a.projectTree,
+			TreeStatus: a.projectTreeStatus,
+			ReadFile:   a.projectFile,
+			AddProject: a.remoteAddProject,
+		},
 		Providers: func(force bool) []domain.ProviderSnapshot {
 			// Bounded so a slow CLI probe cannot outlive the HTTP write timeout
 			// and leave the phone with no providers at all.
@@ -131,10 +158,50 @@ func (a *App) remoteNewAgent(ctx context.Context, req remote.NewAgentRequest) (s
 	if len(result.Tasks) == 0 {
 		return "", fmt.Errorf("no agent was started")
 	}
-	if a.ctx != nil {
-		runtime.EventsEmit(a.ctx, orchestratorSpawnedChannel, result)
-	}
+	a.emit(orchestratorSpawnedChannel, result)
 	return result.Tasks[0].ThreadID, nil
+}
+
+// remoteGitOverview is the git overview for a project the phone names. An
+// empty name means the desktop's active project.
+func (a *App) remoteGitOverview(ctx context.Context, project string) ([]domain.WorktreeChanges, error) {
+	root, err := a.treeRoot(ctx, project)
+	if err != nil {
+		return nil, err
+	}
+	return a.gitOverviewAt(ctx, root)
+}
+
+// remoteAddProject saves a folder chosen on the phone without making it the
+// desktop's active project, then tells an open window its list changed.
+func (a *App) remoteAddProject(ctx context.Context, path string) (projects.Project, error) {
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return projects.Project{}, fmt.Errorf("%s is not a folder", path)
+	}
+	_, isGit := git.Open(ctx, path)
+	project, err := a.projects.Remember(path, isGit)
+	if err != nil {
+		return projects.Project{}, err
+	}
+	a.emit(projectsChangedChannel)
+	return project, nil
+}
+
+// remotePowerOff schedules a Windows shutdown, then stops the app so history
+// and the database are closed before the OS gets there. Scheduling first means
+// a refused shutdown is reported to the phone and leaves the app running.
+func (a *App) remotePowerOff() error {
+	if err := scheduleSystemShutdown(15 * time.Second); err != nil {
+		logger.Errorf("App", "Remote shutdown refused: %v", err)
+		return err
+	}
+	logger.Infof("App", "Windows shutdown scheduled from the phone")
+	if a.requestStop != nil {
+		// Let the phone's request finish before the gateway goes away.
+		time.AfterFunc(500*time.Millisecond, func() { a.requestStop("shutdown requested from the phone") })
+	}
+	return nil
 }
 
 func (a *App) remoteSaveUpload(name, mime, payload string) (domain.FileRef, error) {

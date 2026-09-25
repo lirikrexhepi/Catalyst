@@ -8,6 +8,7 @@ import {
   SelectProject,
 } from '../../../wailsjs/go/main/App';
 import { projects } from '../../../wailsjs/go/models';
+import { EventsOn } from '../../../wailsjs/runtime/runtime';
 
 export type Project = projects.Project;
 
@@ -51,6 +52,8 @@ export function useProjects(onSwitched?: () => void | Promise<void>): ProjectsSt
 
   useEffect(() => {
     void refresh();
+    // Projects can be added from the phone while the window is open.
+    return EventsOn('projects:changed', () => void refresh());
   }, [refresh]);
 
   // Applies a project the backend has already saved. The switch callback is

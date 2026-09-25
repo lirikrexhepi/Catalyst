@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os/exec"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -72,11 +74,9 @@ func (m *PreviewManager) Start(port int) (PreviewInfo, error) {
 	if port == m.ownPort {
 		return PreviewInfo{}, fmt.Errorf("port %d is the remote gateway itself", port)
 	}
-	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
-	if err != nil {
+	if !listening(port) {
 		return PreviewInfo{}, fmt.Errorf("nothing is listening on localhost:%d — ask the agent to start the dev server first", port)
 	}
-	_ = conn.Close()
 
 	m.mu.Lock()
 	if t, ok := m.tunnels[port]; ok && (t.state == PreviewLive || t.state == PreviewStarting) {
@@ -84,6 +84,11 @@ func (m *PreviewManager) Start(port int) (PreviewInfo, error) {
 		m.mu.Unlock()
 		return info, nil
 	}
+	// A failed attempt is replaced rather than reported again.
+	if t, ok := m.tunnels[port]; ok && t.cmd != nil && t.cmd.Process != nil {
+		_ = t.cmd.Process.Kill()
+	}
+	delete(m.tunnels, port)
 	m.mu.Unlock()
 
 	bin, err := resolveBinary()
@@ -109,17 +114,26 @@ func (m *PreviewManager) Start(port int) (PreviewInfo, error) {
 	m.tunnels[port] = t
 	m.mu.Unlock()
 
-	go m.watch(port, cmd, stderr)
+	go m.watch(port, t, stderr)
 	logger.Infof("Preview", "Quick tunnel starting for localhost:%d", port)
 	return PreviewInfo{Port: port, State: PreviewStarting, StartedAt: t.startedAt}, nil
 }
 
-func (m *PreviewManager) watch(port int, cmd *exec.Cmd, stderr io.Reader) {
+// watch waits until the tunnel can really carry traffic, then supervises it.
+//
+// cloudflared prints the trycloudflare URL before the edge can route it; a
+// phone that opens it at that moment gets a DNS or 530 error and iOS caches
+// the failure. So a preview only turns live once cloudflared has registered
+// a connection and the public URL has answered at least once from here.
+func (m *PreviewManager) watch(port int, t *previewTunnel, stderr io.Reader) {
 	urlCh := make(chan string, 1)
+	readyCh := make(chan struct{}, 1)
+	exited := make(chan string, 1)
+
 	go func() {
 		scanner := bufio.NewScanner(stderr)
 		scanner.Buffer(make([]byte, 64*1024), 64*1024)
-		var tail []string
+		last := ""
 		for scanner.Scan() {
 			line := scanner.Text()
 			if url := quickTunnelURL.FindString(line); url != "" {
@@ -128,44 +142,176 @@ func (m *PreviewManager) watch(port int, cmd *exec.Cmd, stderr io.Reader) {
 				default:
 				}
 			}
-			tail = append(tail, line)
-			if len(tail) > 20 {
-				tail = tail[len(tail)-20:]
-			}
-		}
-		if err := cmd.Wait(); err != nil {
-			m.mu.Lock()
-			if t, ok := m.tunnels[port]; ok && t.state == PreviewStarting {
-				msg := "tunnel exited before publishing a URL"
-				if len(tail) > 0 {
-					msg = tail[len(tail)-1]
+			if strings.Contains(line, "Registered tunnel connection") {
+				select {
+				case readyCh <- struct{}{}:
+				default:
 				}
-				t.state = PreviewFailed
-				t.errMsg = msg
 			}
-			m.mu.Unlock()
+			if strings.TrimSpace(line) != "" {
+				last = line
+			}
 		}
+		_ = t.cmd.Wait()
+		exited <- last
 	}()
 
-	select {
-	case url := <-urlCh:
-		m.mu.Lock()
-		if t, ok := m.tunnels[port]; ok {
-			t.url = url
-			t.state = PreviewLive
-			t.errMsg = ""
+	url, ready := "", false
+	deadline := time.After(90 * time.Second)
+	// The log line is the fast signal; the public URL answering is accepted
+	// too, in case a cloudflared release words its log differently.
+	probe := time.NewTicker(3 * time.Second)
+	defer probe.Stop()
+	for url == "" || !ready {
+		select {
+		case url = <-urlCh:
+		case <-readyCh:
+			ready = true
+		case <-probe.C:
+			if url != "" && tunnelAnswers(url) {
+				ready = true
+			}
+		case last := <-exited:
+			msg := "tunnel exited before publishing a URL"
+			if last != "" {
+				msg = last
+			}
+			m.fail(port, t, msg)
+			return
+		case <-deadline:
+			m.fail(port, t, "timed out waiting for Cloudflare to publish the link")
+			_ = t.cmd.Process.Kill()
+			return
 		}
-		m.mu.Unlock()
-		logger.Infof("Preview", "localhost:%d is live at %s", port, url)
-	case <-time.After(90 * time.Second):
-		m.mu.Lock()
-		if t, ok := m.tunnels[port]; ok && t.state == PreviewStarting {
-			t.state = PreviewFailed
-			t.errMsg = "timed out waiting for the public URL"
-		}
-		m.mu.Unlock()
-		_ = cmd.Process.Kill()
 	}
+
+	// Give the edge a moment to route the new hostname before handing it out.
+	for i := 0; i < 10 && !tunnelAnswers(url); i++ {
+		time.Sleep(2 * time.Second)
+	}
+
+	m.mu.Lock()
+	if m.tunnels[port] == t {
+		t.url = url
+		t.state = PreviewLive
+		t.errMsg = ""
+	}
+	m.mu.Unlock()
+	logger.Infof("Preview", "localhost:%d is live at %s", port, url)
+
+	m.supervise(port, t, url, exited)
+}
+
+// supervise keeps a live preview honest. A tunnel whose process died, or whose
+// edge stopped answering, is replaced with a fresh one; a preview whose dev
+// server stopped listening is removed. Without this the phone kept offering a
+// dead link until someone stopped it by hand.
+func (m *PreviewManager) supervise(port int, t *previewTunnel, url string, exited <-chan string) {
+	ticker := time.NewTicker(previewHealthInterval)
+	defer ticker.Stop()
+	failures := 0
+	for {
+		select {
+		case <-exited:
+			if m.drop(port, t) {
+				logger.Warnf("Preview", "Tunnel for localhost:%d exited; restarting", port)
+				m.restartIfListening(port)
+			}
+			return
+		case <-ticker.C:
+			if !m.owns(port, t) {
+				return
+			}
+			if !listening(port) {
+				logger.Infof("Preview", "localhost:%d stopped listening; closing its preview", port)
+				m.stopIf(port, t)
+				return
+			}
+			if tunnelAnswers(url) {
+				failures = 0
+				continue
+			}
+			failures++
+			if failures >= 3 {
+				logger.Warnf("Preview", "Tunnel for localhost:%d stopped answering; replacing it", port)
+				m.stopIf(port, t)
+				m.restartIfListening(port)
+				return
+			}
+		}
+	}
+}
+
+const previewHealthInterval = 30 * time.Second
+
+func (m *PreviewManager) restartIfListening(port int) {
+	if !listening(port) {
+		return
+	}
+	if _, err := m.Start(port); err != nil {
+		logger.Errorf("Preview", "Could not restart tunnel for localhost:%d: %v", port, err)
+	}
+}
+
+func (m *PreviewManager) owns(port int, t *previewTunnel) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.tunnels[port] == t
+}
+
+// drop forgets the tunnel if it is still the one registered for the port.
+func (m *PreviewManager) drop(port int, t *previewTunnel) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.tunnels[port] != t {
+		return false
+	}
+	delete(m.tunnels, port)
+	return true
+}
+
+func (m *PreviewManager) stopIf(port int, t *previewTunnel) {
+	if m.drop(port, t) && t.cmd != nil && t.cmd.Process != nil {
+		_ = t.cmd.Process.Kill()
+	}
+}
+
+func (m *PreviewManager) fail(port int, t *previewTunnel, msg string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.tunnels[port] == t {
+		t.state = PreviewFailed
+		t.errMsg = msg
+	}
+	logger.Errorf("Preview", "Tunnel for localhost:%d failed: %s", port, msg)
+}
+
+func listening(port int) bool {
+	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 2*time.Second)
+	if err != nil {
+		return false
+	}
+	_ = conn.Close()
+	return true
+}
+
+// tunnelAnswers reports whether the public URL reaches the dev server. Any
+// response from the site counts, errors included; only Cloudflare's own
+// tunnel errors (530, the 1033 page) and network failures mean it is down.
+var previewProbe = &http.Client{
+	Timeout: 8 * time.Second,
+	CheckRedirect: func(*http.Request, []*http.Request) error {
+		return http.ErrUseLastResponse
+	},
+}
+
+func tunnelAnswers(url string) bool {
+	resp, err := previewProbe.Get(url)
+	if err != nil {
+		return false
+	}
+	_ = resp.Body.Close()
+	return resp.StatusCode != 530
 }
 
 func (m *PreviewManager) Stop(port int) {

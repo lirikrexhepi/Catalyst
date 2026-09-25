@@ -1110,6 +1110,75 @@ export namespace domain {
 
 }
 
+export namespace files {
+	
+	export class Content {
+	    path: string;
+	    size: number;
+	    binary: boolean;
+	    text?: string;
+	    truncated: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Content(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.size = source["size"];
+	        this.binary = source["binary"];
+	        this.text = source["text"];
+	        this.truncated = source["truncated"];
+	    }
+	}
+	export class Entry {
+	    name: string;
+	    path: string;
+	    dir: boolean;
+	    size?: number;
+	    symlink?: boolean;
+	    ignored?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Entry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	        this.dir = source["dir"];
+	        this.size = source["size"];
+	        this.symlink = source["symlink"];
+	        this.ignored = source["ignored"];
+	    }
+	}
+	export class TreeStatus {
+	    isGit: boolean;
+	    repoRoot?: string;
+	    prefix?: string;
+	    files: Record<string, string>;
+	    staged?: Record<string, boolean>;
+	    dirs: Record<string, string>;
+	
+	    static createFrom(source: any = {}) {
+	        return new TreeStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.isGit = source["isGit"];
+	        this.repoRoot = source["repoRoot"];
+	        this.prefix = source["prefix"];
+	        this.files = source["files"];
+	        this.staged = source["staged"];
+	        this.dirs = source["dirs"];
+	    }
+	}
+
+}
+
 export namespace history {
 	
 	export class Meta {

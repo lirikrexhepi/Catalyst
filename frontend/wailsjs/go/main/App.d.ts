@@ -9,6 +9,7 @@ import {claudeimport} from '../models';
 import {history} from '../models';
 import {devserver} from '../models';
 import {servers} from '../models';
+import {files} from '../models';
 
 export function ActiveProject():Promise<projects.Project>;
 
@@ -61,6 +62,12 @@ export function GitCommitDiff(arg1:string,arg2:string):Promise<Array<domain.Diff
 export function GitFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<domain.DiffFile>;
 
 export function GitOverview():Promise<Array<domain.WorktreeChanges>>;
+
+export function ProjectFile(arg1:string,arg2:string):Promise<files.Content>;
+
+export function ProjectTree(arg1:string,arg2:string):Promise<Array<files.Entry>>;
+
+export function ProjectTreeStatus(arg1:string):Promise<files.TreeStatus>;
 
 export function ImportClaudeCodeSession(arg1:string):Promise<string>;
 

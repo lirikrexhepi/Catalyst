@@ -19,6 +19,8 @@ type TunnelManager struct {
 	publicURL string
 	connecting bool
 	lastError  string
+	// stop ends a KeepPublicTunnel retry loop; replaced on every start.
+	stop chan struct{}
 }
 
 func NewTunnelManager(port int) *TunnelManager {
@@ -131,9 +133,46 @@ func funnelStatusURL(ctx context.Context, target string) string {
 	return ""
 }
 
+// KeepPublicTunnel retries StartPublicTunnel until Funnel reports a URL, the
+// context ends, or Stop is called. After a remote power-on the app can start
+// before Tailscale has connected, and a single attempt would leave the phone
+// locked out until someone restarts the app at the PC.
+func (tm *TunnelManager) KeepPublicTunnel(ctx context.Context) {
+	stop := make(chan struct{})
+	tm.mu.Lock()
+	tm.stop = stop
+	tm.mu.Unlock()
+
+	delay := 5 * time.Second
+	for {
+		tm.StartPublicTunnel(ctx)
+		tm.mu.RLock()
+		up := tm.publicURL != ""
+		tm.mu.RUnlock()
+		if up {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-stop:
+			return
+		case <-time.After(delay):
+		}
+		if delay < time.Minute {
+			delay *= 2
+		}
+		logger.Infof("RemoteTunnel", "Retrying Tailscale Funnel")
+	}
+}
+
 func (tm *TunnelManager) Stop() {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
+	if tm.stop != nil {
+		close(tm.stop)
+		tm.stop = nil
+	}
 	if tm.publicURL != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()

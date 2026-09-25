@@ -1,4 +1,7 @@
 import type { FileRef, ModelChoice, PreviewInfo, Project, ProviderInfo, RuntimeEvent, ServerGroup, ThreadSummary } from './types'
+import type { Checkout, DiffFile, FileContent, FolderListing, Place, TreeEntry, TreeStatus } from './workspaceTypes'
+
+const q = (params: Record<string, string>) => new URLSearchParams(params).toString()
 
 const TOKEN_KEY = 'composer_remote_token'
 const BASE_KEY = 'composer_remote_base'
@@ -121,7 +124,9 @@ export function isNetworkError(e: unknown): boolean {
 }
 
 export const api = {
-  status: () => request<{ authenticated?: boolean }>('/api/status'),
+  status: () => request<{ authenticated?: boolean; canPowerOff?: boolean }>('/api/status'),
+  shutdownPC: () =>
+    request<{ ok?: boolean }>('/api/system/shutdown', { method: 'POST', body: JSON.stringify({ confirm: 'shutdown' }) }),
   threads: () => request<ThreadSummary[]>('/api/threads'),
   thread: (threadId: string) =>
     request<{ events: RuntimeEvent[]; lastSeq: number }>(`/api/thread/${encodeURIComponent(threadId)}`),
@@ -148,6 +153,18 @@ export const api = {
   servers: () => request<ServerGroup[]>('/api/servers'),
   previewStart: (port: number) =>
     request<PreviewInfo>('/api/preview/start', { method: 'POST', body: JSON.stringify({ port }) }),
+  // Project explorer, diffs and the folder picker.
+  gitOverview: (project: string) => request<Checkout[]>(`/api/git/overview?${q({ project })}`),
+  gitDiff: (checkout: string, file: string, staged: boolean) =>
+    request<DiffFile>(`/api/git/diff?${q({ checkout, file, staged: staged ? '1' : '0' })}`),
+  gitCommit: (checkout: string, sha: string) => request<DiffFile[]>(`/api/git/commit?${q({ checkout, sha })}`),
+  tree: (root: string, dir: string) => request<TreeEntry[]>(`/api/tree?${q({ root, dir })}`),
+  treeStatus: (root: string) => request<TreeStatus>(`/api/tree/status?${q({ root })}`),
+  file: (root: string, path: string) => request<FileContent>(`/api/file?${q({ root, path })}`),
+  places: () => request<{ places: Place[] }>('/api/folders'),
+  folder: (path: string) => request<{ folder: FolderListing }>(`/api/folders?${q({ path })}`),
+  addProject: (path: string) =>
+    request<Project>('/api/projects/add', { method: 'POST', body: JSON.stringify({ path }) }),
   previewStop: (port: number) =>
     request<{ ok?: boolean }>('/api/preview/stop', { method: 'POST', body: JSON.stringify({ port }) }),
 }

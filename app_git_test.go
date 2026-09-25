@@ -72,7 +72,7 @@ func lanesFor(t *testing.T, app *App, repo *git.Repo) []domain.WorktreeChanges {
 
 	lanes := make([]domain.WorktreeChanges, 0, len(checkouts))
 	for _, checkout := range checkouts {
-		lanes = append(lanes, app.laneFor(checkout, owners, branch))
+		lanes = append(lanes, app.laneFor(context.Background(), checkout, owners, branch))
 	}
 	return lanes
 }

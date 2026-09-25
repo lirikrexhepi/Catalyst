@@ -59,6 +59,9 @@ type RemoteStatus struct {
 	ActiveDriver  string `json:"activeDriver"`
 	TotalAgents   int    `json:"totalAgents"`
 	RunningAgents int    `json:"runningAgents"`
+	// CanPowerOff is true when the app runs headless and the phone may shut
+	// the PC down.
+	CanPowerOff bool `json:"canPowerOff,omitempty"`
 }
 
 type RemoteAgentView struct {

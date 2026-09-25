@@ -88,3 +88,37 @@ func TestHandlePreviewStartValidation(t *testing.T) {
 		t.Fatalf("expected 400 for dead port, got %d: %s", w.Code, w.Body.String())
 	}
 }
+
+func TestTunnelAnswersTreatsOnlyTunnelErrorsAsDown(t *testing.T) {
+	status := http.StatusOK
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(status)
+	}))
+	defer srv.Close()
+
+	for _, code := range []int{http.StatusOK, http.StatusNotFound, http.StatusInternalServerError, http.StatusBadGateway} {
+		status = code
+		if !tunnelAnswers(srv.URL) {
+			t.Fatalf("status %d comes from the site and should count as answering", code)
+		}
+	}
+	status = 530
+	if tunnelAnswers(srv.URL) {
+		t.Fatal("530 is Cloudflare's tunnel error and should count as down")
+	}
+	if tunnelAnswers("http://127.0.0.1:1") {
+		t.Fatal("a refused connection should count as down")
+	}
+}
+
+func TestDropOnlyForgetsTheCurrentTunnel(t *testing.T) {
+	m := NewPreviewManager(4545)
+	old, current := &previewTunnel{}, &previewTunnel{}
+	m.tunnels[3000] = current
+	if m.drop(3000, old) {
+		t.Fatal("a replaced tunnel must not remove its successor")
+	}
+	if !m.drop(3000, current) || len(m.tunnels) != 0 {
+		t.Fatal("the current tunnel should be dropped")
+	}
+}

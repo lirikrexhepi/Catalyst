@@ -12,7 +12,6 @@ import (
 	"composer/internal/domain"
 	"composer/internal/session"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ListClaudeCodeSessions reports Claude Code conversations found on this
@@ -165,7 +164,7 @@ func (a *App) SpawnFromImported(workspaceID, prompt, driver, model string, optio
 	if err != nil {
 		return result, err
 	}
-	runtime.EventsEmit(a.ctx, historyChangedChannel)
+	a.emit(historyChangedChannel)
 	return result, nil
 }
 

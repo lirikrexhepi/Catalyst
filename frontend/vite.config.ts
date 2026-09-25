@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { fileURLToPath } from 'node:url'
+import { fileIcons } from '../tools/vite-file-icons'
+
+const here = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
   base: './',
@@ -11,7 +15,8 @@ export default defineConfig({
   },
   plugins: [
     react(),
-    tailwindcss()
+    tailwindcss(),
+    fileIcons({ packageDirs: [here + 'node_modules/material-icon-theme'] }),
   ]
 })
 

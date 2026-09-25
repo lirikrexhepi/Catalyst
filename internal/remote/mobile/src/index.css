@@ -655,3 +655,67 @@ svg { flex-shrink: 0; }
 .md pre { background: var(--panel); border: 0.5px solid var(--line); }
 .diag { background: var(--panel); }
 
+
+/* ---------- project explorer: files, changes, history ---------- */
+/* Git colours follow VS Code's explorer so a glance reads the same on both. */
+.st-modified { color: #e2c08d; }
+.st-added, .st-untracked { color: #73c991; }
+.st-deleted, .st-conflicted { color: var(--fault); }
+.st-renamed, .st-copied { color: #6cb6ff; }
+
+.seg { display: flex; gap: 2px; margin: 4px 16px 8px; padding: 2px; border-radius: 10px; background: var(--raise); flex-shrink: 0; }
+.seg button { flex: 1; min-height: 32px; border-radius: 8px; font-size: 14px; font-weight: 500; color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }
+.seg button[aria-pressed='true'] { background: #3a3a3c; color: var(--text); font-weight: 600; }
+
+.ficon { width: 20px; height: 20px; flex-shrink: 0; }
+.tree { padding: 2px 0 calc(var(--safe-bottom) + 32px); }
+.tree-row {
+  width: 100%; display: flex; align-items: center; gap: 8px; min-height: 40px; padding-right: 18px; text-align: left; font-size: 16px;
+  transition: background var(--t-fast);
+}
+.tree-row:active { background: var(--raise); }
+.tree-row .chev { width: 16px; display: grid; place-items: center; color: var(--text-3); flex-shrink: 0; transition: transform var(--t-fast) var(--ease-out); }
+.tree-row .chev.open { transform: rotate(90deg); }
+.tree-row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
+/* A changed row takes its status colour for the name, as VS Code does. */
+.tree-row[class*='st-'] .name { color: inherit; }
+.tree-row.ignored .name { color: var(--text-3); }
+.tree-row.ignored .ficon { opacity: 0.5; }
+.mark { font-family: var(--font-code); font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.fdot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+.change-row { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 20px; text-align: left; transition: background var(--t-fast); }
+.change-row:active { background: var(--raise); }
+.change-row .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.change-row .name { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.change-row .sub { font-size: 13px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.change-row .counts { font-family: var(--font-code); font-size: 12px; flex-shrink: 0; }
+.cdot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
+.cdot.base { background: var(--fill); }
+
+/* The viewer pushes over the project like an iOS navigation push. */
+.viewer { position: absolute; inset: 0; z-index: 20; animation: push-in var(--t-med) var(--ease-out); }
+@keyframes push-in { from { transform: translateX(100%); } }
+.viewer-title { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 17px; font-weight: 600; padding-right: 52px; }
+.viewer-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.code { font-family: var(--font-code); font-size: 12px; line-height: 1.6; overflow-x: auto; padding: 4px 0 calc(var(--safe-bottom) + 32px); }
+.code-line { display: flex; white-space: pre; min-width: max-content; padding-right: 16px; }
+.code .ln { width: 44px; text-align: right; padding-right: 10px; color: var(--text-3); flex-shrink: 0; user-select: none; }
+.code .diff-line .ln { width: 44px; }
+.code .hunk { padding: 6px 12px; color: var(--text-3); background: var(--call-soft); white-space: pre; min-width: max-content; }
+.code .file-head {
+  position: sticky; left: 0; display: flex; align-items: center; gap: 8px; padding: 10px 14px; font-family: var(--font); font-size: 14px;
+  border-top: 0.5px solid var(--line); background: var(--panel);
+}
+.code .file-head .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code .note { font-family: var(--font); font-size: 13px; color: var(--text-3); padding: 10px 16px; }
+
+.picker-path { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-2); overflow-wrap: anywhere; padding-left: 14px; }
+
+/* ---------- site preview ---------- */
+.preview .bar { gap: 8px; }
+.preview-stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.preview-stage > .empty { margin: auto 0; }
+.preview-frame { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #fff; }
+.preview-frame iframe { display: block; border: 0; background: #fff; }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -23,19 +24,24 @@ func (a *App) GitOverview() ([]domain.WorktreeChanges, error) {
 	if root == "" {
 		return nil, errors.New("no project is open")
 	}
+	return a.gitOverviewAt(a.ctx, root)
+}
 
-	repo, ok := git.Open(a.ctx, root)
+// gitOverviewAt is GitOverview for any project, not just the active one; the
+// phone browses projects without switching the desktop's selection.
+func (a *App) gitOverviewAt(ctx context.Context, root string) ([]domain.WorktreeChanges, error) {
+	repo, ok := git.Open(ctx, root)
 	if !ok {
 		return nil, fmt.Errorf("%s is not a git repository", root)
 	}
 
-	checkouts, err := repo.Worktrees(a.ctx)
+	checkouts, err := repo.Worktrees(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	owners := a.worktreeOwners()
-	mainBranch, _ := repo.CurrentBranch(a.ctx)
+	mainBranch, _ := repo.CurrentBranch(ctx)
 
 	lanes := make([]domain.WorktreeChanges, len(checkouts))
 	var wait sync.WaitGroup
@@ -46,7 +52,7 @@ func (a *App) GitOverview() ([]domain.WorktreeChanges, error) {
 		wait.Add(1)
 		go func(index int, checkout git.Checkout) {
 			defer wait.Done()
-			lanes[index] = a.laneFor(checkout, owners, mainBranch)
+			lanes[index] = a.laneFor(ctx, checkout, owners, mainBranch)
 		}(i, checkout)
 	}
 	wait.Wait()
@@ -67,7 +73,7 @@ func (a *App) GitOverview() ([]domain.WorktreeChanges, error) {
 // A failure is recorded on the lane rather than returned: one unreadable
 // worktree must not blank the whole window, and the reason belongs next to the
 // lane it applies to.
-func (a *App) laneFor(checkout git.Checkout, owners map[string]domain.Task, mainBranch string) domain.WorktreeChanges {
+func (a *App) laneFor(ctx context.Context, checkout git.Checkout, owners map[string]domain.Task, mainBranch string) domain.WorktreeChanges {
 	lane := domain.WorktreeChanges{
 		Path:   checkout.Path,
 		Branch: checkout.Branch,
@@ -99,14 +105,14 @@ func (a *App) laneFor(checkout git.Checkout, owners map[string]domain.Task, main
 
 	working := &git.Repo{Root: checkout.Path}
 
-	files, err := working.Status(a.ctx)
+	files, err := working.Status(ctx)
 	if err != nil {
 		lane.Error = err.Error()
 		return lane
 	}
 	lane.Files = files
 
-	commits, ahead, err := working.Commits(a.ctx, lane.Base)
+	commits, ahead, err := working.Commits(ctx, lane.Base)
 	if err != nil {
 		// History is secondary to the changed files, so a repository with no
 		// commits yet still shows its working tree instead of an error.

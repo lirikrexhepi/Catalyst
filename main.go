@@ -29,6 +29,20 @@ func main() {
 	)
 	logger.Infof("Main", "Starting Orchestrator, PID=%d", os.Getpid())
 
+	if wantsHeadless(os.Args) {
+		// Checked before NewApp so a duplicate never opens the database.
+		if headlessRunning() {
+			logger.Infof("Main", "A headless instance is already running; exiting")
+			return
+		}
+		os.Exit(runHeadless(NewApp()))
+	}
+
+	// A PC powered on remotely may already be running headless. It owns the
+	// gateway port, history and database, so it hands over before NewApp
+	// opens any of them.
+	takeOverFromHeadless()
+
 	// Create an instance of the app structure
 	app := NewApp()
 

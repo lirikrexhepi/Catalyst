@@ -4,6 +4,7 @@ import { startSync } from './store'
 import AuthScreen from './screens/Auth'
 import Drawer from './screens/Drawer'
 import Chat from './screens/Chat'
+import ProjectScreen from './screens/Project'
 
 /** #/t/<threadId> opens a conversation; anything else is a new chat. */
 function routeFromHash(): string | null {
@@ -11,9 +12,16 @@ function routeFromHash(): string | null {
   return m ? decodeURIComponent(m[1]) : null
 }
 
+/** #/p/<path> opens a project's files and changes. */
+function projectFromHash(): string | null {
+  const m = window.location.hash.match(/^#\/p\/(.+)$/)
+  return m ? decodeURIComponent(m[1]) : null
+}
+
 export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [threadId, setThreadId] = useState<string | null>(routeFromHash())
+  const [project, setProject] = useState<string | null>(projectFromHash())
 
   const checkAuth = useCallback(() => {
     setAuthenticated(null)
@@ -33,14 +41,17 @@ export default function App() {
   }, [authenticated])
 
   useEffect(() => {
-    const onHash = () => setThreadId(routeFromHash())
+    const onHash = () => {
+      setThreadId(routeFromHash())
+      setProject(projectFromHash())
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
 
   if (authenticated === null) return <div className="screen" />
   if (authenticated === false) return <AuthScreen onDone={checkAuth} />
-  return <Shell threadId={threadId} />
+  return <Shell threadId={threadId} project={project} />
 }
 
 /**
@@ -49,7 +60,7 @@ export default function App() {
  * position (current + velocity) picks the side. Grabbing mid-animation starts
  * from where the drawer visibly is, so the motion is always interruptible.
  */
-function Shell({ threadId }: { threadId: string | null }) {
+function Shell({ threadId, project }: { threadId: string | null; project: string | null }) {
   const shell = useRef<HTMLDivElement>(null)
   const [open, setOpenState] = useState(false)
   const progress = useRef(0)
@@ -132,14 +143,25 @@ function Shell({ threadId }: { threadId: string | null }) {
     },
     [setOpen],
   )
+  const openProject = useCallback(
+    (path: string) => {
+      window.location.hash = `#/p/${encodeURIComponent(path)}`
+      setOpen(false)
+    },
+    [setOpen],
+  )
 
   return (
     <div className="shell" ref={shell} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
       <nav className="drawer" aria-hidden={!open} {...({ inert: open ? undefined : '' } as object)} aria-label="Chats">
-        <Drawer current={threadId} go={go} />
+        <Drawer current={project ? null : threadId} project={project} go={go} openProject={openProject} />
       </nav>
       <main className="main">
-        <Chat key={threadId ?? 'new'} threadId={threadId} openDrawer={() => setOpen(true)} go={go} />
+        {project ? (
+          <ProjectScreen key={project} path={project} openDrawer={() => setOpen(true)} />
+        ) : (
+          <Chat key={threadId ?? 'new'} threadId={threadId} openDrawer={() => setOpen(true)} go={go} />
+        )}
         {open && <div className="main-cover" aria-label="Close menu" />}
       </main>
     </div>

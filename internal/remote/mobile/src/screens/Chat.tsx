@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ArrowDown, ChevronDown, Folder, Menu, MoreHorizontal, PenSquare, Power, RotateCcw, ShieldCheck, Square, Workflow } from 'lucide-react'
+import { ArrowDown, ChevronDown, Folder, Menu, MoreHorizontal, PenSquare, Play, Power, RotateCcw, ShieldCheck, Square, Workflow } from 'lucide-react'
 import Feed from '../feed/Feed'
 import Composer from '../components/Composer'
 import Sheet from '../components/Sheet'
@@ -8,7 +8,8 @@ import Elapsed from '../components/Elapsed'
 import { api } from '../api'
 import { choiceLabel, defaultOptions } from '../format'
 import { effectiveChoice, interrupt, loadProviders, loadThread, message, refreshSummaries, setChoice, useStore } from '../store'
-import type { ModelChoice, Project } from '../types'
+import type { DevServer, ModelChoice, Project } from '../types'
+import { PreviewLauncher, PreviewScreen } from './Preview'
 
 interface ChatProps {
   threadId: string | null
@@ -20,7 +21,7 @@ export default function Chat(props: ChatProps) {
   return props.threadId ? <Conversation {...props} threadId={props.threadId} /> : <NewChat {...props} />
 }
 
-function TopBar({ openDrawer, go, pill, onPill, onMore }: { openDrawer: () => void; go: (id: string | null) => void; pill: string; onPill: () => void; onMore?: () => void }) {
+function TopBar({ openDrawer, go, pill, onPill, onMore, onPreview }: { openDrawer: () => void; go: (id: string | null) => void; pill: string; onPill: () => void; onMore?: () => void; onPreview?: () => void }) {
   return (
     <header className="bar">
       <button className="circle" onClick={openDrawer} aria-label="Open chats">
@@ -31,6 +32,11 @@ function TopBar({ openDrawer, go, pill, onPill, onMore }: { openDrawer: () => vo
         <ChevronDown size={16} aria-hidden="true" />
       </button>
       <span className="spacer" />
+      {onPreview && (
+        <button className="circle" onClick={onPreview} aria-label="Preview the site">
+          <Play size={18} aria-hidden="true" />
+        </button>
+      )}
       {onMore && (
         <button className="circle" onClick={onMore} aria-label="Chat actions">
           <MoreHorizontal size={20} aria-hidden="true" />
@@ -55,6 +61,7 @@ function Conversation({ threadId, openDrawer, go }: ChatProps & { threadId: stri
   const [picking, setPicking] = useState(false)
   const [pinned, setPinned] = useState(true)
   const [actionError, setActionError] = useState<string | null>(null)
+  const [previewing, setPreviewing] = useState<'pick' | DevServer | null>(null)
   const scroller = useRef<HTMLDivElement>(null)
   const isCoordinator = threadId === 'coordinator'
 
@@ -89,7 +96,7 @@ function Conversation({ threadId, openDrawer, go }: ChatProps & { threadId: stri
 
   return (
     <div className="screen">
-      <TopBar openDrawer={openDrawer} go={go} pill={choiceLabel(choice, providers)} onPill={() => setPicking(true)} onMore={() => setMenu(true)} />
+      <TopBar openDrawer={openDrawer} go={go} pill={choiceLabel(choice, providers)} onPill={() => setPicking(true)} onMore={() => setMenu(true)} onPreview={() => setPreviewing('pick')} />
       <div className="chat-title">
         {title}
         {summary?.projectName ? ` · ${summary.projectName}` : ''}
@@ -149,6 +156,17 @@ function Conversation({ threadId, openDrawer, go }: ChatProps & { threadId: stri
       <Composer threadId={threadId} placeholder={busy ? 'Queue a message' : isCoordinator ? 'Describe the work' : 'Message'} />
 
       {picking && <ModelSheet value={choice} onChange={(c) => setChoice(threadId, c)} onClose={() => setPicking(false)} />}
+      {previewing === 'pick' && (
+        <PreviewLauncher
+          threadId={isCoordinator ? null : threadId}
+          canAsk={Boolean(summary?.live)}
+          onClose={() => setPreviewing(null)}
+          onOpen={setPreviewing}
+        />
+      )}
+      {previewing && previewing !== 'pick' && (
+        <PreviewScreen port={previewing.port} name={previewing.name || 'Dev server'} onBack={() => setPreviewing(null)} />
+      )}
       {menu && (
         <Sheet title={title} onClose={() => setMenu(false)}>
           <div className="list">
