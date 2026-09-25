@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, getToken } from './api'
-import { startSync } from './store'
+import { startSync, useStore } from './store'
 import AuthScreen from './screens/Auth'
 import Drawer from './screens/Drawer'
 import Chat from './screens/Chat'
@@ -19,7 +19,7 @@ function projectFromHash(): string | null {
 }
 
 export default function App() {
-  const [authenticated, setAuthenticated] = useState<boolean | null | 'offline'>(null)
+  const [authenticated, setAuthenticated] = useState<boolean | null | 'offline'>(() => (getToken() ? true : null))
   const [threadId, setThreadId] = useState<string | null>(routeFromHash())
   const [project, setProject] = useState<string | null>(projectFromHash())
 
@@ -40,8 +40,8 @@ export default function App() {
   }, [probe])
 
   useEffect(() => {
-    checkAuth()
-  }, [checkAuth])
+    void probe()
+  }, [probe])
 
   useEffect(() => {
     if (authenticated !== 'offline') return
@@ -74,19 +74,25 @@ export default function App() {
 
   if (authenticated === null) return <div className="screen" />
   if (authenticated === false) return <AuthScreen onDone={checkAuth} />
-  if (authenticated === 'offline') return <OfflineScreen onPair={() => setAuthenticated(false)} />
   return <Shell threadId={threadId} project={project} />
 }
 
-function OfflineScreen({ onPair }: { onPair: () => void }) {
+function PcDownBanner() {
+  const pcDown = useStore((st) => st.pcDown)
+  const [shown, setShown] = useState(false)
+  useEffect(() => {
+    if (!pcDown) {
+      setShown(false)
+      return
+    }
+    const timer = window.setTimeout(() => setShown(true), 1500)
+    return () => window.clearTimeout(timer)
+  }, [pcDown])
+  if (!shown) return null
   return (
-    <div className="screen offline-screen">
-      <img src="/icon-192.png" alt="" className="offline-icon" />
-      <div className="offline-title">Can't reach your PC</div>
-      <div className="offline-desc">Orchestrator may be restarting or the PC is off. Reconnecting automatically…</div>
-      <button type="button" className="pair-link-trigger" onClick={onPair}>
-        Pair again instead
-      </button>
+    <div className="pc-down" role="status">
+      <span className="dot" aria-hidden="true" />
+      <span>PC not responding · showing saved chats</span>
     </div>
   )
 }
@@ -199,6 +205,7 @@ function Shell({ threadId, project }: { threadId: string | null; project: string
         ) : (
           <Chat key={threadId ?? 'new'} threadId={threadId} openDrawer={() => setOpen(true)} go={go} />
         )}
+        <PcDownBanner />
         {open && <div className="main-cover" aria-label="Close menu" />}
       </main>
     </div>

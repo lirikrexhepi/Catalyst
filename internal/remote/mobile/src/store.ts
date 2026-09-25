@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { api, getBase, getToken } from './api'
 import { reduceEvent, userBlock } from './feed/reducer'
+import { readLocal, readThread, writeLocal, writeThread } from './cache'
 import type { AgentStreamBlock } from './feed/types'
 import type {
   FileRef,
@@ -50,6 +51,7 @@ interface State {
   providersLoaded: boolean
   providersLoading: boolean
   connection: Connection
+  pcDown: boolean
   /** Model picked on the phone for a thread's next sends; overrides its summary. */
   choices: Record<string, ModelChoice>
 }
@@ -71,14 +73,18 @@ function loadCachedProviders(): ProviderInfo[] {
 
 const initialProviders = loadCachedProviders()
 
+const SUMMARIES_CACHE_KEY = 'orchestrator_summaries_cache'
+const initialSummaries = readLocal<ThreadSummary[]>(SUMMARIES_CACHE_KEY, []).map((s) => ({ ...s, busy: false }))
+
 let state: State = {
-  summaries: [],
-  summariesLoaded: false,
+  summaries: initialSummaries,
+  summariesLoaded: initialSummaries.length > 0,
   threads: {},
   providers: initialProviders,
   providersLoaded: initialProviders.length > 0,
   providersLoading: false,
   connection: 'connecting',
+  pcDown: false,
   choices: loadChoices(),
 }
 
@@ -142,10 +148,35 @@ function fold(t: ThreadState, events: RuntimeEvent[]): ThreadState {
   return { ...t, blocks, busy, turnStartedAt, lastSeq, turnMs: durations ?? turnMs }
 }
 
+const saveTimers = new Map<string, number>()
+
+function scheduleSave(threadId: string) {
+  window.clearTimeout(saveTimers.get(threadId))
+  saveTimers.set(
+    threadId,
+    window.setTimeout(() => {
+      saveTimers.delete(threadId)
+      const t = state.threads[threadId]
+      if (t?.loaded) void writeThread({ id: threadId, blocks: t.blocks, lastSeq: t.lastSeq, turnMs: t.turnMs })
+    }, 1500),
+  )
+}
+
+async function hydrateThread(threadId: string) {
+  const cached = await readThread(threadId)
+  if (!cached) return
+  patchThread(threadId, (t) =>
+    t.loaded || t.blocks.length > 0
+      ? t
+      : { ...t, blocks: cached.blocks, lastSeq: cached.lastSeq, turnMs: cached.turnMs, loaded: true, busy: false },
+  )
+}
+
 export async function loadThread(threadId: string, force = false) {
   const current = state.threads[threadId]
   if (current?.loading || (current?.loaded && !force)) return
   patchThread(threadId, (t) => ({ ...t, loading: true, error: undefined }))
+  if (!current?.loaded) await hydrateThread(threadId)
   try {
     const snapshot = await api.thread(threadId)
     patchThread(threadId, (t) => {
@@ -163,6 +194,7 @@ export async function loadThread(threadId: string, force = false) {
         sending: t.sending,
       }
     })
+    scheduleSave(threadId)
   } catch (e) {
     patchThread(threadId, (t) => ({ ...t, loading: false, error: message(e) }))
   }
@@ -198,7 +230,10 @@ function applyEvents(events: RuntimeEvent[]) {
     const t = threads[threadId]
     if (t?.loaded) {
       const fresh = t.lastSeq > 0 ? list.filter((e) => !(e.seq > 0 && e.seq <= t.lastSeq)) : list
-      if (fresh.length > 0) threads = { ...threads, [threadId]: fold(t, fresh) }
+      if (fresh.length > 0) {
+        threads = { ...threads, [threadId]: fold(t, fresh) }
+        scheduleSave(threadId)
+      }
     }
 
     const index = summaries.findIndex((s) => s.threadId === threadId)
@@ -259,7 +294,9 @@ function applyEvents(events: RuntimeEvent[]) {
 export async function refreshSummaries() {
   try {
     const summaries = await api.threads()
-    set({ summaries: Array.isArray(summaries) ? summaries : [], summariesLoaded: true })
+    const list = Array.isArray(summaries) ? summaries : []
+    writeLocal(SUMMARIES_CACHE_KEY, list)
+    set({ summaries: list, summariesLoaded: true })
   } catch {
     set({ summariesLoaded: true })
   }
@@ -432,7 +469,7 @@ function connect() {
   }
   socket.onopen = () => {
     backoff = 1000
-    set({ connection: 'live' })
+    set({ connection: 'live', pcDown: false })
     // Anything missed while disconnected comes back through fresh snapshots.
     void refreshSummaries()
     for (const [threadId, t] of Object.entries(state.threads)) {
@@ -451,7 +488,7 @@ function connect() {
   }
   socket.onclose = () => {
     socket = null
-    set({ connection: 'offline' })
+    set({ connection: 'offline', pcDown: true })
     retry()
   }
   socket.onerror = () => socket?.close()

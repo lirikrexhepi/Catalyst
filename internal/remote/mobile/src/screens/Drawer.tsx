@@ -6,6 +6,7 @@ import { prettyModel, relative } from '../format'
 import { useStore } from '../store'
 import SettingsSheet from './SettingsSheet'
 import type { Project, ThreadSummary } from '../types'
+import { readLocal, writeLocal } from '../cache'
 
 const DAY = 86_400_000
 
@@ -46,19 +47,25 @@ interface DrawerProps {
   openProject: (path: string) => void
 }
 
+const PROJECTS_CACHE_KEY = 'orchestrator_projects_cache'
+
 export default function Drawer({ current, project, go, openProject }: DrawerProps) {
   const summaries = useStore((s) => s.summaries)
   const loaded = useStore((s) => s.summariesLoaded)
   const connection = useStore((s) => s.connection)
   const [query, setQuery] = useState('')
   const [settings, setSettings] = useState(false)
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<Project[]>(() => readLocal<Project[]>(PROJECTS_CACHE_KEY, []))
   const [adding, setAdding] = useState(false)
 
   const loadProjects = useCallback(() => {
     api
       .projects()
-      .then((list) => setProjects(Array.isArray(list) ? list : []))
+      .then((list) => {
+        const next = Array.isArray(list) ? list : []
+        writeLocal(PROJECTS_CACHE_KEY, next)
+        setProjects(next)
+      })
       .catch(() => {})
   }, [])
   useEffect(() => {

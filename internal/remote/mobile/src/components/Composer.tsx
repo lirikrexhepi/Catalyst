@@ -39,6 +39,7 @@ interface ComposerProps {
 
 export default function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   const thread = useStore((s) => (threadId ? s.threads[threadId] : undefined))
+  const pcDown = useStore((s) => s.pcDown)
   const [text, setText] = useState('')
   const [files, setFiles] = useState<Attachment[]>([])
   const [uploading, setUploading] = useState(false)
@@ -51,7 +52,7 @@ export default function Composer({ threadId, placeholder, onCreate }: ComposerPr
   const waiting = thread?.blocks.some(
     (b) => (b.type === 'approval_request' && b.status === 'pending') || (b.type === 'tool_question' && !b.answered),
   )
-  const canSend = (text.trim().length > 0 || files.length > 0) && !uploading && !creating
+  const canSend = (text.trim().length > 0 || files.length > 0) && !uploading && !creating && !pcDown
 
   const grow = () => {
     const el = input.current
@@ -142,7 +143,7 @@ export default function Composer({ threadId, placeholder, onCreate }: ComposerPr
           ref={input}
           rows={1}
           value={text}
-          placeholder={placeholder}
+          placeholder={pcDown ? 'PC not responding' : placeholder}
           aria-label="Message"
           onChange={(e) => {
             setText(e.target.value)
