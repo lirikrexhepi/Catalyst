@@ -110,3 +110,51 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(staleWhileRevalidate(request))
   }
 })
+
+function setBadge(count) {
+  const nav = self.navigator
+  if (typeof count !== 'number' || !nav) return Promise.resolve()
+  if (count > 0 && nav.setAppBadge) return nav.setAppBadge(count).catch(() => undefined)
+  if (count <= 0 && nav.clearAppBadge) return nav.clearAppBadge().catch(() => undefined)
+  return Promise.resolve()
+}
+
+self.addEventListener('push', (event) => {
+  let msg = {}
+  try {
+    msg = event.data ? event.data.json() : {}
+  } catch {
+    msg = { body: event.data ? event.data.text() : '' }
+  }
+  const options = {
+    body: msg.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: { url: msg.url || '/' },
+  }
+  if (msg.tag) {
+    options.tag = msg.tag
+    options.renotify = true
+  }
+  event.waitUntil(
+    Promise.all([self.registration.showNotification(msg.title || 'Orchestrator', options), setBadge(msg.badge)]),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin).href
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of windows) {
+        if ('focus' in client) {
+          await client.focus()
+          client.postMessage({ type: 'open', url })
+          return
+        }
+      }
+      await self.clients.openWindow(url)
+    })(),
+  )
+})

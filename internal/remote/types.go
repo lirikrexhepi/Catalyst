@@ -32,6 +32,7 @@ type ClientMessage struct {
 	Decision  string         `json:"decision,omitempty"`
 	RequestID string         `json:"requestId,omitempty"`
 	Answers   []string       `json:"answers,omitempty"`
+	Visible   bool           `json:"visible,omitempty"`
 }
 
 // PlanTaskItem represents a task dispatched from the phone.

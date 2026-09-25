@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, getToken } from './api'
-import { startSync, useStore } from './store'
+import { setPresence, startSync, useStore } from './store'
+import { resyncPush } from './push'
 import AuthScreen from './screens/Auth'
 import Drawer from './screens/Drawer'
 import Chat from './screens/Chat'
@@ -60,8 +61,26 @@ export default function App() {
   }, [authenticated, probe])
 
   useEffect(() => {
-    if (authenticated) startSync()
+    if (!authenticated) return
+    startSync()
+    if (authenticated === true) void resyncPush()
   }, [authenticated])
+
+  useEffect(() => {
+    setPresence(project ? null : threadId)
+  }, [threadId, project])
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as { type?: string; url?: string } | null
+      if (data?.type !== 'open' || !data.url) return
+      const target = new URL(data.url, window.location.origin)
+      window.location.hash = target.hash
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [])
 
   useEffect(() => {
     const onHash = () => {

@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -46,6 +47,15 @@ type Server struct {
 	hooks        Hooks
 	previews     *PreviewManager
 	local        *LocalControl
+	notifier     *Notifier
+	presence     map[*websocket.Conn]clientPresence
+	cancelNotify func()
+}
+
+type clientPresence struct {
+	threadID string
+	visible  bool
+	at       time.Time
 }
 
 func NewServer(
@@ -66,6 +76,8 @@ func NewServer(
 		auth:         NewAuthManager(),
 		tunnel:       NewTunnelManager(port),
 		previews:     NewPreviewManager(port),
+		notifier:     NewNotifier(),
+		presence:     make(map[*websocket.Conn]clientPresence),
 		clients:      make(map[*websocket.Conn]bool),
 		manager:      manager,
 		coordinator:  coordinator,
@@ -113,6 +125,13 @@ func (s *Server) Start(ctx context.Context) error {
 	s.cancelFeed = cancel
 	go s.broadcastEvents(events)
 
+	s.notifier.subject = s.publicURL
+	s.notifier.summaries = s.threadSummaries
+	s.notifier.viewing = s.viewing
+	notifyEvents, cancelNotify := s.manager.Bus().Subscribe()
+	s.cancelNotify = cancelNotify
+	go s.notifier.Run(notifyEvents)
+
 	// Publish through Tailscale Funnel for stable worldwide access
 	go s.tunnel.KeepPublicTunnel(ctx)
 
@@ -136,6 +155,9 @@ func (s *Server) Stop() {
 
 	if s.cancelFeed != nil {
 		s.cancelFeed()
+	}
+	if s.cancelNotify != nil {
+		s.cancelNotify()
 	}
 
 	s.tunnel.Stop()
@@ -162,6 +184,11 @@ func (s *Server) Stop() {
 func (s *Server) SetStoragePath(path string) {
 	if s != nil && s.auth != nil {
 		s.auth.SetStoragePath(path)
+	}
+	if s != nil && s.notifier != nil && path != "" {
+		if err := s.notifier.Load(filepath.Join(filepath.Dir(path), "remote_push.json")); err != nil {
+			logger.Errorf("RemoteServer", "Push notifications unavailable: %v", err)
+		}
 	}
 }
 
@@ -223,6 +250,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/preview/stop", s.requireAuth(s.handlePreviewStop))
 	mux.HandleFunc("/api/ws", s.handleWebSocket)
 	mux.HandleFunc("/api/system/shutdown", s.requireAuth(s.handleSystemShutdown))
+	mux.HandleFunc("/api/push/key", s.requireAuth(s.handlePushKey))
+	mux.HandleFunc("/api/push/subscribe", s.requireAuth(s.handlePushSubscribe))
+	mux.HandleFunc("/api/push/unsubscribe", s.requireAuth(s.handlePushUnsubscribe))
+	mux.HandleFunc("/api/push/test", s.requireAuth(s.handlePushTest))
 	s.registerWorkspaceRoutes(mux)
 	mux.HandleFunc("/api/local/instance", s.handleLocalInstance)
 	mux.HandleFunc("/api/local/shutdown", s.handleLocalShutdown)
@@ -571,6 +602,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		s.mu.Lock()
 		delete(s.clients, conn)
+		delete(s.presence, conn)
 		s.mu.Unlock()
 		_ = conn.Close()
 	}()
@@ -582,6 +614,12 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 		var msg ClientMessage
 		if err := json.Unmarshal(payload, &msg); err != nil {
+			continue
+		}
+		if msg.Action == "presence" {
+			s.mu.Lock()
+			s.presence[conn] = clientPresence{threadID: msg.ThreadID, visible: msg.Visible, at: time.Now()}
+			s.mu.Unlock()
 			continue
 		}
 		s.handleClientAction(msg)

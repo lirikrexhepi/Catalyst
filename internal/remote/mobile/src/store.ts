@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { api, getBase, getToken } from './api'
 import { reduceEvent, userBlock } from './feed/reducer'
 import { readLocal, readThread, writeLocal, writeThread } from './cache'
+import { setBadge } from './push'
 import type { AgentStreamBlock } from './feed/types'
 import type {
   FileRef,
@@ -283,6 +284,7 @@ function applyEvents(events: RuntimeEvent[]) {
   }
 
   set({ threads, summaries })
+  setBadge(summaries.filter((t) => t.attention).length)
   if (refresh) scheduleSummaryRefresh()
   for (const threadId of finished) void drainQueue(threadId)
 }
@@ -297,6 +299,7 @@ export async function refreshSummaries() {
     const list = Array.isArray(summaries) ? summaries : []
     writeLocal(SUMMARIES_CACHE_KEY, list)
     set({ summaries: list, summariesLoaded: true })
+    setBadge(list.filter((t) => t.attention).length)
   } catch {
     set({ summariesLoaded: true })
   }
@@ -470,6 +473,7 @@ function connect() {
   socket.onopen = () => {
     backoff = 1000
     set({ connection: 'live', pcDown: false })
+    sendPresence()
     // Anything missed while disconnected comes back through fresh snapshots.
     void refreshSummaries()
     for (const [threadId, t] of Object.entries(state.threads)) {
@@ -500,6 +504,22 @@ function retry() {
   backoff = Math.min(backoff * 2, 10000)
 }
 
+let presenceThread = ''
+
+function sendPresence() {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return
+  try {
+    socket.send(JSON.stringify({ action: 'presence', threadId: presenceThread, visible: document.visibilityState === 'visible' }))
+  } catch {
+    return
+  }
+}
+
+export function setPresence(threadId: string | null) {
+  presenceThread = threadId ?? ''
+  sendPresence()
+}
+
 /** Starts the socket and the background refresh; safe to call repeatedly. */
 export function startSync() {
   if (started) return
@@ -510,6 +530,11 @@ export function startSync() {
   window.setInterval(() => {
     if (document.visibilityState === 'visible') void refreshSummaries()
   }, 15000)
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible') sendPresence()
+  }, 10000)
+  document.addEventListener('visibilitychange', sendPresence)
+  window.addEventListener('pagehide', sendPresence)
   // iOS suspends sockets in the background; reconnect the moment we return.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return

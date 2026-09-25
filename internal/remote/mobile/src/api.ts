@@ -167,4 +167,17 @@ export const api = {
     request<Project>('/api/projects/add', { method: 'POST', body: JSON.stringify({ path }) }),
   previewStop: (port: number) =>
     request<{ ok?: boolean }>('/api/preview/stop', { method: 'POST', body: JSON.stringify({ port }) }),
+  pushKey: () => request<{ publicKey: string }>('/api/push/key'),
+  pushSubscribe: (subscription: PushSubscriptionJSON, prefs: PushPrefs) =>
+    request<{ ok?: boolean }>('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription, prefs }) }),
+  pushUnsubscribe: (endpoint: string) =>
+    request<{ ok?: boolean }>('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+  pushTest: (endpoint: string) =>
+    request<{ ok?: boolean }>('/api/push/test', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+}
+
+export interface PushPrefs {
+  attention: boolean
+  finished: boolean
+  away: boolean
 }
