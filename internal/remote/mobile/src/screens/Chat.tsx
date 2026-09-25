@@ -10,6 +10,7 @@ import { choiceLabel, defaultOptions } from '../format'
 import { effectiveChoice, interrupt, loadProviders, loadThread, message, refreshSummaries, setChoice, useStore } from '../store'
 import type { DevServer, ModelChoice, Project } from '../types'
 import { PreviewLauncher, PreviewScreen } from './Preview'
+import { providerIcon } from '../components/providerIcons'
 
 interface ChatProps {
   threadId: string | null
@@ -21,15 +22,39 @@ export default function Chat(props: ChatProps) {
   return props.threadId ? <Conversation {...props} threadId={props.threadId} /> : <NewChat {...props} />
 }
 
-function TopBar({ openDrawer, go, pill, onPill, onMore, onPreview }: { openDrawer: () => void; go: (id: string | null) => void; pill: string; onPill: () => void; onMore?: () => void; onPreview?: () => void }) {
+function TopBar({
+  openDrawer,
+  go,
+  pill,
+  icon,
+  onPill,
+  onMore,
+  onPreview,
+}: {
+  openDrawer: () => void
+  go: (id: string | null) => void
+  pill: string
+  icon?: string
+  onPill: () => void
+  onMore?: () => void
+  onPreview?: () => void
+}) {
   return (
     <header className="bar">
       <button className="circle" onClick={openDrawer} aria-label="Open chats">
         <Menu size={21} aria-hidden="true" />
       </button>
       <button className="title-pill" onClick={onPill} aria-label={`Model: ${pill}. Change`}>
+        {icon && (
+          <img
+            src={icon}
+            alt=""
+            className="title-pill-icon"
+            draggable={false}
+          />
+        )}
         <span>{pill}</span>
-        <ChevronDown size={16} aria-hidden="true" />
+        <ChevronDown size={15} aria-hidden="true" />
       </button>
       <span className="spacer" />
       {onPreview && (
@@ -96,7 +121,15 @@ function Conversation({ threadId, openDrawer, go }: ChatProps & { threadId: stri
 
   return (
     <div className="screen">
-      <TopBar openDrawer={openDrawer} go={go} pill={choiceLabel(choice, providers)} onPill={() => setPicking(true)} onMore={() => setMenu(true)} onPreview={() => setPreviewing('pick')} />
+      <TopBar
+        openDrawer={openDrawer}
+        go={go}
+        pill={choiceLabel(choice, providers)}
+        icon={choice?.driver ? providerIcon(choice.driver) : undefined}
+        onPill={() => setPicking(true)}
+        onMore={() => setMenu(true)}
+        onPreview={() => setPreviewing('pick')}
+      />
       <div className="chat-title">
         {title}
         {summary?.projectName ? ` · ${summary.projectName}` : ''}
@@ -283,6 +316,7 @@ function NewChat({ openDrawer, go }: ChatProps) {
         openDrawer={openDrawer}
         go={go}
         pill={providers.length === 0 ? (!providersLoaded || providersLoading ? 'Checking CLIs…' : 'No agent CLIs') : choiceLabel(choice, providers)}
+        icon={choice?.driver ? providerIcon(choice.driver) : undefined}
         onPill={() => setSheet('model')}
       />
       <div className="scroll" style={{ display: 'flex', flexDirection: 'column' }}>

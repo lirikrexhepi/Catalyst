@@ -6,6 +6,8 @@ interface SheetProps {
   onClose: () => void
   children: React.ReactNode
   footer?: React.ReactNode
+  className?: string
+  headerAction?: React.ReactNode
 }
 
 /**
@@ -13,7 +15,7 @@ interface SheetProps {
  * chat) cannot trap it. The grabber area drags the sheet with the finger and a
  * flick or a long pull dismisses it.
  */
-export default function Sheet({ title, onClose, children, footer }: SheetProps) {
+export default function Sheet({ title, onClose, children, footer, className = '', headerAction }: SheetProps) {
   const ref = useRef<HTMLDivElement>(null)
   const drag = useRef<{ y: number; t: number; v: number; dy: number } | null>(null)
 
@@ -62,11 +64,12 @@ export default function Sheet({ title, onClose, children, footer }: SheetProps) 
   return createPortal(
     <>
       <div className="scrim" onClick={onClose} aria-hidden="true" />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
+      <div className={`sheet ${className}`.trim()} role="dialog" aria-modal="true" aria-label={title} ref={ref} tabIndex={-1}>
         <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp} style={{ touchAction: 'none' }}>
           <div className="sheet-grab" aria-hidden="true" />
           <div className="sheet-head">
             <h2>{title}</h2>
+            {headerAction}
           </div>
         </div>
         <div className="sheet-body">{children}</div>
