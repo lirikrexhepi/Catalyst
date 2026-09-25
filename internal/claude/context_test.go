@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"composer/internal/domain"
-	"composer/internal/provider"
 )
 
 type captureEmitter struct{ events []domain.RuntimeEvent }
@@ -89,10 +88,10 @@ func TestDefaultWindowWithoutExtendedContext(t *testing.T) {
 	}
 }
 
-func TestLaunchRequestsThinkingSummariesAndRuntimeNote(t *testing.T) {
+func TestLaunchRequestsThinkingSummaries(t *testing.T) {
 	a := NewAdapter(domain.ProviderSettings{}, &captureEmitter{})
 	args := strings.Join(a.buildArgs(domain.SessionStartInput{Model: "claude-opus-5"}), "\x00")
-	for _, want := range []string{"--thinking-display\x00summarized", `"showThinkingSummaries":true`, "--append-system-prompt\x00" + provider.RuntimeInstructions} {
+	for _, want := range []string{"--thinking-display\x00summarized", `"showThinkingSummaries":true`} {
 		if !strings.Contains(args, want) {
 			t.Errorf("args missing %q", strings.ReplaceAll(want, "\x00", " "))
 		}
@@ -102,9 +101,7 @@ func TestLaunchRequestsThinkingSummariesAndRuntimeNote(t *testing.T) {
 	if strings.Contains(off, "--thinking-display") || strings.Contains(off, "showThinkingSummaries") {
 		t.Errorf("thinking turned off must not request summaries: %s", strings.ReplaceAll(off, "\x00", " "))
 	}
-
-	plan := strings.Join(a.buildArgs(domain.SessionStartInput{Model: "claude-opus-5", PlanOnly: true}), "\x00")
-	if strings.Contains(plan, "--append-system-prompt") {
-		t.Error("planning sessions keep their own prompt")
+	if strings.Contains(args, "--append-system-prompt") {
+		t.Error("Claude narrates on its own and must not get the runtime note")
 	}
 }

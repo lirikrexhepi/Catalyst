@@ -146,9 +146,6 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 	if thinkingSummaries(in.Options) {
 		args = append(args, "--thinking-display", "summarized")
 	}
-	if !in.PlanOnly {
-		args = append(args, "--append-system-prompt", provider.RuntimeInstructions)
-	}
 	return append(args, shell.TokenizeArgs(a.settings.LaunchArgs)...)
 }
 
