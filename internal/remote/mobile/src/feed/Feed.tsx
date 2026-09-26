@@ -21,6 +21,7 @@ import { basename, dirname, duration } from '../format'
 import { UserBubble } from './user/UserBubble'
 import { Approval } from './ask/Approval'
 import { Question } from './ask/Question'
+import { StatusCard } from '../components/status/StatusCard'
 import type { AgentStreamBlock, ToolGroupItem } from './types'
 
 type Block = AgentStreamBlock
@@ -55,7 +56,7 @@ const BlockView = React.memo(function BlockView({ threadId, block }: { threadId:
 
     case 'text':
       if (block.variant === 'error') {
-        return <div className="say error" role="alert">{block.content.replace(/^⚠\s*/, '')}</div>
+        return <StatusCard>{block.content.replace(/^⚠\s*/, '')}</StatusCard>
       }
       return (
         <div className="say">

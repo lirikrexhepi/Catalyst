@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Check, ShieldCheck, X } from 'lucide-react'
 import { api } from '../../api'
+import { message } from '../../store'
 import type { AgentStreamBlock } from '../types'
 import { AskCard, AskDone } from './AskCard'
 import { AskButton } from './AskButton'
@@ -26,7 +27,7 @@ export function Approval({ threadId, block }: { threadId: string; block: Approva
       await api.approve(threadId, block.requestID, kind)
     } catch (e) {
       setSent(null)
-      setError(e instanceof Error ? e.message : String(e))
+      setError(message(e))
     }
   }
 

@@ -210,7 +210,8 @@ export async function loadThread(threadId: string, force = false) {
     })
     scheduleSave(threadId)
   } catch (e) {
-    patchThread(threadId, (t) => ({ ...t, loading: false, error: message(e) }))
+    const error = failure(e)
+    patchThread(threadId, (t) => ({ ...t, loading: false, error }))
   }
 }
 
@@ -312,7 +313,7 @@ export async function refreshSummaries() {
     const summaries = await api.threads()
     const list = Array.isArray(summaries) ? summaries : []
     writeLocal(SUMMARIES_CACHE_KEY, list)
-    set({ summaries: list, summariesLoaded: true })
+    set({ summaries: list, summariesLoaded: true, pcDown: false })
     setBadge(list.filter((t) => t.attention).length)
   } catch {
     set({ summariesLoaded: true })
@@ -491,7 +492,7 @@ function connect() {
     // Anything missed while disconnected comes back through fresh snapshots.
     void refreshSummaries()
     for (const [threadId, t] of Object.entries(state.threads)) {
-      if (t.loaded) void loadThread(threadId, true)
+      if (t.loaded || t.error) void loadThread(threadId, true)
     }
   }
   socket.onmessage = (event) => {
@@ -534,6 +535,25 @@ export function setPresence(threadId: string | null) {
   sendPresence()
 }
 
+export function failure(e: unknown): string {
+  const text = message(e)
+  if (isUnreachable(text)) set({ pcDown: true })
+  return text
+}
+
+export function retryNow() {
+  backoff = 1000
+  if (!socket || socket.readyState !== WebSocket.OPEN) {
+    connect()
+  } else {
+    void refreshSummaries()
+    for (const [threadId, t] of Object.entries(state.threads)) {
+      if (t.error) void loadThread(threadId, true)
+    }
+  }
+  if (state.providers.length === 0) void loadProviders()
+}
+
 /** Starts the socket and the background refresh; safe to call repeatedly. */
 export function startSync() {
   if (started) return
@@ -564,6 +584,18 @@ export function startSync() {
   })
 }
 
+const UNREACHABLE = /load failed|failed to fetch|networkerror|network request failed|network connection was lost/i
+const UNREACHABLE_TEXT = "Can't reach your PC"
+
+export const isUnreachable = (text: string | null | undefined) => text === UNREACHABLE_TEXT
+
 export function message(e: unknown): string {
-  return e instanceof Error ? e.message : String(e)
+  const text = e instanceof Error ? e.message : String(e)
+  if (UNREACHABLE.test(text)) return UNREACHABLE_TEXT
+  if (!/^\d{3}$/.test(text)) return text
+  const status = Number(text)
+  if (status === 401 || status === 403) return 'This phone needs pairing again'
+  if (status === 404) return 'Not found on your PC'
+  if (status >= 502) return UNREACHABLE_TEXT
+  return 'Your PC ran into an error'
 }

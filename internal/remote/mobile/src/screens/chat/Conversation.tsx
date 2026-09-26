@@ -10,10 +10,11 @@ import { usageRatio } from '../../components/chrome/usageTone'
 import { Composer } from '../../components/composer/Composer'
 import { providerIcon } from '../../components/providerIcons'
 import { useStickToBottom } from '../../hooks/useStickToBottom'
+import { StatusCard } from '../../components/status/StatusCard'
 import { HistoryScrubber } from '../../components/scrubber/HistoryScrubber'
 import { api } from '../../api'
 import { choiceModelName } from '../../format'
-import { effectiveChoice, interrupt, loadProviders, loadThread, message, refreshSummaries, setChoice, useStore } from '../../store'
+import { effectiveChoice, failure, interrupt, isUnreachable, loadProviders, loadThread, refreshSummaries, setChoice, useStore } from '../../store'
 import { ChatActions } from './ChatActions'
 import { usePreviewFlow } from './usePreviewFlow'
 
@@ -53,7 +54,7 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
       await fn()
       void refreshSummaries()
     } catch (e) {
-      setActionError(message(e))
+      setActionError(failure(e))
     }
   }
 
@@ -93,18 +94,14 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
   return (
     <div className="screen">
       <ChatFrame ref={scroller} header={header} dock={dock} floating={floating} onScroll={onScroll}>
-        {thread?.error && !thread.loaded ? (
-          <div className="empty">
-            <strong>Couldn't load this chat</strong>
-            {thread.error}
-            <div style={{ marginTop: 14 }}>
-              <button className="btn" onClick={() => void loadThread(threadId, true)}>
-                Try again
-              </button>
-            </div>
+        {thread?.error && !thread.loaded && !isUnreachable(thread.error) ? (
+          <div className="feed">
+            <StatusCard title="Couldn't load chat" action={{ label: 'Retry', onClick: () => void loadThread(threadId, true) }}>
+              {thread.error}
+            </StatusCard>
           </div>
         ) : null}
-        {!thread?.loaded && !thread?.error ? <div className="empty">Loading…</div> : null}
+        {!thread?.loaded && (!thread?.error || isUnreachable(thread.error)) ? <div className="empty">Loading…</div> : null}
         {thread?.loaded && thread.blocks.length === 0 ? (
           <div className="empty">
             <strong>{coordinator ? 'Plan work across agents' : 'Nothing here yet'}</strong>
@@ -123,7 +120,7 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
         ) : null}
         {actionError ? (
           <div className="feed">
-            <div className="say error">{actionError}</div>
+            {isUnreachable(actionError) ? null : <StatusCard>{actionError}</StatusCard>}
           </div>
         ) : null}
       </ChatFrame>

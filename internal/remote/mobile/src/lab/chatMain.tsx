@@ -15,6 +15,8 @@ import Drawer from '../screens/Drawer'
 import { PreviewScreen } from '../screens/Preview'
 import { trackVisualViewport } from '../platform/viewport'
 import Feed from '../feed/Feed'
+import { WifiOff } from 'lucide-react'
+import { StatusPill } from '../components/status/StatusPill'
 import type { AgentStreamBlock } from '../feed/types'
 
 const ASK_BLOCKS = [
@@ -51,6 +53,7 @@ createRoot(document.getElementById('root')!).render(
       ) : null}
       <main className="main">
         <Chat threadId={location.hash === '#thread' ? 'lab-thread' : null} openDrawer={() => undefined} go={() => undefined} />
+        {location.hash === '#offline' ? <StatusPill icon={WifiOff} action={{ label: 'Retry', onClick: () => undefined }}>{"Can't reach your PC"}</StatusPill> : null}
         {location.hash === '#ask' ? (
           <div className="chat-frame" style={{ position: 'absolute', inset: 0, padding: 16, overflow: 'auto', background: 'var(--chat-bg)' }}>
             <Feed threadId="lab" blocks={ASK_BLOCKS} turnMs={{}} />

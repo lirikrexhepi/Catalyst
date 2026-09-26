@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, getToken } from './api'
-import { setPresence, startSync, useStore } from './store'
+import { retryNow, setPresence, startSync, useStore } from './store'
 import { resyncPush } from './push'
 import AuthScreen from './screens/Auth'
 import Drawer from './screens/Drawer'
 import Chat from './screens/Chat'
 import ProjectScreen from './screens/Project'
 import { useDrawer } from './screens/shell/useDrawer'
+import { Loader2, WifiOff } from 'lucide-react'
+import { StatusPill } from './components/status/StatusPill'
 import { NavCue, type Cue } from './screens/shell/NavCue'
 import { classifyNavigation, initHistoryIndex } from './platform/historyDirection'
 
@@ -108,6 +110,7 @@ export default function App() {
 function PcDownBanner() {
   const pcDown = useStore((st) => st.pcDown)
   const [shown, setShown] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   useEffect(() => {
     if (!pcDown) {
       setShown(false)
@@ -116,12 +119,20 @@ function PcDownBanner() {
     const timer = window.setTimeout(() => setShown(true), 1500)
     return () => window.clearTimeout(timer)
   }, [pcDown])
+  useEffect(() => {
+    if (!retrying) return
+    const timer = window.setTimeout(() => setRetrying(false), 1800)
+    return () => window.clearTimeout(timer)
+  }, [retrying])
+  const retry = () => {
+    setRetrying(true)
+    retryNow()
+  }
   if (!shown) return null
   return (
-    <div className="pc-down" role="status">
-      <span className="dot" aria-hidden="true" />
-      <span>PC not responding · showing saved chats</span>
-    </div>
+    <StatusPill icon={retrying ? Loader2 : WifiOff} action={{ label: 'Retry', onClick: retry, busy: retrying }}>
+      {retrying ? 'Reconnecting' : "Can't reach your PC"}
+    </StatusPill>
   )
 }
 

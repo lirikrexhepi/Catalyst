@@ -7,13 +7,14 @@ import { Composer } from '../../components/composer/Composer'
 import { providerIcon } from '../../components/providerIcons'
 import { api } from '../../api'
 import { choiceModelName, defaultOptions } from '../../format'
-import { loadProviders, message, refreshSummaries, useStore } from '../../store'
+import { failure, isUnreachable, loadProviders, refreshSummaries, useStore } from '../../store'
 import type { ModelChoice, Project } from '../../types'
 import { HistoryScrubber } from '../../components/scrubber/HistoryScrubber'
 import { StartOptions } from './StartOptions'
 import { usePreviewFlow } from './usePreviewFlow'
 import { PROJECTS_CACHE_KEY, readLocal, writeLocal } from '../../cache'
 import { ProjectSheet } from './ProjectSheet'
+import { StatusCard } from '../../components/status/StatusCard'
 import AddProjectSheet from '../AddProjectSheet'
 
 interface NewChatProps {
@@ -62,7 +63,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
         setProjects(all)
         setCwd((cur) => (select && all.some((p) => p.path === select) ? select : cur && all.some((p) => p.path === cur) ? cur : all[0]?.path || cur))
       })
-      .catch((e) => setError(message(e)))
+      .catch((e) => setError(failure(e)))
   }, [])
 
   useEffect(() => {
@@ -101,7 +102,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
       go(threadId)
       return true
     } catch (e) {
-      setError(message(e))
+      setError(failure(e))
       return false
     }
   }
@@ -118,7 +119,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
   return (
     <div className="screen">
       <ChatFrame header={header} dock={<Composer placeholder="Enter your text here...." onCreate={create} />} floating={<HistoryScrubber chats={summaries} onPick={go} />}>
-        {error ? <div className="say error start-error">{error}</div> : null}
+        {error && !isUnreachable(error) ? <StatusCard className="start-error">{error}</StatusCard> : null}
         <StartOptions
           projectName={project?.name ?? (projects.length ? undefined : 'None')}
           onProject={() => setSheet('project')}

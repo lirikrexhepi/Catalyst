@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { HelpCircle, MessageCircleQuestion } from 'lucide-react'
 import { api } from '../../api'
+import { message } from '../../store'
 import type { AgentStreamBlock } from '../types'
 import { AskCard, AskDone } from './AskCard'
 import { AskButton, AskOption } from './AskButton'
@@ -35,7 +36,7 @@ export function Question({ threadId, block }: { threadId: string; block: Questio
       await api.answer(threadId, requestId, skip ? [] : answers)
     } catch (e) {
       setSent(false)
-      setError(e instanceof Error ? e.message : String(e))
+      setError(message(e))
     }
   }
 
