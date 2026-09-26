@@ -14,7 +14,8 @@ interface ComposerProps {
 }
 
 const MAX_INPUT_HEIGHT = 132
-const ICON = { size: 20, strokeWidth: 1.9 } as const
+const ICON = { size: 24, strokeWidth: 1.75 } as const
+const BUTTON = 44
 
 export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   const thread = useStore((s) => (threadId ? s.threads[threadId] : undefined))
@@ -117,7 +118,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
           />
           <span className="composer-grow" />
           <GlassCircle
-            size={36}
+            size={BUTTON}
             fill={dictation.listening ? 'var(--voice-live)' : 'var(--voice)'}
             onClick={onMic}
             aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
@@ -126,11 +127,11 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
             <Mic {...ICON} aria-hidden />
           </GlassCircle>
           {busy && !canSend ? (
-            <GlassCircle size={36} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding">
-              <Square size={14} fill="currentColor" aria-hidden />
+            <GlassCircle size={BUTTON} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding">
+              <Square size={16} fill="currentColor" aria-hidden />
             </GlassCircle>
           ) : (
-            <GlassCircle size={36} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send">
+            <GlassCircle size={BUTTON} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send">
               <Send {...ICON} aria-hidden />
             </GlassCircle>
           )}

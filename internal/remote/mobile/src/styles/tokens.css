@@ -2,7 +2,7 @@
   --font: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-display: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
-  --chat-bg: #121212;
+  --chat-bg: #111111;
   --glass-control: #414141;
   --composer-fill: linear-gradient(to bottom left, #3c3c3c, #474747);
   --placeholder: #989595;
@@ -10,9 +10,9 @@
   --voice: #344e67;
   --voice-live: #4a78a3;
 
-  --usage-low: #d2642e;
-  --usage-mid: #f2b544;
-  --usage-high: #ff5a4e;
+  --usage-low: #2b821f;
+  --usage-mid: #a04b26;
+  --usage-high: #ff0909;
 
   --dock-gap: max(calc(var(--safe-bottom) - 8px), 12px);
 }

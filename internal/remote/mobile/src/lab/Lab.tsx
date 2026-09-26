@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { ChevronDown, Menu, MessageSquarePlus, Mic, Monitor, Paperclip, Play, Send, Smartphone } from 'lucide-react'
 import { DEFAULT_RIM_LIGHT, GlassCircle, GlassPill, GlassSegmented, GlassSquircle, Squircle, type GlassBorderStyle, type StrokeAlign } from '../ui'
 import { FpsMeter } from './FpsMeter'
+import { ModelSwitch } from '../components/chrome/ModelSwitch'
+import '../styles/tokens.css'
+import '../styles/chat.css'
 
 const DEVICES = [
   { value: 'phone', label: 'Phone', icon: <Smartphone size={17} strokeWidth={1.8} /> },
@@ -82,6 +85,11 @@ export function Lab() {
     <div className={k.grid ? 'lab grid' : 'lab'}>
       <FpsMeter />
       <section className="stage">
+        <div className="ring-row">
+          {[0, 0.3, 0.8, 0.95].map((u) => (
+            <ModelSwitch key={u} label={`Usage ${Math.round(u * 100)}%`} usage={u} onClick={() => undefined} />
+          ))}
+        </div>
         <div className="row">
           <GlassSegmented options={DEVICES} value={device} onChange={setDevice} height={44} fill={GRAY} border={border} lensBorder={border} />
           <span className="hint">Tap, or drag and flick the lens</span>

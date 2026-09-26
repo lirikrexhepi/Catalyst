@@ -1,8 +1,8 @@
 {
   "name": "Orchestrator",
   "short_name": "Orchestrator",
-  "theme_color": "#030303",
-  "background_color": "#030303",
+  "theme_color": "#111111",
+  "background_color": "#111111",
   "display": "standalone",
   "orientation": "portrait",
   "start_url": "/",
