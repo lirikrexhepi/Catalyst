@@ -3,6 +3,7 @@ import { ChevronDown, Menu, MessageSquarePlus, Mic, Monitor, Paperclip, Play, Se
 import { DEFAULT_RIM_LIGHT, GlassCircle, GlassPill, GlassSegmented, GlassSquircle, Squircle, type GlassBorderStyle, type StrokeAlign } from '../ui'
 import { FpsMeter } from './FpsMeter'
 import { ModelSwitch } from '../components/chrome/ModelSwitch'
+import { UserBubble } from '../feed/user/UserBubble'
 import '../styles/tokens.css'
 import '../styles/chat.css'
 
@@ -85,6 +86,12 @@ export function Lab() {
     <div className={k.grid ? 'lab grid' : 'lab'}>
       <FpsMeter />
       <section className="stage">
+        <div className="bubble-row">
+          <UserBubble
+            content="Change the way the modal looks, and dont forget to turn on the dev server, just run npm run dev."
+            files={[{ path: 'C:/uploads/one.png', mime: 'image/png' }, { path: 'C:/uploads/notes.txt', name: 'notes.txt', mime: 'text/plain' }]}
+          />
+        </div>
         <div className="ring-row">
           {[0, 0.3, 0.8, 0.95].map((u) => (
             <ModelSwitch key={u} label={`Usage ${Math.round(u * 100)}%`} usage={u} onClick={() => undefined} />

@@ -10,6 +10,7 @@ import { usageRatio } from '../../components/chrome/usageTone'
 import { Composer } from '../../components/composer/Composer'
 import { providerIcon } from '../../components/providerIcons'
 import { useStickToBottom } from '../../hooks/useStickToBottom'
+import { HistoryScrubber } from '../../components/scrubber/HistoryScrubber'
 import { api } from '../../api'
 import { choiceModelName } from '../../format'
 import { effectiveChoice, interrupt, loadProviders, loadThread, message, refreshSummaries, setChoice, useStore } from '../../store'
@@ -23,7 +24,8 @@ interface ConversationProps {
 }
 
 export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
-  const summary = useStore((s) => s.summaries.find((t) => t.threadId === threadId))
+  const summaries = useStore((s) => s.summaries)
+  const summary = summaries.find((t) => t.threadId === threadId)
   const thread = useStore((s) => s.threads[threadId])
   const providers = useStore((s) => s.providers)
   useStore((s) => s.choices[threadId])
@@ -77,10 +79,15 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
 
   const dock = <Composer threadId={threadId} placeholder={busy ? 'Queue a message' : coordinator ? 'Describe the work' : 'Enter your text here....'} />
 
-  const floating = pinned ? null : (
-    <button className="jump chat-jump" aria-label="Jump to latest" onClick={jump}>
-      <ArrowDown size={18} aria-hidden />
-    </button>
+  const floating = (
+    <>
+      {pinned ? null : (
+        <button className="jump chat-jump" aria-label="Jump to latest" onClick={jump}>
+          <ArrowDown size={18} aria-hidden />
+        </button>
+      )}
+      <HistoryScrubber chats={summaries} currentId={threadId} onPick={go} />
+    </>
   )
 
   return (

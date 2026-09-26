@@ -21,6 +21,7 @@ import {
 import Markdown from '../components/Markdown'
 import { api } from '../api'
 import { basename, dirname, duration } from '../format'
+import { UserBubble } from './user/UserBubble'
 import type { AgentStreamBlock, ToolGroupItem } from './types'
 
 type Block = AgentStreamBlock
@@ -48,20 +49,7 @@ export default function Feed({ threadId, blocks, turnMs }: FeedProps) {
 const BlockView = React.memo(function BlockView({ threadId, block }: { threadId: string; block: Block }) {
   switch (block.type) {
     case 'user':
-      return (
-        <div className={`bubble-user${block.pending ? ' pending' : ''}`}>
-          {block.content}
-          {block.files && block.files.length > 0 && (
-            <div className="files">
-              {block.files.map((f) => (
-                <span className="chip-file" key={f.path}>
-                  {f.name || basename(f.path)}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )
+      return <UserBubble content={block.content} files={block.files} pending={block.pending} />
 
     case 'notice':
       return <div className="notice">{block.label}</div>

@@ -209,3 +209,31 @@ func TestPreviewRejectsNonImages(t *testing.T) {
 		t.Fatal("expected a non-image to be refused")
 	}
 }
+
+func TestPreviewStagedOnlyServesStagedFiles(t *testing.T) {
+	root := t.TempDir()
+	store := New(root)
+	payload := "data:image/png;base64," + base64.StdEncoding.EncodeToString([]byte("png-bytes"))
+
+	saved, err := store.Save("shot.png", "image/png", payload)
+	if err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+	url, err := store.PreviewStaged(saved.Path)
+	if err != nil {
+		t.Fatalf("PreviewStaged staged file: %v", err)
+	}
+	if !strings.HasPrefix(url, "data:image/png;base64,") {
+		t.Fatalf("unexpected data URL %q", url)
+	}
+
+	outside := filepath.Join(t.TempDir(), "secret.png")
+	if err := os.WriteFile(outside, []byte("png-bytes"), 0o600); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+	for _, path := range []string{outside, filepath.Join(root, "..", "secret.png"), root} {
+		if _, err := store.PreviewStaged(path); err == nil {
+			t.Fatalf("PreviewStaged(%q) served a file outside the staging directory", path)
+		}
+	}
+}

@@ -43,3 +43,37 @@ localStorage.setItem(
   'orchestrator_new_agent',
   JSON.stringify({ cwd: '', autoApprove: true, choice: { driver: 'opencode', model: 'muse-1.2', options: { effort: 'xhigh' } } }),
 )
+
+const titles = [
+  'Can you check how the modal renders',
+  'Update the dependency versions',
+  'Update the modal to the new design',
+  'Work on the new feature flags',
+  'Can you check how auth refreshes',
+  'Another chat here about the tunnel',
+  'Fix the flaky git diff test',
+  'Refactor the drawer gestures',
+  'Add push notification badges',
+  'Investigate the viewport strip',
+  'Polish the glass border lighting',
+  'Write docs for the phone API',
+  'Speed up the thread loader',
+  'Try the new effort picker',
+]
+const now = Date.now()
+localStorage.setItem(
+  'orchestrator_summaries_cache',
+  JSON.stringify(
+    titles.map((title, i) => ({
+      threadId: `lab-${i}`,
+      title,
+      kind: 'agent',
+      driver: 'claude',
+      model: 'opus-5',
+      live: false,
+      busy: false,
+      lastActivity: now - i * 3_600_000,
+      projectName: 'configurator',
+    })),
+  ),
+)

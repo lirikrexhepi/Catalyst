@@ -47,3 +47,4 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .knob output { text-align: right; font-variant-numeric: tabular-nums; }
 .knob select { background: #2a2a2a; color: inherit; border: 0; border-radius: 6px; padding: 4px; }
 .ring-row { display: grid; grid-template-columns: repeat(2, 175px); gap: 10px; }
+.bubble-row { display: flex; flex-direction: column; width: 345px; }

@@ -11,6 +11,7 @@ import { api } from '../../api'
 import { choiceModelName, defaultOptions } from '../../format'
 import { loadProviders, message, refreshSummaries, useStore } from '../../store'
 import type { ModelChoice, Project } from '../../types'
+import { HistoryScrubber } from '../../components/scrubber/HistoryScrubber'
 import { StartOptions } from './StartOptions'
 import { usePreviewFlow } from './usePreviewFlow'
 
@@ -39,6 +40,7 @@ function remember(value: { cwd: string; choice: ModelChoice; autoApprove: boolea
 
 export function NewChat({ openDrawer, go }: NewChatProps) {
   const providers = useStore((s) => s.providers)
+  const summaries = useStore((s) => s.summaries)
   const providersLoaded = useStore((s) => s.providersLoaded)
   const providersLoading = useStore((s) => s.providersLoading)
   const remembered = useRef(lastUsed()).current
@@ -109,7 +111,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
 
   return (
     <div className="screen">
-      <ChatFrame header={header} dock={<Composer placeholder="Enter your text here...." onCreate={create} />}>
+      <ChatFrame header={header} dock={<Composer placeholder="Enter your text here...." onCreate={create} />} floating={<HistoryScrubber chats={summaries} onPick={go} />}>
         {error ? <div className="say error start-error">{error}</div> : null}
         <StartOptions
           projectName={project?.name ?? (projects.length ? undefined : 'None')}

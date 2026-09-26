@@ -6,6 +6,7 @@ import '../index.css'
 import '../styles/tokens.css'
 import '../styles/chat.css'
 import '../styles/picker.css'
+import '../styles/scrubber.css'
 import Chat from '../screens/Chat'
 import { trackVisualViewport } from '../platform/viewport'
 

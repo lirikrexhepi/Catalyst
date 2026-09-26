@@ -10,12 +10,11 @@ import (
 
 	"composer/internal/domain"
 	"composer/internal/git"
-	"composer/internal/projects"
 	"composer/internal/logger"
+	"composer/internal/projects"
 	"composer/internal/remote"
 	"composer/internal/servers"
 	"composer/internal/session"
-
 )
 
 func (a *App) GetRemoteInfo() remote.RemoteInfo {
@@ -92,9 +91,10 @@ func (a *App) wireRemote() {
 			defer cancel()
 			return a.registry.Probe(ctx, force)
 		},
-		SendAgent:  a.remoteSendAgent,
-		NewAgent:   a.remoteNewAgent,
-		SaveUpload: a.remoteSaveUpload,
+		SendAgent:     a.remoteSendAgent,
+		NewAgent:      a.remoteNewAgent,
+		SaveUpload:    a.remoteSaveUpload,
+		PreviewUpload: a.attachments.PreviewStaged,
 		Servers: func() []servers.Group {
 			groups, _ := a.ListServers()
 			return groups

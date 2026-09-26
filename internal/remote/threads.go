@@ -37,11 +37,12 @@ type NewAgentRequest struct {
 // session layer (model switching with handoff, spawning with project
 // context, provider discovery, attachment storage). All are optional.
 type Hooks struct {
-	Providers  func(force bool) []domain.ProviderSnapshot
-	SendAgent  func(ctx context.Context, threadID, text string, files []domain.FileRef, choice *ModelChoice) error
-	NewAgent   func(ctx context.Context, req NewAgentRequest) (string, error)
-	SaveUpload func(name, mime, payload string) (domain.FileRef, error)
-	Servers    func() []servers.Group
+	Providers     func(force bool) []domain.ProviderSnapshot
+	SendAgent     func(ctx context.Context, threadID, text string, files []domain.FileRef, choice *ModelChoice) error
+	NewAgent      func(ctx context.Context, req NewAgentRequest) (string, error)
+	SaveUpload    func(name, mime, payload string) (domain.FileRef, error)
+	PreviewUpload func(path string) (string, error)
+	Servers       func() []servers.Group
 	// PowerOff shuts the PC down. Only set when the app runs headless.
 	PowerOff func() error
 	// Workspace backs the phone's project explorer, diffs and folder picker.
@@ -405,6 +406,21 @@ func (s *Server) handleNewAgent(w http.ResponseWriter, r *http.Request) {
 // maxUploadBody bounds a base64 upload request (images are resized on the
 // phone before upload, so this is generous).
 const maxUploadBody = 24 << 20
+
+func (s *Server) handleUploadPreview(w http.ResponseWriter, r *http.Request) {
+	hook := s.currentHooks().PreviewUpload
+	if hook == nil {
+		writeError(w, http.StatusNotImplemented, errors.New("previews are not available"))
+		return
+	}
+	dataURL, err := hook(r.URL.Query().Get("path"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	writeJSON(w, http.StatusOK, map[string]string{"dataUrl": dataURL})
+}
 
 func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	hook := s.currentHooks().SaveUpload

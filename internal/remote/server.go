@@ -245,6 +245,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/interrupt", s.requireAuth(s.handleThreadInterrupt))
 	mux.HandleFunc("/api/agent/new", s.requireAuth(s.handleNewAgent))
 	mux.HandleFunc("/api/upload", s.requireAuth(s.handleUpload))
+	mux.HandleFunc("/api/upload/preview", s.requireAuth(s.handleUploadPreview))
 	mux.HandleFunc("/api/servers", s.requireAuth(s.handleServers))
 	mux.HandleFunc("/api/preview/start", s.requireAuth(s.handlePreviewStart))
 	mux.HandleFunc("/api/preview/stop", s.requireAuth(s.handlePreviewStop))

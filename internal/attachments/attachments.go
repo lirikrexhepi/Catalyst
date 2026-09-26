@@ -34,8 +34,9 @@ type Attachment struct {
 }
 
 var (
-	ErrTooLarge = errors.New("attachment is too large")
-	ErrEmpty    = errors.New("attachment is empty")
+	ErrTooLarge  = errors.New("attachment is too large")
+	ErrNotStaged = errors.New("not a staged attachment")
+	ErrEmpty     = errors.New("attachment is empty")
 )
 
 // Store holds attachments staged for the current run.
@@ -178,6 +179,15 @@ func (s *Store) Preview(path string) (string, error) {
 		return "", err
 	}
 	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+}
+
+func (s *Store) PreviewStaged(path string) (string, error) {
+	clean := filepath.Clean(strings.TrimSpace(path))
+	rel, err := filepath.Rel(filepath.Clean(s.root), clean)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", ErrNotStaged
+	}
+	return s.Preview(clean)
 }
 
 // Discard deletes a staged file, but only one Composer created. Removing an

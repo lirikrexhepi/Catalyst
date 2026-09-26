@@ -150,6 +150,7 @@ export const api = {
     request('/api/question/answer', { method: 'POST', body: JSON.stringify({ threadId, requestId, answers }) }),
   upload: (name: string, mime: string, data: string) =>
     request<FileRef>('/api/upload', { method: 'POST', body: JSON.stringify({ name, mime, data }) }),
+  uploadPreview: (path: string) => request<{ dataUrl: string }>(`/api/upload/preview?${q({ path })}`),
   servers: () => request<ServerGroup[]>('/api/servers'),
   previewStart: (port: number) =>
     request<PreviewInfo>('/api/preview/start', { method: 'POST', body: JSON.stringify({ port }) }),
