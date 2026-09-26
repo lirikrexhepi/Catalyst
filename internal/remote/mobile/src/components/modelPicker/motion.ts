@@ -1,61 +1,38 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react'
 import { SPRINGS, SpringDriver, prefersReducedMotion, type SpringSpec } from '../../ui'
 
-type Pop = 'sx' | 'sy' | 'y' | 'o'
 type Pane = 'x' | 's' | 'o'
 
-const HIDDEN: Record<Pop, number> = { sx: 0.95, sy: 0.92, y: 14, o: 0 }
-const SHOWN: Record<Pop, number> = { sx: 1, sy: 1, y: 0, o: 1 }
-const CLOSED: Record<Pop, number> = { sx: 0.96, sy: 0.94, y: 10, o: 0 }
-
-const OPEN_SPRING: SpringSpec<Pop> = {
-  sx: { damping: 0.9, response: 0.38 },
-  sy: { damping: 0.82, response: 0.4 },
-  y: { damping: 0.92, response: 0.38 },
-  o: { damping: 1, response: 0.32 },
-}
-const CLOSE_SPRING: SpringSpec<Pop> = {
-  sx: { damping: 1, response: 0.24 },
-  sy: { damping: 1, response: 0.22 },
-  y: { damping: 1, response: 0.24 },
-  o: { damping: 1, response: 0.16 },
-}
 const PANE_IN: SpringSpec<Pane> = { x: SPRINGS.bouncy, s: SPRINGS.bouncy, o: { damping: 1, response: 0.24 } }
 const PANE_OUT: SpringSpec<Pane> = { x: SPRINGS.snappy, s: SPRINGS.snappy, o: { damping: 1, response: 0.13 } }
 const PANE_SHIFT = 12
 const ENTER_DELAY = 80
-
-const popRender = (v: Record<Pop, number>) => ({
-  transform: `translateY(${v.y}px) scale(${v.sx}, ${v.sy})`,
-  opacity: String(v.o),
-})
 
 const paneRender = (v: Record<Pane, number>) => ({
   transform: `translateX(${v.x}px) scale(${v.s})`,
   opacity: String(v.o),
 })
 
-export function usePopMotion(root: RefObject<HTMLElement>) {
-  const driver = useRef<SpringDriver<Pop> | null>(null)
-  const reduced = useRef(false)
+const FADE_IN = { damping: 1, response: 0.24 }
+const FADE_OUT = { damping: 1, response: 0.3 }
+
+export const MORPH_OPEN = SPRINGS.bouncy
+export const MORPH_CLOSE = { damping: 1, response: 0.3 }
+
+export function useFade(root: RefObject<HTMLElement>) {
+  const driver = useRef<SpringDriver<'o'> | null>(null)
 
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
-    reduced.current = prefersReducedMotion()
-    const start = reduced.current ? { ...SHOWN, o: 0 } : HIDDEN
-    const d = new SpringDriver<Pop>(el, { ...start }, popRender)
-    d.jump(start)
-    d.to(SHOWN, reduced.current ? SPRINGS.snappy : OPEN_SPRING)
+    const d = new SpringDriver<'o'>(el, { o: 0 }, (v) => ({ opacity: String(v.o) }))
+    d.jump({ o: 0 })
+    d.to({ o: 1 }, FADE_IN)
     driver.current = d
     return () => d.stop()
   }, [root])
 
-  return useCallback((): number => {
-    const d = driver.current
-    if (!d) return 0
-    return d.to(reduced.current ? { ...SHOWN, o: 0 } : CLOSED, reduced.current ? SPRINGS.snappy : CLOSE_SPRING)
-  }, [])
+  return useCallback((): number => driver.current?.to({ o: 0 }, FADE_OUT) ?? 0, [])
 }
 
 export function usePaneSwap(first: RefObject<HTMLElement>, second: RefObject<HTMLElement>, showSecond: boolean) {

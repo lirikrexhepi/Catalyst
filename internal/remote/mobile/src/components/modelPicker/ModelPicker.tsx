@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { MorphSurface } from '../../ui'
+import { MorphSurface, prefersReducedMotion } from '../../ui'
 import { useElementSize } from '../../ui/geometry/useElementSize'
 import { loadProviders, useStore } from '../../store'
 import { defaultOptions } from '../../format'
@@ -8,7 +8,7 @@ import { effortOption, selectedEffort, toggleOptions } from './effort'
 import { EffortGrid } from './EffortGrid'
 import { PICKER, effortHeight, listHeight } from './layout'
 import { ModelList } from './ModelList'
-import { usePaneSwap, usePopMotion } from './motion'
+import { MORPH_CLOSE, MORPH_OPEN, useFade, usePaneSwap } from './motion'
 import { ProviderBar } from './ProviderBar'
 import { SelectedModelBar } from './SelectedModelBar'
 
@@ -27,13 +27,18 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
   const providersLoading = useStore((s) => s.providersLoading)
   const [driver, setDriver] = useState(value?.driver || providers[0]?.driver || '')
   const [view, setView] = useState<'list' | 'effort'>('list')
+  const [phase, setPhase] = useState<'enter' | 'open' | 'exit'>(() => (prefersReducedMotion() ? 'open' : 'enter'))
   const root = useRef<HTMLDivElement | null>(null)
   const listPane = useRef<HTMLDivElement | null>(null)
   const effortPane = useRef<HTMLDivElement | null>(null)
   const closing = useRef(false)
   const size = useElementSize(root)
-  const closeMotion = usePopMotion(root)
+  const fadeOut = useFade(root)
   usePaneSwap(listPane, effortPane, view === 'effort')
+
+  useEffect(() => {
+    setPhase((p) => (p === 'enter' ? 'open' : p))
+  }, [])
 
   useEffect(() => {
     void loadProviders()
@@ -62,8 +67,9 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
     if (closing.current) return
     closing.current = true
     root.current?.classList.add('closing')
-    window.setTimeout(onClose, closeMotion())
-  }, [closeMotion, onClose])
+    if (!prefersReducedMotion()) setPhase('exit')
+    window.setTimeout(onClose, fadeOut())
+  }, [fadeOut, onClose])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -116,7 +122,14 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
     <>
       <div className="picker-catcher" onPointerDown={close} aria-hidden />
       <div className="model-picker" ref={root} role="dialog" aria-modal="true" aria-label="Choose a model" style={{ height: hMax }}>
-        <MorphSurface width={size?.width ?? 345} height={view === 'list' ? hList : hEffort} maxHeight={hMax} radius={PICKER.radius} fill={PICKER.fill}>
+        <MorphSurface
+          width={size?.width ?? 345}
+          height={phase === 'open' ? (view === 'list' ? hList : hEffort) : 0}
+          maxHeight={hMax}
+          radius={PICKER.radius}
+          fill={PICKER.fill}
+          spring={phase === 'exit' ? MORPH_CLOSE : MORPH_OPEN}
+        >
         <div ref={listPane} className="picker-pane" data-active={view === 'list'} aria-hidden={view !== 'list'} style={{ height: hList }}>
           <ModelList provider={provider} value={value} status={status} onPick={pickModel} onRetry={() => void loadProviders(true)} />
           {status === 'ready' ? <ProviderBar providers={providers} active={driver} onPick={setDriver} /> : null}
