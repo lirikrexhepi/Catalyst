@@ -69,6 +69,7 @@ type ThreadSummary struct {
 	Title         string              `json:"title"`
 	Kind          string              `json:"kind"` // "coordinator" | "agent"
 	Driver        string              `json:"driver"`
+	Drivers       []string            `json:"drivers,omitempty"`
 	Model         string              `json:"model"`
 	Options       domain.ModelOptions `json:"options,omitempty"`
 	State         domain.TaskState    `json:"state,omitempty"`
@@ -190,6 +191,7 @@ func (s *Server) threadSummaries() []ThreadSummary {
 			Cwd: agent.Cwd, ProjectCwd: agent.ProjectCwd, ProjectName: projectName(agent.ProjectCwd),
 			Branch: agent.Branch, Live: agent.Live,
 		}
+		row.Drivers = driverTrail(nil, row.Driver)
 		events, _ := s.manager.HistorySnapshot(agent.ThreadID)
 		summarize(&row, events)
 		if row.LastActivity == 0 {
@@ -224,6 +226,7 @@ func (s *Server) threadSummaries() []ThreadSummary {
 				if row.Title == "" {
 					row.Title = firstNonEmpty(task.Title, meta.Workspace.Title, "Chat")
 				}
+				row.Drivers = driverTrail(task.Drivers, row.Driver)
 				if row.LastActivity < meta.Workspace.UpdatedAt {
 					row.LastActivity = meta.Workspace.UpdatedAt
 				}
@@ -240,6 +243,31 @@ func (s *Server) threadSummaries() []ThreadSummary {
 	if len(out) > 120 {
 		out = out[:120]
 	}
+	return out
+}
+
+func driverTrail(used []domain.DriverKind, current string) []string {
+	out := make([]string, 0, len(used)+1)
+	seen := make(map[string]bool, len(used)+1)
+	add := func(d string) {
+		if d == "" || seen[d] {
+			return
+		}
+		seen[d] = true
+		out = append(out, d)
+	}
+	for _, d := range used {
+		add(string(d))
+	}
+	if current != "" && seen[current] {
+		for i, d := range out {
+			if d == current {
+				out = append(append(out[:i:i], out[i+1:]...), current)
+				break
+			}
+		}
+	}
+	add(current)
 	return out
 }
 

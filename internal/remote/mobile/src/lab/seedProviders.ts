@@ -69,11 +69,21 @@ localStorage.setItem(
       title,
       kind: 'agent',
       driver: 'claude',
+      drivers: i % 3 === 0 ? ['claude'] : ['antigravity', 'claude'],
       model: 'opus-5',
       live: false,
       busy: false,
-      lastActivity: now - i * 3_600_000,
+      lastActivity: now - i * 14_400_000,
       projectName: 'configurator',
     })),
   ),
+)
+
+localStorage.setItem(
+  'orchestrator_projects_cache',
+  JSON.stringify([
+    { path: 'C:/code/configurator', name: 'Configurator', runningAgents: 0 },
+    { path: 'C:/code/home', name: 'Project Home', runningAgents: 1 },
+    { path: 'C:/code/construction', name: 'Construction', runningAgents: 0 },
+  ]),
 )

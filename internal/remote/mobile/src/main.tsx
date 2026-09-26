@@ -6,10 +6,13 @@ import './styles/tokens.css'
 import './styles/chat.css'
 import './styles/picker.css'
 import './styles/scrubber.css'
+import './styles/drawer.css'
 import App from './App'
 import { trackVisualViewport } from './platform/viewport'
+import { installSpringEasing } from './ui/motion/springEasing'
 
 trackVisualViewport()
+installSpringEasing('ease-drawer', { damping: 0.84, response: 0.46 })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

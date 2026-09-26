@@ -86,6 +86,7 @@ export interface ThreadSummary {
   title: string
   kind: 'coordinator' | 'agent'
   driver: string
+  drivers?: string[]
   model: string
   options?: ModelOptions
   state?: TaskState

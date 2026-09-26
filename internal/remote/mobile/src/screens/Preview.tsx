@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ChevronLeft, ExternalLink, Loader2, Play, RotateCw } from 'lucide-react'
+import { ChevronLeft, Loader2, Monitor, Play, RotateCw, Smartphone, SquareArrowOutUpRight } from 'lucide-react'
+import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
+import { GlassPill, GlassSegmented } from '../ui'
 import Sheet from '../components/Sheet'
 import SiteCard from '../components/SiteCard'
 import { api } from '../api'
@@ -9,6 +11,11 @@ import type { DevServer, PreviewInfo } from '../types'
 
 /** Desktop mode renders the site at this width, like a laptop browser. */
 const DESKTOP_WIDTH = 1280
+
+const DEVICE_OPTIONS = [
+  { value: 'phone', label: 'Phone layout', icon: <Smartphone size={24} strokeWidth={ICON_STROKE} /> },
+  { value: 'desktop', label: 'Desktop layout', icon: <Monitor size={24} strokeWidth={ICON_STROKE} /> },
+] as const
 
 const START_PROMPT =
   "Start this project's dev server so I can preview it. Run it in the background so it keeps running after your turn, " +
@@ -174,33 +181,21 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
 
   return (
     <div className="screen viewer preview">
-      <header className="bar">
-        <button className="circle" onClick={onBack} aria-label="Back">
-          <ChevronLeft size={22} aria-hidden="true" />
-        </button>
-        <div className="seg" style={{ flex: 1, margin: 0 }}>
-          <button aria-pressed={mode === 'phone'} onClick={() => setMode('phone')}>
-            Phone
-          </button>
-          <button aria-pressed={mode === 'desktop'} onClick={() => setMode('desktop')}>
-            Desktop
-          </button>
+      <header className="topbar preview-bar">
+        <div className="topbar-row">
+          <BarButton icon={ChevronLeft} label="Back" onClick={onBack} />
+          <GlassSegmented options={DEVICE_OPTIONS} value={mode} onChange={setMode} height={44} padding={0} gap={6} fill="var(--glass-control)" lensFill="rgba(255,255,255,0.22)" />
+          <div className="topbar-end">
+            <BarButton icon={RotateCw} label="Reload" onClick={() => setReloadKey((k) => k + 1)} disabled={!live} />
+            <BarButton icon={SquareArrowOutUpRight} label="Open in browser" onClick={() => preview?.url && window.open(preview.url, '_blank', 'noopener,noreferrer')} disabled={!live} />
+          </div>
         </div>
-        <button className="circle" disabled={!live} onClick={() => setReloadKey((k) => k + 1)} aria-label="Reload">
-          <RotateCw size={18} aria-hidden="true" />
-        </button>
-        <button
-          className="circle"
-          disabled={!live}
-          onClick={() => preview?.url && window.open(preview.url, '_blank', 'noopener,noreferrer')}
-          aria-label="Open in browser"
-        >
-          <ExternalLink size={18} aria-hidden="true" />
-        </button>
+        <div className="preview-site">
+          <GlassPill height={30} fill="var(--glass-control)" className="preview-site-pill">
+            {name} · localhost:{port}
+          </GlassPill>
+        </div>
       </header>
-      <div className="chat-title">
-        {name} · localhost:{port}
-      </div>
 
       <div className="preview-stage">
         {live ? (
