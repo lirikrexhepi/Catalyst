@@ -1,4 +1,4 @@
-:root { --drawer-w: min(62vw, 232px); }
+:root { --drawer-w: min(80vw, 360px); }
 
 .drawer {
   background: #000; will-change: transform, opacity;
@@ -54,3 +54,4 @@
 .sheet .list button { font: 400 16px/1.3 var(--font); min-height: 48px; border-bottom-color: rgba(255, 255, 255, 0.06); }
 .sheet .btn { border-radius: 16px; font: 500 16px/1 var(--font); }
 .sheet .btn.primary { background: var(--send); color: #fff; }
+.dw-chat, .dw-project { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }

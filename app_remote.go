@@ -95,6 +95,7 @@ func (a *App) wireRemote() {
 		NewAgent:      a.remoteNewAgent,
 		SaveUpload:    a.remoteSaveUpload,
 		PreviewUpload: a.attachments.PreviewStaged,
+		DeleteThread:  a.remoteDeleteThread,
 		Servers: func() []servers.Group {
 			groups, _ := a.ListServers()
 			return groups
@@ -202,6 +203,17 @@ func (a *App) remotePowerOff() error {
 		time.AfterFunc(500*time.Millisecond, func() { a.requestStop("shutdown requested from the phone") })
 	}
 	return nil
+}
+
+func (a *App) remoteDeleteThread(threadID string) error {
+	for _, meta := range a.ListHistory() {
+		for _, task := range meta.Tasks {
+			if task.ThreadID == threadID {
+				return a.DeleteTaskHistory(meta.Workspace.ID, threadID)
+			}
+		}
+	}
+	return fmt.Errorf("chat %s was not found in history", threadID)
 }
 
 func (a *App) remoteSaveUpload(name, mime, payload string) (domain.FileRef, error) {

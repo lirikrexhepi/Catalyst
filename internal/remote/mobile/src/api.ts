@@ -150,6 +150,8 @@ export const api = {
     request('/api/question/answer', { method: 'POST', body: JSON.stringify({ threadId, requestId, answers }) }),
   upload: (name: string, mime: string, data: string) =>
     request<FileRef>('/api/upload', { method: 'POST', body: JSON.stringify({ name, mime, data }) }),
+  deleteThread: (threadId: string) =>
+    request<{ ok: boolean }>('/api/thread/delete', { method: 'POST', body: JSON.stringify({ threadId }) }),
   uploadPreview: (path: string) => request<{ dataUrl: string }>(`/api/upload/preview?${q({ path })}`),
   servers: () => request<ServerGroup[]>('/api/servers'),
   previewStart: (port: number) =>

@@ -9,6 +9,8 @@ import { readLocal, writeLocal } from '../cache'
 import { GlassPill } from '../ui'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { ChatRow } from './drawer/ChatRow'
+import { ChatRowActions } from './drawer/ChatRowActions'
+import { useHiddenChats } from '../hiddenChats'
 
 const DAY = 86_400_000
 const PROJECTS_CACHE_KEY = 'orchestrator_projects_cache'
@@ -37,6 +39,8 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
   const [settings, setSettings] = useState(false)
   const [projects, setProjects] = useState<Project[]>(() => readLocal<Project[]>(PROJECTS_CACHE_KEY, []))
   const [adding, setAdding] = useState(false)
+  const [acting, setActing] = useState<ThreadSummary | null>(null)
+  const hidden = useHiddenChats()
 
   const loadProjects = useCallback(() => {
     api
@@ -56,7 +60,7 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
   }, [loadProjects])
 
   const groups = useMemo(() => {
-    const chats = summaries.filter((t) => t.kind !== 'coordinator')
+    const chats = summaries.filter((t) => t.kind !== 'coordinator' && !hidden.has(t.threadId))
     const active = chats.filter((t) => t.busy || t.attention)
     const rest = chats.filter((t) => !(t.busy || t.attention))
     const out: Array<[string, ThreadSummary[]]> = []
@@ -68,7 +72,7 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
       else out.push([name, [t]])
     }
     return out
-  }, [summaries])
+  }, [summaries, hidden])
 
   return (
     <>
@@ -103,7 +107,7 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
           <section key={name} className="dw-section">
             <div className="dw-group">{name}</div>
             {rows.map((t) => (
-              <ChatRow key={t.threadId} thread={t} current={current === t.threadId} onOpen={go} />
+              <ChatRow key={t.threadId} thread={t} current={current === t.threadId} onOpen={go} onActions={setActing} />
             ))}
           </section>
         ))}
@@ -117,6 +121,9 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
         <BarButton icon={Settings} label="Settings" onClick={() => setSettings(true)} />
       </div>
       {settings ? <SettingsSheet onClose={() => setSettings(false)} /> : null}
+      {acting ? (
+        <ChatRowActions thread={acting} current={current === acting.threadId} onLeave={() => go(null)} onClose={() => setActing(null)} />
+      ) : null}
       {adding ? (
         <AddProjectSheet
           onClose={() => setAdding(false)}

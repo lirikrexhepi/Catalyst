@@ -10,7 +10,7 @@ const BACK_SHIFT = OFFSET / 2 - SIZE / 2
 export function ModelStack({ drivers }: { drivers: string[] }) {
   const shown = drivers.slice(-SHOWN)
   return (
-    <span className="model-stack" style={{ width: SIZE + OFFSET * (SHOWN - 1), height: SIZE }} aria-hidden>
+    <span className="model-stack" style={{ width: SIZE + OFFSET * Math.max(0, shown.length - 1), height: SIZE }} aria-hidden>
       {shown.map((driver, i) => {
         const behind = i < shown.length - 1
         return (

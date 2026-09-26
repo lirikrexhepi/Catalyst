@@ -239,6 +239,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/question/answer", s.requireAuth(s.handleAnswerQuestion))
 	mux.HandleFunc("/api/plan/execute", s.requireAuth(s.handleExecutePlan))
 	mux.HandleFunc("/api/threads", s.requireAuth(s.handleThreads))
+	mux.HandleFunc("/api/thread/delete", s.requireAuth(s.handleThreadDelete))
 	mux.HandleFunc("/api/thread/", s.requireAuth(s.handleThread))
 	mux.HandleFunc("/api/models", s.requireAuth(s.handleModels))
 	mux.HandleFunc("/api/send", s.requireAuth(s.handleThreadSend))

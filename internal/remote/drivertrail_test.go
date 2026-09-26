@@ -25,3 +25,15 @@ func TestDriverTrailKeepsOrderAndEndsWithCurrent(t *testing.T) {
 		}
 	}
 }
+
+func TestSummarizeCollectsDriversFromEvents(t *testing.T) {
+	row := ThreadSummary{Driver: "opencode"}
+	summarize(&row, []domain.RuntimeEvent{
+		{Kind: domain.EventUserMessage, Driver: "antigravity", At: 1},
+		{Kind: domain.EventUserMessage, Driver: "Antigravity", At: 2},
+		{Kind: domain.EventUserMessage, Driver: "opencode", At: 3},
+	})
+	if want := []string{"antigravity", "opencode"}; !reflect.DeepEqual(row.Drivers, want) {
+		t.Fatalf("drivers = %v, want %v", row.Drivers, want)
+	}
+}

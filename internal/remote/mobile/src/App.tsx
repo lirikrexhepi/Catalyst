@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api, getToken } from './api'
 import { setPresence, startSync, useStore } from './store'
 import { resyncPush } from './push'
@@ -6,6 +6,7 @@ import AuthScreen from './screens/Auth'
 import Drawer from './screens/Drawer'
 import Chat from './screens/Chat'
 import ProjectScreen from './screens/Project'
+import { useDrawer } from './screens/shell/useDrawer'
 
 /** #/t/<threadId> opens a conversation; anything else is a new chat. */
 function routeFromHash(): string | null {
@@ -116,87 +117,8 @@ function PcDownBanner() {
   )
 }
 
-/**
- * The drawer follows the finger: progress is written straight to a CSS
- * variable while dragging (no React renders), and on release the projected
- * position (current + velocity) picks the side. Grabbing mid-animation starts
- * from where the drawer visibly is, so the motion is always interruptible.
- */
 function Shell({ threadId, project }: { threadId: string | null; project: string | null }) {
-  const shell = useRef<HTMLDivElement>(null)
-  const [open, setOpenState] = useState(false)
-  const progress = useRef(0)
-  const drag = useRef<{ x: number; start: number; t: number; v: number; moved: boolean; axis?: 'x' | 'y'; y: number; onMain: boolean } | null>(null)
-
-  const width = () => Math.min(window.innerWidth * 0.84, 340)
-  const paint = (p: number, settle: boolean) => {
-    const el = shell.current
-    if (!el) return
-    progress.current = p
-    el.classList.toggle('settle', settle)
-    el.style.setProperty('--p', String(p))
-  }
-  const setOpen = useCallback((next: boolean) => {
-    setOpenState(next)
-    paint(next ? 1 : 0, true)
-  }, [])
-
-  const currentProgress = () => {
-    const main = shell.current?.querySelector('.main') as HTMLElement | null
-    if (!main) return progress.current
-    const m = new DOMMatrixReadOnly(getComputedStyle(main).transform)
-    return Math.max(0, Math.min(1, m.m41 / width()))
-  }
-
-  const onDown = (e: React.PointerEvent) => {
-    const fromEdge = e.clientX < 24
-    if (!open && !fromEdge) return
-    const p = currentProgress()
-    paint(p, false)
-    const onMain = Boolean((e.target as Element).closest?.('.main'))
-    drag.current = { x: e.clientX, y: e.clientY, start: p, t: e.timeStamp, v: 0, moved: false, onMain }
-  }
-  const onMove = (e: React.PointerEvent) => {
-    const d = drag.current
-    if (!d) return
-    const dx = e.clientX - d.x
-    const dy = e.clientY - d.y
-    if (!d.axis) {
-      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
-      d.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
-      if (d.axis === 'y') {
-        drag.current = null
-        paint(open ? 1 : 0, true)
-        return
-      }
-      ;(e.target as Element).setPointerCapture?.(e.pointerId)
-    }
-    const raw = d.start + dx / width()
-    // Rubber-band past either end instead of a hard stop.
-    const p = raw < 0 ? raw / 4 : raw > 1 ? 1 + (raw - 1) / 4 : raw
-    const dt = Math.max(1, e.timeStamp - d.t)
-    d.v = (p - progress.current) / dt
-    d.t = e.timeStamp
-    d.moved = true
-    paint(p, false)
-  }
-  const onUp = () => {
-    const d = drag.current
-    drag.current = null
-    if (!d) return
-    if (!d.moved) {
-      // A tap on the pushed-aside chat closes the drawer; taps inside it are clicks.
-      if (open && d.onMain) setOpen(false)
-      else paint(open ? 1 : 0, true)
-      return
-    }
-    const projected = progress.current + d.v * 180
-    setOpen(projected > 0.5)
-  }
-
-  useEffect(() => {
-    paint(0, false)
-  }, [])
+  const { shell, open, covered, setOpen, handlers } = useDrawer()
 
   const go = useCallback(
     (id: string | null) => {
@@ -214,7 +136,7 @@ function Shell({ threadId, project }: { threadId: string | null; project: string
   )
 
   return (
-    <div className="shell" ref={shell} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+    <div className="shell" ref={shell} {...handlers}>
       <nav className="drawer" aria-hidden={!open} {...({ inert: open ? undefined : '' } as object)} aria-label="Chats">
         <Drawer current={project ? null : threadId} project={project} go={go} openProject={openProject} />
       </nav>
@@ -225,7 +147,7 @@ function Shell({ threadId, project }: { threadId: string | null; project: string
           <Chat key={threadId ?? 'new'} threadId={threadId} openDrawer={() => setOpen(true)} go={go} />
         )}
         <PcDownBanner />
-        {open && <div className="main-cover" aria-label="Close menu" />}
+        {covered ? <div className="main-cover" role="button" aria-label="Close menu" onClick={() => setOpen(false)} /> : null}
       </main>
     </div>
   )

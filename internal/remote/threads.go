@@ -42,6 +42,7 @@ type Hooks struct {
 	NewAgent      func(ctx context.Context, req NewAgentRequest) (string, error)
 	SaveUpload    func(name, mime, payload string) (domain.FileRef, error)
 	PreviewUpload func(path string) (string, error)
+	DeleteThread  func(threadID string) error
 	Servers       func() []servers.Group
 	// PowerOff shuts the PC down. Only set when the app runs headless.
 	PowerOff func() error
@@ -96,9 +97,16 @@ func summarize(summary *ThreadSummary, events []domain.RuntimeEvent) {
 	questions := []string{}
 	var preview strings.Builder
 	previewItem := ""
+	used := make([]domain.DriverKind, 0, len(summary.Drivers)+2)
+	for _, d := range summary.Drivers {
+		used = append(used, domain.DriverKind(d))
+	}
 	for _, event := range events {
 		if event.At > summary.LastActivity {
 			summary.LastActivity = event.At
+		}
+		if event.Driver != "" {
+			used = append(used, domain.DriverKind(strings.ToLower(string(event.Driver))))
 		}
 		switch event.Kind {
 		case domain.EventTurnStarted:
@@ -158,6 +166,7 @@ func summarize(summary *ThreadSummary, events []domain.RuntimeEvent) {
 		text = text[len(text)-240:]
 	}
 	summary.Preview = text
+	summary.Drivers = driverTrail(used, summary.Driver)
 }
 
 func projectName(path string) string {
@@ -191,7 +200,6 @@ func (s *Server) threadSummaries() []ThreadSummary {
 			Cwd: agent.Cwd, ProjectCwd: agent.ProjectCwd, ProjectName: projectName(agent.ProjectCwd),
 			Branch: agent.Branch, Live: agent.Live,
 		}
-		row.Drivers = driverTrail(nil, row.Driver)
 		events, _ := s.manager.HistorySnapshot(agent.ThreadID)
 		summarize(&row, events)
 		if row.LastActivity == 0 {
@@ -226,7 +234,11 @@ func (s *Server) threadSummaries() []ThreadSummary {
 				if row.Title == "" {
 					row.Title = firstNonEmpty(task.Title, meta.Workspace.Title, "Chat")
 				}
-				row.Drivers = driverTrail(task.Drivers, row.Driver)
+				merged := append([]domain.DriverKind{}, task.Drivers...)
+				for _, d := range row.Drivers {
+					merged = append(merged, domain.DriverKind(d))
+				}
+				row.Drivers = driverTrail(merged, row.Driver)
 				if row.LastActivity < meta.Workspace.UpdatedAt {
 					row.LastActivity = meta.Workspace.UpdatedAt
 				}
@@ -434,6 +446,34 @@ func (s *Server) handleNewAgent(w http.ResponseWriter, r *http.Request) {
 // maxUploadBody bounds a base64 upload request (images are resized on the
 // phone before upload, so this is generous).
 const maxUploadBody = 24 << 20
+
+func (s *Server) handleThreadDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, errors.New("use POST"))
+		return
+	}
+	hook := s.currentHooks().DeleteThread
+	if hook == nil {
+		writeError(w, http.StatusNotImplemented, errors.New("deleting chats is not available"))
+		return
+	}
+	var body struct {
+		ThreadID string `json:"threadId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ThreadID == "" {
+		writeError(w, http.StatusBadRequest, errors.New("threadId is required"))
+		return
+	}
+	if body.ThreadID == session.CoordinatorThreadID {
+		writeError(w, http.StatusBadRequest, errors.New("the orchestrator conversation cannot be deleted"))
+		return
+	}
+	if err := hook(body.ThreadID); err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
 
 func (s *Server) handleUploadPreview(w http.ResponseWriter, r *http.Request) {
 	hook := s.currentHooks().PreviewUpload

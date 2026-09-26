@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Power, RefreshCw, Share, Unplug } from 'lucide-react'
+import { Eye, Power, RefreshCw, Share, Unplug } from 'lucide-react'
+import { showAllChats, useHiddenChats } from '../hiddenChats'
 import Sheet from '../components/Sheet'
 import { api, getBase, setBase, setToken } from '../api'
 import { loadProviders, refreshSummaries, useStore } from '../store'
@@ -29,6 +30,8 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
       .catch((e: unknown) => setPower(e instanceof Error ? e.message : 'Shutdown failed'))
   }
 
+  const hidden = useHiddenChats()
+
   const disconnect = () => {
     setToken('')
     setBase('')
@@ -47,6 +50,9 @@ export default function SettingsSheet({ onClose }: { onClose: () => void }) {
         </div>
       </div>
       <div className="list">
+        <button onClick={showAllChats} disabled={hidden.size === 0}>
+          <Eye size={18} aria-hidden="true" /> {hidden.size === 0 ? 'No hidden chats' : `Show ${hidden.size} hidden ${hidden.size === 1 ? 'chat' : 'chats'}`}
+        </button>
         <button
           onClick={() => {
             void refreshSummaries()
