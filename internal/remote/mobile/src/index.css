@@ -63,14 +63,14 @@ svg { flex-shrink: 0; }
 .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
 /* ---------- shell: drawer pushes the chat aside, like ChatGPT ---------- */
-.shell { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+.shell { position: fixed; left: 0; right: 0; top: var(--app-y, 0px); height: var(--app-h, 100%); overflow: hidden; background: var(--bg); }
 .drawer {
   position: absolute; top: 0; bottom: 0; left: 0; width: var(--drawer-w); display: flex; flex-direction: column;
   padding-top: calc(var(--safe-top) + 8px); background: var(--bg); touch-action: pan-y;
   transform: translateX(calc(var(--p, 0) * 30% - 30%)); opacity: calc(0.4 + var(--p, 0) * 0.6);
 }
 .main {
-  position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column;
+  position: absolute; inset: 0; background: var(--chat-bg); display: flex; flex-direction: column;
   transform: translateX(calc(var(--p, 0) * var(--drawer-w)));
   border-radius: calc(var(--p, 0) * 28px); overflow: hidden; touch-action: pan-y;
   box-shadow: 0 0 0 calc(var(--p, 0) * 1px) var(--line);

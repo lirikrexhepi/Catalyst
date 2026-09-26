@@ -1,0 +1,141 @@
+import { useRef, useState, type PointerEvent } from 'react'
+import { Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
+import { GlassCircle, GlassSquircle } from '../../ui'
+import { interrupt, removeQueued, send, useStore } from '../../store'
+import { AttachmentStrip } from './AttachmentStrip'
+import { QueuedList } from './QueuedList'
+import { useAttachments } from './useAttachments'
+import { useDictation } from './useDictation'
+
+interface ComposerProps {
+  threadId?: string
+  placeholder: string
+  onCreate?: (text: string) => Promise<boolean>
+}
+
+const MAX_INPUT_HEIGHT = 132
+const ICON = { size: 20, strokeWidth: 1.9 } as const
+
+export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
+  const thread = useStore((s) => (threadId ? s.threads[threadId] : undefined))
+  const pcDown = useStore((s) => s.pcDown)
+  const [text, setText] = useState('')
+  const [creating, setCreating] = useState(false)
+  const field = useRef<HTMLTextAreaElement | null>(null)
+  const attachments = useAttachments(field)
+  const dictation = useDictation((spoken) => {
+    if (!spoken) return
+    setText((prev) => (prev.trim() ? `${prev.trimEnd()} ${spoken}` : spoken))
+    requestAnimationFrame(grow)
+  })
+
+  const busy = Boolean(thread?.busy)
+  const waiting = thread?.blocks.some(
+    (b) => (b.type === 'approval_request' && b.status === 'pending') || (b.type === 'tool_question' && !b.answered),
+  )
+  const hasContent = text.trim().length > 0 || attachments.files.length > 0
+  const canSend = hasContent && !attachments.uploading && !creating && !pcDown
+
+  function grow() {
+    const el = field.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`
+  }
+
+  const submit = () => {
+    if (!canSend) return
+    if (!threadId) {
+      if (!onCreate || !text.trim()) return
+      setCreating(true)
+      void onCreate(text.trim()).then((ok) => {
+        setCreating(false)
+        if (ok) setText('')
+      })
+      return
+    }
+    void send(threadId, text, attachments.files.map((f) => f.ref))
+    setText('')
+    attachments.clear()
+    requestAnimationFrame(grow)
+  }
+
+  const focusField = (e: PointerEvent<HTMLElement>) => {
+    if ((e.target as Element).closest('button, textarea, input')) return
+    e.preventDefault()
+    field.current?.focus()
+  }
+
+  const onMic = () => {
+    if (dictation.supported) dictation.toggle()
+    else field.current?.focus()
+  }
+
+  return (
+    <div className="composer-stack">
+      {waiting ? (
+        <div className="hint" role="status">
+          <Clock3 size={14} aria-hidden /> Waiting for your answer above
+        </div>
+      ) : null}
+      {thread ? <QueuedList items={thread.queued} onRemove={(id) => threadId && removeQueued(threadId, id)} /> : null}
+      <AttachmentStrip files={attachments.files} onRemove={attachments.remove} />
+      {attachments.error ? <div className="hint composer-error">{attachments.error}</div> : null}
+      <GlassSquircle radius={30} fill="var(--composer-fill)" className="composer-surface" onPointerDown={focusField}>
+        <textarea
+          ref={field}
+          className="composer-input"
+          rows={1}
+          value={text}
+          placeholder={pcDown ? 'PC not responding' : placeholder}
+          aria-label="Message"
+          enterKeyHint="send"
+          onChange={(e) => {
+            setText(e.target.value)
+            grow()
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) {
+              e.preventDefault()
+              submit()
+            }
+          }}
+        />
+        <div className="composer-actions">
+          <button className="composer-attach" onClick={attachments.open} disabled={attachments.uploading || !threadId} aria-label="Attach a photo">
+            <Paperclip {...ICON} className={attachments.uploading ? 'spin' : undefined} aria-hidden />
+          </button>
+          <input
+            ref={attachments.input}
+            className="composer-file"
+            type="file"
+            accept="image/*"
+            multiple
+            tabIndex={-1}
+            aria-hidden
+            onChange={(e) => void attachments.add(e.target.files)}
+          />
+          <span className="composer-grow" />
+          <GlassCircle
+            size={36}
+            fill={dictation.listening ? 'var(--voice-live)' : 'var(--voice)'}
+            onClick={onMic}
+            aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
+            aria-pressed={dictation.listening}
+          >
+            <Mic {...ICON} aria-hidden />
+          </GlassCircle>
+          {busy && !canSend ? (
+            <GlassCircle size={36} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding">
+              <Square size={14} fill="currentColor" aria-hidden />
+            </GlassCircle>
+          ) : (
+            <GlassCircle size={36} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send">
+              <Send {...ICON} aria-hidden />
+            </GlassCircle>
+          )}
+        </div>
+      </GlassSquircle>
+    </div>
+  )
+}
