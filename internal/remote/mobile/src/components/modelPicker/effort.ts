@@ -27,3 +27,19 @@ export function selectedEffort(option: OptionDescriptor | undefined, choice?: Mo
     option.choices.find((c) => c.id === option.default)
   )
 }
+
+export interface Toggle {
+  id: string
+  label: string
+  on: boolean
+}
+
+export function toggleOptions(model: ModelInfo | undefined, choice?: ModelChoice): Toggle[] {
+  return (model?.options ?? [])
+    .filter((o) => o.type === 'boolean')
+    .map((o) => {
+      const value = choice?.options?.[o.id]
+      const on = typeof value === 'boolean' ? value : o.default === true
+      return { id: o.id, label: o.label.charAt(0).toUpperCase() + o.label.slice(1).toLowerCase(), on }
+    })
+}

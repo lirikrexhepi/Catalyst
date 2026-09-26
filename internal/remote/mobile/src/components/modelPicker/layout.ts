@@ -1,5 +1,5 @@
 export const PICKER = {
-  radius: 40,
+  radius: 30,
   fill: 'linear-gradient(160deg, #181818 0%, #1f1f1f 50%, #262626 100%)',
   listTop: 17,
   row: 49,
@@ -24,8 +24,8 @@ export function listHeight(rows: number): number {
   return clamp(content, PICKER.minList, PICKER.maxList)
 }
 
-export function effortHeight(choices: number): number {
-  const rows = Math.max(1, Math.ceil(choices / 2))
+export function effortHeight(choices: number, toggles = 0): number {
+  const rows = Math.max(1, Math.ceil(choices / 2) + Math.ceil(toggles / 2))
   const grid = rows * PICKER.effortButton.height + (rows - 1) * PICKER.effortRowGap
   return PICKER.effortTop + grid + PICKER.effortGap + PICKER.bar + PICKER.barInset
 }

@@ -40,7 +40,8 @@
 .selected-bar-name { flex: 1; min-width: 0; font: 500 18px/1.2 var(--font); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .selected-bar-back { width: 44px; height: 44px; display: grid; place-items: center; flex-shrink: 0; color: #fff; touch-action: manipulation; }
 
-.effort-grid { display: grid; grid-template-columns: 135px 135px; column-gap: 15px; row-gap: 22px; justify-content: center; margin: 26px 0 20px; }
+.effort-grid { display: flex; flex-direction: column; align-items: center; gap: 22px; margin: 26px 0 20px; }
+.effort-group { display: grid; grid-template-columns: 135px 135px; column-gap: 15px; row-gap: 22px; }
 .effort-button { display: grid; place-items: center; color: #fff; touch-action: manipulation; }
 .effort-button.wide { grid-column: 1 / -1; }
 .effort-button-label { font: 500 20px/1 var(--font); white-space: nowrap; }

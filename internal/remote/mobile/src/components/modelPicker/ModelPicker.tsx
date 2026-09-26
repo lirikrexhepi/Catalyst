@@ -4,7 +4,7 @@ import { useElementSize } from '../../ui/geometry/useElementSize'
 import { loadProviders, useStore } from '../../store'
 import { defaultOptions } from '../../format'
 import type { ModelChoice } from '../../types'
-import { effortOption, selectedEffort } from './effort'
+import { effortOption, selectedEffort, toggleOptions } from './effort'
 import { EffortGrid } from './EffortGrid'
 import { PICKER, effortHeight, listHeight } from './layout'
 import { ModelList } from './ModelList'
@@ -68,10 +68,12 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
   const chosenModel = chosenProvider?.models.find((m) => m.id === value?.model)
   const effort = effortOption(chosenModel)
   const choices = effort?.choices ?? []
+  const toggles = toggleOptions(chosenModel, value)
+  const tunable = choices.length > 0 || toggles.length > 0
 
   const listRows = status === 'ready' ? Math.max(provider?.models.length ?? 1, 1) : 6
   const hList = listHeight(listRows)
-  const hEffort = effortHeight(choices.length || 4)
+  const hEffort = tunable ? effortHeight(choices.length, toggles.length) : effortHeight(4)
   const hMax = Math.max(hList, hEffort)
 
   const pickModel = (id: string) => {
@@ -79,7 +81,7 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
     const model = provider.models.find((m) => m.id === id)
     const already = value?.driver === provider.driver && value?.model === id
     if (already) {
-      if (effortOption(model)) setView('effort')
+      if (effortOption(model) || toggleOptions(model).length > 0) setView('effort')
       return
     }
     onChange({ driver: provider.driver, model: id, options: defaultOptions(model?.options) })
@@ -88,7 +90,13 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
   const pickEffort = (id: string) => {
     if (!value) return
     onChange({ ...value, options: { ...(value.options ?? {}), effort: id } })
-    window.setTimeout(close, COMMIT_DELAY)
+    if (toggles.length === 0) window.setTimeout(close, COMMIT_DELAY)
+  }
+
+  const flip = (id: string) => {
+    if (!value) return
+    const toggle = toggles.find((t) => t.id === id)
+    onChange({ ...value, options: { ...(value.options ?? {}), [id]: !toggle?.on } })
   }
 
   return (
@@ -101,9 +109,9 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
           {status === 'ready' ? <ProviderBar providers={providers} active={driver} onPick={setDriver} /> : null}
         </div>
         <div ref={effortPane} className="picker-pane" data-active={view === 'effort'} aria-hidden={view !== 'effort'} style={{ height: hEffort }}>
-          {value && chosenModel && choices.length > 0 ? (
+          {value && chosenModel && tunable ? (
             <>
-              <EffortGrid choices={choices} selected={selectedEffort(effort, value)?.id} onPick={pickEffort} />
+              <EffortGrid choices={choices} selected={selectedEffort(effort, value)?.id} toggles={toggles} onPick={pickEffort} onToggle={flip} />
               <SelectedModelBar
                 driver={value.driver}
                 providerName={chosenProvider?.name}
