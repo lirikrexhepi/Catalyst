@@ -30,11 +30,21 @@ func (a *App) StartRemoteServer(port int) (remote.RemoteInfo, error) {
 		a.remoteServer.SetStoragePath(filepath.Join(configRoot(), "remote_auth.json"))
 		a.wireRemote()
 	}
-	if err := a.remoteServer.Start(context.Background()); err != nil {
+	err := a.remoteServer.Start(context.Background())
+	if err != nil && !a.headless && headlessRunning() {
+		logger.Infof("App", "Port held by the background instance; asking it to hand over")
+		takeOverFromHeadless()
+		err = a.remoteServer.Start(context.Background())
+	}
+	if err != nil {
 		logger.Errorf("App", "Failed to start remote server: %v", err)
 		return a.remoteServer.Info(), err
 	}
 	return a.remoteServer.Info(), nil
+}
+
+func (a *App) ownsGateway() bool {
+	return a.remoteServer != nil && a.remoteServer.Info().Enabled
 }
 
 func (a *App) StopRemoteServer() error {
