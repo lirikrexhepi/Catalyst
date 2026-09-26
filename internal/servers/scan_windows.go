@@ -94,7 +94,7 @@ func decodeRows(raw []byte, target any) error {
 
 func runPowerShell(ctx context.Context, script string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 	return cmd.Output()
 }
 
@@ -103,6 +103,6 @@ func runPowerShell(ctx context.Context, script string) ([]byte, error) {
 // holding the port would defeat the point of the button.
 func stop(ctx context.Context, pid int) error {
 	cmd := exec.CommandContext(ctx, "taskkill", "/PID", strconv.Itoa(pid), "/T", "/F")
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 	return cmd.Run()
 }

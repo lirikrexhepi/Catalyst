@@ -26,6 +26,6 @@ func open(target string) error {
 	}
 
 	cmd := exec.Command("explorer.exe", args...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
 	return cmd.Start()
 }

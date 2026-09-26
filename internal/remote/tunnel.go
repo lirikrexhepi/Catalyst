@@ -59,7 +59,9 @@ func (tm *TunnelManager) StartPublicTunnel(ctx context.Context) {
 
 	runCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(runCtx, "tailscale", "funnel", "--bg", target).CombinedOutput()
+	funnelCmd := exec.CommandContext(runCtx, "tailscale", "funnel", "--bg", target)
+	setSysProcAttr(funnelCmd)
+	out, err := funnelCmd.CombinedOutput()
 	output := string(out)
 	if err != nil {
 		msg := strings.TrimSpace(output)
@@ -105,7 +107,9 @@ func (tm *TunnelManager) StartPublicTunnel(ctx context.Context) {
 func funnelStatusURL(ctx context.Context, target string) string {
 	runCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(runCtx, "tailscale", "serve", "status", "--json").Output()
+	statusCmd := exec.CommandContext(runCtx, "tailscale", "serve", "status", "--json")
+	setSysProcAttr(statusCmd)
+	out, err := statusCmd.Output()
 	if err != nil {
 		return ""
 	}
@@ -176,7 +180,9 @@ func (tm *TunnelManager) Stop() {
 	if tm.publicURL != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-		_ = exec.CommandContext(ctx, "tailscale", "funnel", "--https=443", "off").Run()
+		offCmd := exec.CommandContext(ctx, "tailscale", "funnel", "--https=443", "off")
+		setSysProcAttr(offCmd)
+		_ = offCmd.Run()
 	}
 	tm.publicURL = ""
 	tm.connecting = false

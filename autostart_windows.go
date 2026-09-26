@@ -128,7 +128,7 @@ func startHeadlessAfter(exe string, pid int) error {
 		}
 		return cmd.Process.Release()
 	}
-	base := uint32(detachedProcess | createNewProcessGroup)
+	base := uint32(detachedProcess | createNewProcessGroup | createNoWindow)
 	if err := start(base | createBreakawayFromJob); err == nil {
 		return nil
 	}
