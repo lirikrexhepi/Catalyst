@@ -15,19 +15,20 @@ export interface MorphSurfaceProps {
   children?: ReactNode
 }
 
-const BLEND = 48
+const BLEND = 40
 
 function maxOffset(maxHeight: number, radius: number): number {
-  const half = maxHeight / 2
-  const corner = Math.min(radius * 2, half)
-  return Math.max(0, 2 * (half - BLEND / 2 - corner))
+  const corner = Math.min(radius * 2, maxHeight / 2)
+  return Math.max(0, maxHeight - BLEND - corner * 2)
 }
 
 const shift = (factor: number): Render<'d'> => (v) => ({ transform: `translateY(${v.d * factor}px)` })
 
 export function MorphSurface({ width, height, maxHeight, radius, fill, border = {}, spring = SPRINGS.bouncy, children }: MorphSurfaceProps) {
-  const slice = useRef<HTMLDivElement | null>(null)
-  const copy = useRef<HTMLDivElement | null>(null)
+  const topWindow = useRef<HTMLDivElement | null>(null)
+  const topCopy = useRef<HTMLDivElement | null>(null)
+  const bottomWindow = useRef<HTMLDivElement | null>(null)
+  const bottomCopy = useRef<HTMLDivElement | null>(null)
   const clip = useRef<HTMLDivElement | null>(null)
   const content = useRef<HTMLDivElement | null>(null)
   const drivers = useRef<SpringDriver<'d'>[]>([])
@@ -36,8 +37,10 @@ export function MorphSurface({ width, height, maxHeight, radius, fill, border = 
 
   useLayoutEffect(() => {
     const parts: [HTMLDivElement | null, number][] = [
-      [slice.current, 0.5],
-      [copy.current, 0.5],
+      [topWindow.current, 0.5],
+      [topCopy.current, 0.5],
+      [bottomWindow.current, 0.5],
+      [bottomCopy.current, -0.5],
       [clip.current, 1],
       [content.current, -1],
     ]
@@ -59,15 +62,17 @@ export function MorphSurface({ width, height, maxHeight, radius, fill, border = 
 
   return (
     <div style={{ position: 'absolute', left: 0, bottom: 0, width, height: maxHeight, pointerEvents: 'none' }}>
-      <div aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: half - BLEND / 2, bottom: 0, overflow: 'hidden' }}>
-        <GlassSquircle {...shape} style={{ position: 'absolute', left: 0, bottom: 0 }} />
+      <div ref={bottomWindow} aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: half - BLEND / 2, height: half + BLEND / 2, overflow: 'hidden' }}>
+        <div ref={bottomCopy} style={{ position: 'absolute', left: 0, bottom: 0, width, height: maxHeight }}>
+          <GlassSquircle {...shape} />
+        </div>
       </div>
       <div
-        ref={slice}
+        ref={topWindow}
         aria-hidden
         style={{ position: 'absolute', left: 0, right: 0, top: 0, height: half + BLEND / 2, overflow: 'hidden', WebkitMaskImage: mask, maskImage: mask }}
       >
-        <div ref={copy} style={{ position: 'absolute', left: 0, top: 0, width, height: maxHeight }}>
+        <div ref={topCopy} style={{ position: 'absolute', left: 0, top: 0, width, height: maxHeight }}>
           <GlassSquircle {...shape} />
         </div>
       </div>

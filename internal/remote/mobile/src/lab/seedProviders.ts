@@ -28,7 +28,12 @@ const providers = [
   {
     driver: 'claude',
     name: 'Claude Code',
-    models: Array.from({ length: 9 }, (_, i) => ({ id: `claude-${i}`, name: `Claude Model With A Long Name ${i + 1}`, options: [levels] })),
+    models: [
+      { id: 'fable-5', name: 'Claude Fable 5', options: [levels] },
+      { id: 'opus-5', name: 'Claude Opus 5', options: [levels] },
+      { id: 'sonnet-5', name: 'Claude Sonnet 5', options: [levels] },
+      { id: 'haiku-4.5', name: 'Claude Haiku 4.5', options: [{ id: 'thinking', label: 'Thinking', type: 'boolean', default: false }] },
+    ],
   },
   { driver: 'antigravity', name: 'Antigravity', models: [{ id: 'gemini', name: 'Gemini 3 Pro', options: [effort(['low', 'high'], 'high')] }] },
 ]

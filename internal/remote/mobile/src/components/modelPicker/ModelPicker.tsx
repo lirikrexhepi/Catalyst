@@ -45,6 +45,19 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
     if (!driver && providers[0]) setDriver(providers[0].driver)
   }, [driver, providers])
 
+  const shownDriver = useRef(driver)
+  useEffect(() => {
+    if (shownDriver.current === driver) return
+    shownDriver.current = driver
+    listPane.current?.querySelector('.picker-list')?.animate(
+      [
+        { opacity: 0, transform: 'translateY(8px)' },
+        { opacity: 1, transform: 'none' },
+      ],
+      { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+    )
+  }, [driver])
+
   const close = useCallback(() => {
     if (closing.current) return
     closing.current = true
@@ -71,10 +84,10 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
   const toggles = toggleOptions(chosenModel, value)
   const tunable = choices.length > 0 || toggles.length > 0
 
-  const listRows = status === 'ready' ? Math.max(provider?.models.length ?? 1, 1) : 6
+  const listRows = status === 'ready' ? Math.max(provider?.models.length ?? 1, 1) : 3
   const hList = listHeight(listRows)
   const hEffort = tunable ? effortHeight(choices.length, toggles.length) : effortHeight(4)
-  const hMax = Math.max(hList, hEffort)
+  const hMax = PICKER.frame
 
   const pickModel = (id: string) => {
     if (!provider) return

@@ -8,8 +8,7 @@ export const PICKER = {
   barWidth: 325,
   barRadius: 24,
   barInset: 10,
-  minList: 410,
-  maxList: 500,
+  frame: 500,
   effortTop: 26,
   effortButton: { width: 135, height: 55, radius: 24 },
   effortRowGap: 22,
@@ -21,7 +20,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 
 export function listHeight(rows: number): number {
   const content = PICKER.listTop + rows * PICKER.row + PICKER.listGap + PICKER.bar + PICKER.barInset
-  return clamp(content, PICKER.minList, PICKER.maxList)
+  return clamp(content, 0, PICKER.frame)
 }
 
 export function effortHeight(choices: number, toggles = 0): number {

@@ -4,15 +4,15 @@ import { SPRINGS, SpringDriver, prefersReducedMotion, type SpringSpec } from '..
 type Pop = 'sx' | 'sy' | 'y' | 'o'
 type Pane = 'x' | 's' | 'o'
 
-const HIDDEN: Record<Pop, number> = { sx: 0.94, sy: 0.9, y: 18, o: 0 }
+const HIDDEN: Record<Pop, number> = { sx: 0.95, sy: 0.92, y: 14, o: 0 }
 const SHOWN: Record<Pop, number> = { sx: 1, sy: 1, y: 0, o: 1 }
-const CLOSED: Record<Pop, number> = { sx: 0.96, sy: 0.93, y: 10, o: 0 }
+const CLOSED: Record<Pop, number> = { sx: 0.96, sy: 0.94, y: 10, o: 0 }
 
 const OPEN_SPRING: SpringSpec<Pop> = {
-  sx: { damping: 0.9, response: 0.36 },
-  sy: { damping: 0.72, response: 0.42 },
-  y: { damping: 0.84, response: 0.38 },
-  o: { damping: 1, response: 0.2 },
+  sx: { damping: 0.9, response: 0.38 },
+  sy: { damping: 0.82, response: 0.4 },
+  y: { damping: 0.92, response: 0.38 },
+  o: { damping: 1, response: 0.32 },
 }
 const CLOSE_SPRING: SpringSpec<Pop> = {
   sx: { damping: 1, response: 0.24 },
