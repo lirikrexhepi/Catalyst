@@ -66,6 +66,12 @@ export function choiceLabel(choice: ModelChoice | undefined, providers: Provider
   return name
 }
 
+export function choiceModelName(choice: ModelChoice | undefined, providers: ProviderInfo[]): string {
+  if (!choice?.driver) return 'Choose a model'
+  const model = providers.find((p) => p.driver === choice.driver)?.models.find((m) => m.id === choice.model)
+  return model?.name || prettyModel(choice.model) || providerName(choice.driver, providers)
+}
+
 export function prettyModel(id?: string): string {
   if (!id) return ''
   const last = id.split('/').pop() || id

@@ -1,0 +1,31 @@
+export const PICKER = {
+  radius: 40,
+  fill: 'linear-gradient(160deg, #181818 0%, #1f1f1f 50%, #262626 100%)',
+  listTop: 17,
+  row: 49,
+  listGap: 25,
+  bar: 64,
+  barWidth: 325,
+  barRadius: 24,
+  barInset: 10,
+  minList: 410,
+  maxList: 500,
+  effortTop: 26,
+  effortButton: { width: 135, height: 55, radius: 24 },
+  effortRowGap: 22,
+  effortColGap: 15,
+  effortGap: 20,
+} as const
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
+
+export function listHeight(rows: number): number {
+  const content = PICKER.listTop + rows * PICKER.row + PICKER.listGap + PICKER.bar + PICKER.barInset
+  return clamp(content, PICKER.minList, PICKER.maxList)
+}
+
+export function effortHeight(choices: number): number {
+  const rows = Math.max(1, Math.ceil(choices / 2))
+  const grid = rows * PICKER.effortButton.height + (rows - 1) * PICKER.effortRowGap
+  return PICKER.effortTop + grid + PICKER.effortGap + PICKER.bar + PICKER.barInset
+}

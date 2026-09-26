@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowDown } from 'lucide-react'
 import Feed from '../../feed/Feed'
-import ModelSheet from '../../components/ModelSheet'
+import { ModelPicker } from '../../components/modelPicker/ModelPicker'
 import Elapsed from '../../components/Elapsed'
 import { ChatFrame } from '../../components/chrome/ChatFrame'
 import { TopBar } from '../../components/chrome/TopBar'
@@ -11,7 +11,7 @@ import { Composer } from '../../components/composer/Composer'
 import { providerIcon } from '../../components/providerIcons'
 import { useStickToBottom } from '../../hooks/useStickToBottom'
 import { api } from '../../api'
-import { choiceLabel } from '../../format'
+import { choiceModelName } from '../../format'
 import { effectiveChoice, interrupt, loadProviders, loadThread, message, refreshSummaries, setChoice, useStore } from '../../store'
 import { ChatActions } from './ChatActions'
 import { usePreviewFlow } from './usePreviewFlow'
@@ -62,7 +62,7 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
       onPreview={preview.open}
       model={
         <ModelSwitch
-          label={choiceLabel(choice, providers)}
+          label={choiceModelName(choice, providers)}
           icon={choice?.driver ? providerIcon(choice.driver) : undefined}
           usage={usageRatio(thread?.context)}
           onClick={() => setPicking(true)}
@@ -121,7 +121,9 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
         ) : null}
       </ChatFrame>
 
-      {picking ? <ModelSheet value={choice} onChange={(c) => setChoice(threadId, c)} onClose={() => setPicking(false)} /> : null}
+      {picking ? (
+        <ModelPicker value={choice} usage={usageRatio(thread?.context)} onChange={(c) => setChoice(threadId, c)} onClose={() => setPicking(false)} />
+      ) : null}
       {preview.element}
       {menu ? (
         <ChatActions

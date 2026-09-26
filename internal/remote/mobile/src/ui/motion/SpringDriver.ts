@@ -2,6 +2,11 @@ import { SPRINGS, springAt, type SpringConfig } from './spring'
 
 export type Values<K extends string> = Record<K, number>
 export type Render<K extends string> = (value: Values<K>, velocity: Values<K>) => Keyframe
+export type SpringSpec<K extends string> = SpringConfig | Partial<Record<K, SpringConfig>>
+
+function isConfig<K extends string>(spec: SpringSpec<K>): spec is SpringConfig {
+  return typeof (spec as SpringConfig).damping === 'number'
+}
 
 interface Channel {
   from: number
@@ -62,11 +67,12 @@ export class SpringDriver<K extends string> {
     return out
   }
 
-  to(target: Partial<Values<K>>, config?: SpringConfig, velocity?: Partial<Values<K>>) {
+  to(target: Partial<Values<K>>, spec?: SpringSpec<K>, velocity?: Partial<Values<K>>): number {
     const now = this.state()
     for (const k of this.keys) {
       const c = this.channels[k]
       const next = target[k]
+      const config = spec === undefined ? undefined : isConfig(spec) ? spec : spec[k]
       this.channels[k] = {
         from: now.value[k],
         to: next ?? c.to,
@@ -74,7 +80,7 @@ export class SpringDriver<K extends string> {
         config: next !== undefined && config ? config : c.config,
       }
     }
-    this.play()
+    return this.play()
   }
 
   jump(values: Partial<Values<K>>, velocity?: Partial<Values<K>>) {
@@ -97,7 +103,7 @@ export class SpringDriver<K extends string> {
     this.animation = null
   }
 
-  private play() {
+  private play(): number {
     const frames: Keyframe[] = []
     const rest = {} as Values<K>
     const still = {} as Values<K>
@@ -127,7 +133,7 @@ export class SpringDriver<K extends string> {
       this.animation = null
       this.duration = 0
       Object.assign(this.el.style, this.render(rest, still))
-      return
+      return 0
     }
     frames.push(this.render(rest, still))
     this.duration = t
@@ -142,5 +148,6 @@ export class SpringDriver<K extends string> {
       this.animation = null
       for (const k of this.keys) this.channels[k] = { ...this.channels[k], from: rest[k], velocity: 0 }
     }
+    return t * 1000
   }
 }

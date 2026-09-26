@@ -1,8 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import './seedProviders'
 import '../index.css'
 import '../styles/tokens.css'
 import '../styles/chat.css'
+import '../styles/picker.css'
 import Chat from '../screens/Chat'
 import { trackVisualViewport } from '../platform/viewport'
 

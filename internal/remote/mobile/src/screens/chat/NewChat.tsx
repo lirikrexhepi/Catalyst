@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { Folder, ShieldCheck, Workflow } from 'lucide-react'
 import Sheet from '../../components/Sheet'
-import ModelSheet from '../../components/ModelSheet'
+import { ModelPicker } from '../../components/modelPicker/ModelPicker'
 import { ChatFrame } from '../../components/chrome/ChatFrame'
 import { TopBar } from '../../components/chrome/TopBar'
 import { ModelSwitch } from '../../components/chrome/ModelSwitch'
 import { Composer } from '../../components/composer/Composer'
 import { providerIcon } from '../../components/providerIcons'
 import { api } from '../../api'
-import { choiceLabel, defaultOptions } from '../../format'
+import { choiceModelName, defaultOptions } from '../../format'
 import { loadProviders, message, refreshSummaries, useStore } from '../../store'
 import type { ModelChoice, Project } from '../../types'
 import { usePreviewFlow } from './usePreviewFlow'
@@ -73,7 +73,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
 
   const project = projects.find((p) => p.path === cwd)
   const checking = !providersLoaded || providersLoading
-  const label = providers.length === 0 ? (checking ? 'Checking CLIs…' : 'No agent CLIs') : choiceLabel(choice, providers)
+  const label = providers.length === 0 ? (checking ? 'Checking CLIs…' : 'No agent CLIs') : choiceModelName(choice, providers)
 
   const create = async (prompt: string): Promise<boolean> => {
     if (!choice?.driver) {
@@ -128,7 +128,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
         </div>
       </ChatFrame>
 
-      {sheet === 'model' ? <ModelSheet value={choice} onChange={setLocalChoice} onClose={() => setSheet(null)} /> : null}
+      {sheet === 'model' ? <ModelPicker value={choice} onChange={setLocalChoice} onClose={() => setSheet(null)} /> : null}
       {sheet === 'project' ? (
         <Sheet title="Project" onClose={() => setSheet(null)}>
           <div className="list">

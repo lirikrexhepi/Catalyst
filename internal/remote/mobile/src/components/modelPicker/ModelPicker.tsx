@@ -1,0 +1,121 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { MorphSurface } from '../../ui'
+import { useElementSize } from '../../ui/geometry/useElementSize'
+import { loadProviders, useStore } from '../../store'
+import { defaultOptions } from '../../format'
+import type { ModelChoice } from '../../types'
+import { effortOption, selectedEffort } from './effort'
+import { EffortGrid } from './EffortGrid'
+import { PICKER, effortHeight, listHeight } from './layout'
+import { ModelList } from './ModelList'
+import { usePaneSwap, usePopMotion } from './motion'
+import { ProviderBar } from './ProviderBar'
+import { SelectedModelBar } from './SelectedModelBar'
+
+interface ModelPickerProps {
+  value?: ModelChoice
+  usage?: number
+  onChange: (choice: ModelChoice) => void
+  onClose: () => void
+}
+
+const COMMIT_DELAY = 140
+
+export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPickerProps) {
+  const providers = useStore((s) => s.providers)
+  const providersLoaded = useStore((s) => s.providersLoaded)
+  const providersLoading = useStore((s) => s.providersLoading)
+  const [driver, setDriver] = useState(value?.driver || providers[0]?.driver || '')
+  const [view, setView] = useState<'list' | 'effort'>('list')
+  const root = useRef<HTMLDivElement | null>(null)
+  const listPane = useRef<HTMLDivElement | null>(null)
+  const effortPane = useRef<HTMLDivElement | null>(null)
+  const closing = useRef(false)
+  const size = useElementSize(root)
+  const closeMotion = usePopMotion(root)
+  usePaneSwap(listPane, effortPane, view === 'effort')
+
+  useEffect(() => {
+    void loadProviders()
+    const focused = document.activeElement
+    if (focused instanceof HTMLElement) focused.blur()
+  }, [])
+
+  useEffect(() => {
+    if (!driver && providers[0]) setDriver(providers[0].driver)
+  }, [driver, providers])
+
+  const close = useCallback(() => {
+    if (closing.current) return
+    closing.current = true
+    root.current?.classList.add('closing')
+    window.setTimeout(onClose, closeMotion())
+  }, [closeMotion, onClose])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (view === 'effort') setView('list')
+      else close()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [close, view])
+
+  const provider = providers.find((p) => p.driver === driver)
+  const status = providers.length > 0 ? 'ready' : !providersLoaded || providersLoading ? 'checking' : 'none'
+  const chosenProvider = providers.find((p) => p.driver === value?.driver)
+  const chosenModel = chosenProvider?.models.find((m) => m.id === value?.model)
+  const effort = effortOption(chosenModel)
+  const choices = effort?.choices ?? []
+
+  const listRows = status === 'ready' ? Math.max(provider?.models.length ?? 1, 1) : 6
+  const hList = listHeight(listRows)
+  const hEffort = effortHeight(choices.length || 4)
+  const hMax = Math.max(hList, hEffort)
+
+  const pickModel = (id: string) => {
+    if (!provider) return
+    const model = provider.models.find((m) => m.id === id)
+    const already = value?.driver === provider.driver && value?.model === id
+    if (already) {
+      if (effortOption(model)) setView('effort')
+      return
+    }
+    onChange({ driver: provider.driver, model: id, options: defaultOptions(model?.options) })
+  }
+
+  const pickEffort = (id: string) => {
+    if (!value) return
+    onChange({ ...value, options: { ...(value.options ?? {}), effort: id } })
+    window.setTimeout(close, COMMIT_DELAY)
+  }
+
+  return (
+    <>
+      <div className="picker-catcher" onPointerDown={close} aria-hidden />
+      <div className="model-picker" ref={root} role="dialog" aria-modal="true" aria-label="Choose a model" style={{ height: hMax }}>
+        <MorphSurface width={size?.width ?? 345} height={view === 'list' ? hList : hEffort} maxHeight={hMax} radius={PICKER.radius} fill={PICKER.fill}>
+        <div ref={listPane} className="picker-pane" data-active={view === 'list'} aria-hidden={view !== 'list'} style={{ height: hList }}>
+          <ModelList provider={provider} value={value} status={status} onPick={pickModel} onRetry={() => void loadProviders(true)} />
+          {status === 'ready' ? <ProviderBar providers={providers} active={driver} onPick={setDriver} /> : null}
+        </div>
+        <div ref={effortPane} className="picker-pane" data-active={view === 'effort'} aria-hidden={view !== 'effort'} style={{ height: hEffort }}>
+          {value && chosenModel && choices.length > 0 ? (
+            <>
+              <EffortGrid choices={choices} selected={selectedEffort(effort, value)?.id} onPick={pickEffort} />
+              <SelectedModelBar
+                driver={value.driver}
+                providerName={chosenProvider?.name}
+                modelName={chosenModel.name}
+                usage={usage}
+                onBack={() => setView('list')}
+              />
+            </>
+          ) : null}
+        </div>
+        </MorphSurface>
+      </div>
+    </>
+  )
+}

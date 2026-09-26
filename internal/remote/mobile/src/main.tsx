@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import './styles/tokens.css'
 import './styles/chat.css'
+import './styles/picker.css'
 import App from './App'
 import { trackVisualViewport } from './platform/viewport'
 
