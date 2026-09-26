@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './seedProviders'
+import '@fontsource-variable/geist'
 import '../index.css'
 import '../styles/tokens.css'
 import '../styles/chat.css'

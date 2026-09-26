@@ -1,6 +1,6 @@
 :root {
-  --font: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font: 'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: 'Geist Variable', 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 
   --chat-bg: #111111;
   --glass-control: #414141;
@@ -20,4 +20,8 @@
 
 .kb-open {
   --dock-gap: 8px;
+}
+
+html {
+  font-synthesis: none;
 }
