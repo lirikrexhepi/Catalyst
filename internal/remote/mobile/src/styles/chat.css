@@ -35,7 +35,7 @@
 .composer-surface { display: flex; flex-direction: column; min-height: 108px; color: #fff; }
 .composer-input {
   display: block; width: 100%; min-height: 20px; max-height: 132px; resize: none;
-  padding: 18px 20px 6px; font: 400 14px/1.45 var(--font); color: #fff; background: none; border: 0; outline: none;
+  padding: 18px 20px 6px; font: 400 var(--input-font-size)/1.45 var(--font); color: #fff; background: none; border: 0; outline: none;
 }
 .composer-input::placeholder { color: var(--placeholder); opacity: 1; }
 .composer-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 0 12px 8px 6px; }

@@ -10,6 +10,7 @@ export interface PressGelOptions {
   pull?: number
   highlight?: number
   drag?: boolean
+  reference?: number
 }
 
 const DEFAULTS: Required<PressGelOptions> = {
@@ -19,6 +20,7 @@ const DEFAULTS: Required<PressGelOptions> = {
   pull: 0.12,
   highlight: 1,
   drag: true,
+  reference: 44,
 }
 
 const TAP_SLOP = 10
@@ -57,6 +59,7 @@ export function usePressGel(target: RefObject<HTMLElement>, glow: RefObject<HTML
     let frame = 0
     let reduced = false
     let reach = 0
+    let damp = 1
     let scaleToLocal = 1
     let rect = { left: 0, top: 0 }
 
@@ -80,11 +83,11 @@ export function usePressGel(target: RefObject<HTMLElement>, glow: RefObject<HTML
       const dx = latest.x - origin.x
       const dy = latest.y - origin.y
       const dist = Math.hypot(dx, dy)
-      const mag = dist > 0 ? o.stretch * Math.tanh(dist / reach) : 0
+      const mag = dist > 0 ? o.stretch * damp * Math.tanh(dist / reach) : 0
       body.to(
         {
-          tx: rubberband(dx, reach) * o.pull,
-          ty: rubberband(dy, reach) * o.pull,
+          tx: rubberband(dx, reach) * o.pull * damp,
+          ty: rubberband(dy, reach) * o.pull * damp,
           qx: dist > 0 ? (dx / dist) * mag : 0,
           qy: dist > 0 ? (dy / dist) * mag : 0,
         },
@@ -109,6 +112,7 @@ export function usePressGel(target: RefObject<HTMLElement>, glow: RefObject<HTML
       rect = { left: r.left, top: r.top }
       scaleToLocal = r.width > 0 ? w / r.width : 1
       reach = Math.min(Math.min(w, h), 64)
+      damp = Math.min(1, o.reference / Math.max(w, h, 1))
       if (o.drag) capture(el, e.pointerId)
       placeGlow(e.clientX, e.clientY)
       light?.to({ o: o.highlight }, SPRINGS.snappy)
