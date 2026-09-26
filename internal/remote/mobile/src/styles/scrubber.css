@@ -1,6 +1,6 @@
 .scrub-zone {
-  position: absolute; left: 0; top: 44%; z-index: 4; width: 16px; padding: 14px 0;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; transform: translateY(-50%);
+  position: absolute; right: 0; top: 60%; z-index: 4; width: 22px; padding: 14px 0;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; transform: translateY(-50%);
   touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 .scrub-tick { display: block; height: 1.5px; border-radius: 1px; background: rgba(255, 255, 255, 0.22); transition: background-color 200ms var(--ease-out); }
@@ -11,7 +11,7 @@
 }
 .scrub-list { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .scrub-item {
-  position: absolute; left: 30px; top: 0; height: 28px; max-width: calc(100% - 70px);
+  position: absolute; left: 24px; top: 0; height: 28px; max-width: calc(100% - 96px);
   visibility: hidden; transform-origin: 0% 50%; will-change: transform, opacity;
 }
 .scrub-label {

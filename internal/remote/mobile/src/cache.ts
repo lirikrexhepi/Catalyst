@@ -8,6 +8,8 @@ export interface CachedThread {
   savedAt: number
 }
 
+export const PROJECTS_CACHE_KEY = 'orchestrator_projects_cache'
+
 const DB_NAME = 'orchestrator-cache'
 const STORE = 'threads'
 const MAX_THREADS = 40

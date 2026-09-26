@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { EyeOff, Trash2 } from 'lucide-react'
-import Sheet from '../../components/Sheet'
+import { Sheet, SheetNote, SheetTile, SheetTiles, useArmed, type Dismiss } from '../../components/sheet'
 import { api } from '../../api'
 import { hideChat } from '../../hiddenChats'
 import { message, refreshSummaries } from '../../store'
@@ -14,28 +14,21 @@ interface ChatRowActionsProps {
 }
 
 export function ChatRowActions({ thread, current, onLeave, onClose }: ChatRowActionsProps) {
-  const [confirming, setConfirming] = useState(false)
+  const [armed, confirm] = useArmed()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const hide = () => {
-    hideChat(thread.threadId)
-    onClose()
-  }
-
-  const remove = async () => {
-    if (!confirming) {
-      setConfirming(true)
-      return
-    }
+  const remove = async (dismiss: Dismiss) => {
+    if (busy || !confirm()) return
     setBusy(true)
     setError(null)
     try {
       if (thread.live) await api.endAgent(thread.threadId).catch(() => undefined)
       await api.deleteThread(thread.threadId)
       await refreshSummaries()
-      if (current) onLeave()
-      onClose()
+      dismiss(() => {
+        if (current) onLeave()
+      })
     } catch (e) {
       setError(message(e))
       setBusy(false)
@@ -44,18 +37,21 @@ export function ChatRowActions({ thread, current, onLeave, onClose }: ChatRowAct
 
   return (
     <Sheet title={thread.title || 'Chat'} onClose={onClose}>
-      <div className="list">
-        <button onClick={hide} disabled={busy}>
-          <EyeOff size={20} aria-hidden /> Hide from phone
-        </button>
-        <button onClick={() => void remove()} disabled={busy} style={{ color: 'var(--fault)' }}>
-          <Trash2 size={20} aria-hidden />
-          {busy ? 'Deleting…' : confirming ? 'Tap again to delete for good' : 'Delete chat'}
-        </button>
-      </div>
-      <div className="when" style={{ padding: '0 4px' }}>
-        {error ?? (confirming ? 'Deleting removes this chat from your PC as well.' : 'Hidden chats stay on your PC. Show them again from Settings.')}
-      </div>
+      {(dismiss) => (
+        <>
+          <SheetTiles>
+            <SheetTile icon={EyeOff} label="Hide" disabled={busy} onClick={() => dismiss(() => hideChat(thread.threadId))} />
+            <SheetTile
+              icon={Trash2}
+              label={busy ? 'Deleting' : armed ? 'Confirm' : 'Delete'}
+              tone="danger"
+              armed={armed || busy}
+              onClick={() => void remove(dismiss)}
+            />
+          </SheetTiles>
+          {error ? <SheetNote tone="error">{error}</SheetNote> : null}
+        </>
+      )}
     </Sheet>
   )
 }

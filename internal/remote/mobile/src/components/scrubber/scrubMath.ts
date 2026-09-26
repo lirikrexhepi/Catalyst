@@ -4,7 +4,6 @@ export const SCRUB = {
   maxChats: 40,
   step: 50,
   itemHeight: 28,
-  listLeft: 30,
   deadZone: 14,
   fullSpeedAt: 110,
   maxSpeed: 6.5,

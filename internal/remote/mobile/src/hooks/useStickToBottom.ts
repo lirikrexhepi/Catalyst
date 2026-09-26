@@ -2,15 +2,31 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type Depende
 
 const NEAR_BOTTOM = 80
 
-export function useStickToBottom(deps: DependencyList) {
+interface Memory {
+  top: number
+  pinned: boolean
+}
+
+const memories = new Map<string, Memory>()
+
+export function useStickToBottom(deps: DependencyList, memoryKey?: string) {
   const scroller = useRef<HTMLDivElement | null>(null)
-  const [pinned, setPinned] = useState(true)
-  const pinnedRef = useRef(true)
+  const saved = useRef(memoryKey ? memories.get(memoryKey) : undefined)
+  const [pinned, setPinned] = useState(saved.current?.pinned ?? true)
+  const pinnedRef = useRef(pinned)
   pinnedRef.current = pinned
 
   useLayoutEffect(() => {
     const el = scroller.current
-    if (el && pinned) el.scrollTop = el.scrollHeight
+    if (!el) return
+    const restore = saved.current
+    if (restore && !restore.pinned) {
+      if (el.scrollHeight - el.clientHeight < restore.top) return
+      el.scrollTop = restore.top
+      saved.current = undefined
+      return
+    }
+    if (pinned) el.scrollTop = el.scrollHeight
   }, [pinned, ...deps])
 
   useEffect(() => {
@@ -27,8 +43,11 @@ export function useStickToBottom(deps: DependencyList) {
 
   const onScroll = useCallback(() => {
     const el = scroller.current
-    if (el) setPinned(el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM)
-  }, [])
+    if (!el) return
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < NEAR_BOTTOM
+    if (memoryKey) memories.set(memoryKey, { top: el.scrollTop, pinned: atBottom })
+    setPinned(atBottom)
+  }, [memoryKey])
 
   const jump = useCallback(() => {
     const el = scroller.current

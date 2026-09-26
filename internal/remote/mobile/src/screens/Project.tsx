@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { ChevronDown, ChevronLeft, GitBranch, Menu, Play, RefreshCw } from 'lucide-react'
-import Sheet from '../components/Sheet'
+import { Sheet, SheetList, SheetRow } from '../components/sheet'
 import { Code, Diffs, FileIcon, StatusMark, Tree, useTree } from '../components/Explorer'
 import { api } from '../api'
 import { message } from '../store'
@@ -203,28 +203,25 @@ export default function ProjectScreen({ path, openDrawer }: { path: string; open
 
       {picking && (
         <Sheet title="Checkout" onClose={() => setPicking(false)}>
-          <div className="list">
-            {checkouts.map((c) => (
-              <button
-                key={c.path}
-                aria-pressed={c.path === checkout?.path}
-                onClick={() => {
-                  setActive(c.path)
-                  setViewing(null)
-                  setPicking(false)
-                }}
-              >
-                <GitBranch size={18} aria-hidden="true" />
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  {c.isMain ? 'Project' : c.title}
-                  <span className="sub" style={{ display: 'block' }}>
-                    {c.branch}
-                    {c.files?.length ? ` · ${c.files.length} changed` : ''}
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
+          {(dismiss) => (
+            <SheetList scroll>
+              {checkouts.map((c) => (
+                <SheetRow
+                  key={c.path}
+                  icon={GitBranch}
+                  label={c.isMain ? 'Project' : c.title}
+                  detail={c.files?.length ? `${c.files.length} changed` : c.branch}
+                  selected={c.path === checkout?.path}
+                  onClick={() =>
+                    dismiss(() => {
+                      setActive(c.path)
+                      setViewing(null)
+                    })
+                  }
+                />
+              ))}
+            </SheetList>
+          )}
         </Sheet>
       )}
     </div>

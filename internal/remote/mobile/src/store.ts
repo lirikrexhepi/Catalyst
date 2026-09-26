@@ -75,6 +75,11 @@ function loadCachedProviders(): ProviderInfo[] {
 
 const initialProviders = loadCachedProviders()
 
+function withDriver(list: string[], driver: string): string[] {
+  if (list[list.length - 1] === driver) return list
+  return [...list.filter((d) => d !== driver), driver]
+}
+
 const SUMMARIES_CACHE_KEY = 'orchestrator_summaries_cache'
 const initialSummaries = readLocal<ThreadSummary[]>(SUMMARIES_CACHE_KEY, []).map((s) => ({ ...s, busy: false }))
 
@@ -252,6 +257,7 @@ function applyEvents(events: RuntimeEvent[]) {
       const summary = { ...summaries[index] }
       for (const e of list) {
         summary.lastActivity = Math.max(summary.lastActivity ?? 0, e.at || 0)
+        if (e.driver) summary.drivers = withDriver(summary.drivers ?? (summary.driver ? [summary.driver] : []), e.driver.toLowerCase())
         switch (e.kind) {
           case 'turn.started':
             summary.busy = true

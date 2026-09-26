@@ -80,8 +80,8 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
       }
       if (!visible) return
       const pose = slotPose(d, g.armness)
-      const pull = Math.abs(d) < 0.5 ? Math.min(Math.max(0, g.x - g.x0), g.armDistance) * 0.22 : 0
-      el.style.transform = `translate3d(${pose.x + pull}px, ${g.center + pose.y - SCRUB.itemHeight / 2}px, 0) scale(${pose.scale})`
+      const pull = Math.abs(d) < 0.5 ? Math.min(Math.max(0, g.x0 - g.x), g.armDistance) * 0.22 : 0
+      el.style.transform = `translate3d(${pose.x - pull}px, ${g.center + pose.y - SCRUB.itemHeight / 2}px, 0) scale(${pose.scale})`
       el.style.opacity = String(pose.opacity)
       el.classList.toggle('armed', g.armed && Math.abs(d) < 0.5)
     })
@@ -140,7 +140,7 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
       el.animate(
         [
           { transform: el.style.transform, opacity: el.style.opacity || '1' },
-          { transform: `${el.style.transform} translateX(28px)`, opacity: 0 },
+          { transform: `${el.style.transform} translateX(-28px)`, opacity: 0 },
         ],
         { duration: 220, easing: EASE, fill: 'forwards' },
       )
@@ -189,6 +189,18 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
     g.last = performance.now()
     g.raf = requestAnimationFrame(tick)
   }, [session, render, tick])
+
+  useEffect(() => {
+    const el = zone.current
+    if (!el) return
+    const block = (e: TouchEvent) => e.preventDefault()
+    el.addEventListener('touchstart', block, { passive: false })
+    el.addEventListener('touchmove', block, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', block)
+      el.removeEventListener('touchmove', block)
+    }
+  }, [])
 
   useEffect(
     () => () => {
@@ -239,7 +251,7 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
     }
     g.x = e.clientX
     g.y = y
-    const dx = g.x - g.x0
+    const dx = g.x0 - g.x
     const wasArmed = g.armed
     if (!g.armed && dx >= g.armDistance) g.armed = true
     else if (g.armed && dx < g.armDistance * SCRUB.disarmRatio) g.armed = false

@@ -1,0 +1,18 @@
+export const SHEET = {
+  radius: 30,
+  fill: 'linear-gradient(160deg, #181818 0%, #1f1f1f 50%, #262626 100%)',
+  open: { damping: 0.9, response: 0.38 },
+  close: { damping: 1, response: 0.3 },
+  projection: 0.16,
+  settlePx: 0.1,
+  dismissRatio: 0.3,
+  listRadius: 22,
+  listFill: 'rgba(255, 255, 255, 0.045)',
+  tileHeight: 84,
+  tileRadius: 24,
+  tileFill: '#262626',
+  tileArmed: '#8e1f1f',
+  primaryHeight: 52,
+  primaryFill: '#00417F',
+  armTimeout: 3000,
+} as const

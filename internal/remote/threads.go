@@ -90,6 +90,15 @@ type ThreadSummary struct {
 
 // summarize derives live status from a transcript tail.
 func summarize(summary *ThreadSummary, events []domain.RuntimeEvent) {
+	used := make([]domain.DriverKind, 0, len(summary.Drivers)+2)
+	for _, d := range summary.Drivers {
+		used = append(used, domain.DriverKind(d))
+	}
+	for _, event := range events {
+		if event.Driver != "" {
+			used = append(used, domain.DriverKind(strings.ToLower(string(event.Driver))))
+		}
+	}
 	if len(events) > 800 {
 		events = events[len(events)-800:]
 	}
@@ -97,16 +106,9 @@ func summarize(summary *ThreadSummary, events []domain.RuntimeEvent) {
 	questions := []string{}
 	var preview strings.Builder
 	previewItem := ""
-	used := make([]domain.DriverKind, 0, len(summary.Drivers)+2)
-	for _, d := range summary.Drivers {
-		used = append(used, domain.DriverKind(d))
-	}
 	for _, event := range events {
 		if event.At > summary.LastActivity {
 			summary.LastActivity = event.At
-		}
-		if event.Driver != "" {
-			used = append(used, domain.DriverKind(strings.ToLower(string(event.Driver))))
 		}
 		switch event.Kind {
 		case domain.EventTurnStarted:
@@ -259,27 +261,23 @@ func (s *Server) threadSummaries() []ThreadSummary {
 }
 
 func driverTrail(used []domain.DriverKind, current string) []string {
-	out := make([]string, 0, len(used)+1)
-	seen := make(map[string]bool, len(used)+1)
-	add := func(d string) {
+	if current != "" {
+		used = append(used[:len(used):len(used)], domain.DriverKind(current))
+	}
+	seen := make(map[string]bool, len(used))
+	reversed := make([]string, 0, len(used))
+	for i := len(used) - 1; i >= 0; i-- {
+		d := string(used[i])
 		if d == "" || seen[d] {
-			return
+			continue
 		}
 		seen[d] = true
-		out = append(out, d)
+		reversed = append(reversed, d)
 	}
-	for _, d := range used {
-		add(string(d))
+	out := make([]string, len(reversed))
+	for i, d := range reversed {
+		out[len(reversed)-1-i] = d
 	}
-	if current != "" && seen[current] {
-		for i, d := range out {
-			if d == current {
-				out = append(append(out[:i:i], out[i+1:]...), current)
-				break
-			}
-		}
-	}
-	add(current)
 	return out
 }
 

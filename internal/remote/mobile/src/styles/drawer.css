@@ -40,7 +40,14 @@
 .dw-chat-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .dw-chat-title { font: 400 14px/1.3 var(--font); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dw-chat-sub { font: 400 12px/1.3 var(--font); color: #565656; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dw-chat-sub.attention { color: var(--accent); }
+.dw-chat-sub[data-state='attention'] { color: #fff; }
+.dw-chat-sub[data-state='working'] {
+  color: transparent; -webkit-background-clip: text; background-clip: text; background-size: 300% 100%;
+  background-image: linear-gradient(90deg, #565656 0%, #565656 40%, #cfcfcf 50%, #565656 60%, #565656 100%);
+  animation: dw-shimmer 2s linear infinite;
+}
+@keyframes dw-shimmer { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+@media (prefers-reduced-motion: reduce) { .dw-chat-sub[data-state='working'] { animation: none; color: #9a9a9a; background: none; } }
 .dw-empty { padding: 12px 20px; font: 400 14px/1.4 var(--font); color: #828282; }
 .dw-foot {
   position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: space-between;
@@ -55,3 +62,4 @@
 .sheet .btn { border-radius: 16px; font: 500 16px/1 var(--font); }
 .sheet .btn.primary { background: var(--send); color: #fff; }
 .dw-chat, .dw-project { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.dw-project .dot { width: 6px; height: 6px; background: #cfcfcf; }

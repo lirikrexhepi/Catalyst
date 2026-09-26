@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { Folder } from 'lucide-react'
-import Sheet from '../../components/Sheet'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ModelPicker } from '../../components/modelPicker/ModelPicker'
 import { ChatFrame } from '../../components/chrome/ChatFrame'
 import { TopBar } from '../../components/chrome/TopBar'
@@ -14,6 +12,9 @@ import type { ModelChoice, Project } from '../../types'
 import { HistoryScrubber } from '../../components/scrubber/HistoryScrubber'
 import { StartOptions } from './StartOptions'
 import { usePreviewFlow } from './usePreviewFlow'
+import { PROJECTS_CACHE_KEY, readLocal, writeLocal } from '../../cache'
+import { ProjectSheet } from './ProjectSheet'
+import AddProjectSheet from '../AddProjectSheet'
 
 interface NewChatProps {
   openDrawer: () => void
@@ -44,25 +45,30 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
   const providersLoaded = useStore((s) => s.providersLoaded)
   const providersLoading = useStore((s) => s.providersLoading)
   const remembered = useRef(lastUsed()).current
-  const [projects, setProjects] = useState<Project[]>([])
-  const [cwd, setCwd] = useState(remembered.cwd || '')
+  const [projects, setProjects] = useState<Project[]>(() => readLocal<Project[]>(PROJECTS_CACHE_KEY, []))
+  const [cwd, setCwd] = useState(() => remembered.cwd || projects[0]?.path || '')
   const [choice, setLocalChoice] = useState<ModelChoice | undefined>(remembered.choice)
   const [autoApprove, setAutoApprove] = useState(remembered.autoApprove ?? true)
-  const [sheet, setSheet] = useState<'model' | 'project' | null>(null)
+  const [sheet, setSheet] = useState<'model' | 'project' | 'add' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const preview = usePreviewFlow(null, false)
 
-  useEffect(() => {
-    void loadProviders()
+  const loadProjects = useCallback((select?: string) => {
     api
       .projects()
       .then((list) => {
         const all = Array.isArray(list) ? list : []
+        writeLocal(PROJECTS_CACHE_KEY, all)
         setProjects(all)
-        setCwd((cur) => (cur && all.some((p) => p.path === cur) ? cur : all[0]?.path || cur))
+        setCwd((cur) => (select && all.some((p) => p.path === select) ? select : cur && all.some((p) => p.path === cur) ? cur : all[0]?.path || cur))
       })
       .catch((e) => setError(message(e)))
   }, [])
+
+  useEffect(() => {
+    void loadProviders()
+    loadProjects()
+  }, [loadProjects])
 
   useEffect(() => {
     if (providers.length === 0) return
@@ -123,29 +129,10 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
 
       {sheet === 'model' ? <ModelPicker value={choice} onChange={setLocalChoice} onClose={() => setSheet(null)} /> : null}
       {sheet === 'project' ? (
-        <Sheet title="Project" onClose={() => setSheet(null)}>
-          <div className="list">
-            {projects.map((p) => (
-              <button
-                key={p.path}
-                aria-pressed={p.path === cwd}
-                onClick={() => {
-                  setCwd(p.path)
-                  setSheet(null)
-                }}
-              >
-                <Folder size={18} aria-hidden />
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  {p.name}
-                  <span className="sub" style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {p.path}
-                  </span>
-                </span>
-              </button>
-            ))}
-            {projects.length === 0 ? <div className="empty">No projects yet. Add one on the desktop.</div> : null}
-          </div>
-        </Sheet>
+        <ProjectSheet projects={projects} value={cwd} onPick={setCwd} onAdd={() => setSheet('add')} onClose={() => setSheet((s) => (s === 'project' ? null : s))} />
+      ) : null}
+      {sheet === 'add' ? (
+        <AddProjectSheet onClose={() => setSheet((s) => (s === 'add' ? null : s))} onAdded={(p) => loadProjects(p.path)} />
       ) : null}
       {preview.element}
     </div>

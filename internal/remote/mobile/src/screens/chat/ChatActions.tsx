@@ -1,5 +1,5 @@
 import { Power, RotateCcw, Square } from 'lucide-react'
-import Sheet from '../../components/Sheet'
+import { Sheet, SheetTile, SheetTiles } from '../../components/sheet'
 
 interface ChatActionsProps {
   title: string
@@ -15,20 +15,16 @@ interface ChatActionsProps {
 export function ChatActions({ title, busy, coordinator, live, onStop, onStartOver, onEndAgent, onClose }: ChatActionsProps) {
   return (
     <Sheet title={title} onClose={onClose}>
-      <div className="list">
-        <button disabled={!busy} onClick={onStop}>
-          <Square size={18} aria-hidden /> Stop responding
-        </button>
-        {coordinator ? (
-          <button onClick={onStartOver}>
-            <RotateCcw size={18} aria-hidden /> Start over
-          </button>
-        ) : (
-          <button style={{ color: 'var(--fault)' }} disabled={!live} onClick={onEndAgent}>
-            <Power size={18} aria-hidden /> End agent
-          </button>
-        )}
-      </div>
+      {(dismiss) => (
+        <SheetTiles>
+          <SheetTile icon={Square} label="Stop" disabled={!busy} onClick={() => dismiss(onStop)} />
+          {coordinator ? (
+            <SheetTile icon={RotateCcw} label="Start over" onClick={() => dismiss(onStartOver)} />
+          ) : (
+            <SheetTile icon={Power} label="End agent" tone="danger" disabled={!live} onClick={() => dismiss(onEndAgent)} />
+          )}
+        </SheetTiles>
+      )}
     </Sheet>
   )
 }

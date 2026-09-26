@@ -7,12 +7,9 @@ import {
   FileEdit,
   FileText,
   GitBranch,
-  Hand,
   ListChecks,
   Loader2,
-  HelpCircle,
   Search,
-  ShieldQuestion,
   Terminal,
   Wrench,
   X,
@@ -22,6 +19,8 @@ import Markdown from '../components/Markdown'
 import { api } from '../api'
 import { basename, dirname, duration } from '../format'
 import { UserBubble } from './user/UserBubble'
+import { Approval } from './ask/Approval'
+import { Question } from './ask/Question'
 import type { AgentStreamBlock, ToolGroupItem } from './types'
 
 type Block = AgentStreamBlock
@@ -238,149 +237,6 @@ function Todos({ block }: { block: Extract<Block, { type: 'tool_todo' }> }) {
           <span>{t.text}</span>
         </div>
       ))}
-    </div>
-  )
-}
-
-function Approval({ threadId, block }: { threadId: string; block: Extract<Block, { type: 'approval_request' }> }) {
-  const [sent, setSent] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const resolved = block.status === 'resolved' || block.status === 'denied'
-  const denied = block.status === 'denied' || sent === 'deny'
-
-  const answer = async (kind: string) => {
-    setSent(kind)
-    setError(null)
-    try {
-      await api.approve(threadId, block.requestID, kind)
-    } catch (e) {
-      setSent(null)
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  if (resolved || sent) {
-    return (
-      <div className="ask-done">
-        {denied ? <X size={16} aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
-        {denied ? 'Denied' : 'Allowed'}: {block.title}
-      </div>
-    )
-  }
-
-  const options = block.options.length
-    ? block.options
-    : [
-        { id: 'once', name: 'Allow once', kind: 'allowOnce' },
-        { id: 'always', name: 'Always allow', kind: 'allowAlways' },
-        { id: 'reject', name: 'Deny', kind: 'deny' },
-      ]
-  return (
-    <div className="ask" role="group" aria-label="Permission request">
-      <div className="ask-h">
-        <ShieldQuestion size={16} aria-hidden="true" /> Wants permission
-      </div>
-      <div className="ask-title">{block.title}</div>
-      {block.detail && <div className="ask-detail">{block.detail}</div>}
-      <div className="ask-actions">
-        {options.map((o) => {
-          const kind = o.kind || o.id
-          const deny = kind === 'deny' || o.id === 'reject'
-          const primary = kind === 'allowOnce' || o.id === 'once'
-          return (
-            <button
-              key={o.id}
-              className={`btn grow${primary ? ' call' : ''}${deny ? ' danger' : ''}`}
-              onClick={() => void answer(kind)}
-            >
-              {o.name}
-            </button>
-          )
-        })}
-      </div>
-      {error && <div className="say error">{error}</div>}
-    </div>
-  )
-}
-
-function Question({ threadId, block }: { threadId: string; block: Extract<Block, { type: 'tool_question' }> }) {
-  const items = block.items?.length ? block.items : [{ question: block.question, options: block.options }]
-  const [picked, setPicked] = useState<Record<number, string>>({})
-  const [custom, setCustom] = useState<Record<number, string>>({})
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const requestId = block.id.replace(/^question-/, '')
-
-  if (block.answered || sent) {
-    return (
-      <div className="ask-done">
-        <HelpCircle size={16} aria-hidden="true" />
-        {block.selectedAnswer && block.selectedAnswer !== 'Answered' ? `Answered: ${block.selectedAnswer}` : 'Answered'}
-      </div>
-    )
-  }
-
-  const answers = items.map((item, i) => {
-    const key = picked[i]
-    const option = item.options.find((o) => o.key === key)
-    if (option?.isCustomInput) return (custom[i] || '').trim()
-    return option?.label ?? ''
-  })
-  const complete = answers.every((a) => a)
-
-  const submit = async (skip = false) => {
-    setSent(true)
-    setError(null)
-    try {
-      await api.answer(threadId, requestId, skip ? [] : answers)
-    } catch (e) {
-      setSent(false)
-      setError(e instanceof Error ? e.message : String(e))
-    }
-  }
-
-  return (
-    <div className="ask" role="group" aria-label="Question from the agent">
-      <div className="ask-h">
-        <Hand size={16} aria-hidden="true" /> Needs your answer
-      </div>
-      {items.map((item, i) => (
-        <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div className="ask-title">{item.question}</div>
-          {item.options.map((o) =>
-            o.isCustomInput ? (
-              <div key={o.key} className="opt" aria-pressed={picked[i] === o.key} onClick={() => setPicked((p) => ({ ...p, [i]: o.key }))}>
-                <input
-                  value={custom[i] || ''}
-                  onFocus={() => setPicked((p) => ({ ...p, [i]: o.key }))}
-                  onChange={(e) => setCustom((c) => ({ ...c, [i]: e.target.value }))}
-                  placeholder="Type your own answer"
-                  aria-label="Your own answer"
-                  style={{ width: '100%', fontSize: 16 }}
-                />
-              </div>
-            ) : (
-              <button
-                key={o.key}
-                className="opt"
-                aria-pressed={picked[i] === o.key}
-                onClick={() => setPicked((p) => ({ ...p, [i]: o.key }))}
-              >
-                {o.label}
-              </button>
-            ),
-          )}
-        </div>
-      ))}
-      <div className="ask-actions">
-        <button className="btn" onClick={() => void submit(true)}>
-          Skip
-        </button>
-        <button className="btn call grow" disabled={!complete} onClick={() => void submit()}>
-          Send answer
-        </button>
-      </div>
-      {error && <div className="say error">{error}</div>}
     </div>
   )
 }

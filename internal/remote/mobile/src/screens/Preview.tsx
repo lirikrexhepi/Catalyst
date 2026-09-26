@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { ChevronLeft, Loader2, Monitor, Play, RotateCw, Smartphone, SquareArrowOutUpRight } from 'lucide-react'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
-import Sheet from '../components/Sheet'
+import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary } from '../components/sheet'
 import SiteCard from '../components/SiteCard'
 import { api } from '../api'
 import { serversForThread } from '../servers'
@@ -86,44 +86,36 @@ export function PreviewLauncher({ threadId, canAsk, onClose, onOpen }: {
 
   return (
     <Sheet title="Preview" onClose={onClose}>
-      {error && <div className="say error">{error}</div>}
-      {!loaded && <div className="empty">Looking for dev servers…</div>}
-      {loaded && mine.length > 0 && (
-        <div>
-          <span className="label">This chat</span>
-          <div className="list">
-            {mine.map((s) => (
-              <SiteCard key={s.port} server={s} onOpen={onOpen} />
-            ))}
-          </div>
-        </div>
-      )}
-      {loaded && mine.length === 0 && threadId && (
-        <div className="list">
-          <button disabled={!canAsk || waiting} onClick={() => void ask()}>
-            {waiting ? <Loader2 size={18} className="spin" aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-            <span style={{ flex: 1 }}>
-              {waiting ? 'Waiting for the dev server…' : 'Ask the agent to start the dev server'}
-              <span className="sub" style={{ display: 'block' }}>
-                {waiting ? 'Opens by itself once it is running.' : canAsk ? 'It opens here as soon as it is up.' : 'This agent has ended.'}
-              </span>
-            </span>
-          </button>
-        </div>
-      )}
-      {loaded && others.length > 0 && (
-        <div>
-          <span className="label">Other sites on your PC</span>
-          <div className="list">
+      {!loaded ? <SheetNote>Looking for dev servers</SheetNote> : null}
+      {loaded && mine.length > 0 ? (
+        <SheetList>
+          {mine.map((s) => (
+            <SiteCard key={s.port} server={s} onOpen={onOpen} />
+          ))}
+        </SheetList>
+      ) : null}
+      {loaded && mine.length === 0 && threadId ? (
+        <SheetPrimary disabled={!canAsk || waiting} onClick={() => void ask()}>
+          {waiting ? <Loader2 size={20} className="spin" aria-hidden /> : <Play size={20} strokeWidth={ICON_STROKE} aria-hidden />}
+          <span>{waiting ? 'Starting dev server' : 'Start dev server'}</span>
+        </SheetPrimary>
+      ) : null}
+      {loaded && others.length > 0 ? (
+        <>
+          <span className="sheet-section">On your PC</span>
+          <SheetList scroll>
             {others.map((s) => (
               <SiteCard key={s.port} server={s} onOpen={onOpen} />
             ))}
-          </div>
-        </div>
-      )}
-      {loaded && mine.length === 0 && others.length === 0 && !threadId && (
-        <div className="empty">No dev servers are running on your PC.</div>
-      )}
+          </SheetList>
+        </>
+      ) : null}
+      {loaded && mine.length === 0 && others.length === 0 && !threadId ? (
+        <SheetList>
+          <SheetEmpty>No dev servers running</SheetEmpty>
+        </SheetList>
+      ) : null}
+      {error ? <SheetNote tone="error">{error}</SheetNote> : null}
     </Sheet>
   )
 }

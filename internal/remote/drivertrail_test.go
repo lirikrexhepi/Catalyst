@@ -18,6 +18,7 @@ func TestDriverTrailKeepsOrderAndEndsWithCurrent(t *testing.T) {
 		{[]domain.DriverKind{"claude", "antigravity"}, "claude", []string{"antigravity", "claude"}},
 		{[]domain.DriverKind{"opencode", "opencode", "claude"}, "", []string{"opencode", "claude"}},
 		{nil, "", []string{}},
+		{[]domain.DriverKind{"claude", "opencode", "claude", "codex"}, "codex", []string{"opencode", "claude", "codex"}},
 	}
 	for _, c := range cases {
 		if got := driverTrail(c.used, c.current); !reflect.DeepEqual(got, c.want) {
@@ -34,6 +35,18 @@ func TestSummarizeCollectsDriversFromEvents(t *testing.T) {
 		{Kind: domain.EventUserMessage, Driver: "opencode", At: 3},
 	})
 	if want := []string{"antigravity", "opencode"}; !reflect.DeepEqual(row.Drivers, want) {
+		t.Fatalf("drivers = %v, want %v", row.Drivers, want)
+	}
+}
+
+func TestSummarizeKeepsDriversBeyondTheTail(t *testing.T) {
+	events := []domain.RuntimeEvent{{Kind: domain.EventUserMessage, Driver: "claude", At: 1}}
+	for i := 0; i < 1500; i++ {
+		events = append(events, domain.RuntimeEvent{Kind: domain.EventAgentMessage, Driver: "opencode", Delta: true, Text: "x", At: int64(2 + i)})
+	}
+	row := ThreadSummary{Driver: "opencode"}
+	summarize(&row, events)
+	if want := []string{"claude", "opencode"}; !reflect.DeepEqual(row.Drivers, want) {
 		t.Fatalf("drivers = %v, want %v", row.Drivers, want)
 	}
 }

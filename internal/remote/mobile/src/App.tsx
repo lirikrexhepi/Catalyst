@@ -7,6 +7,8 @@ import Drawer from './screens/Drawer'
 import Chat from './screens/Chat'
 import ProjectScreen from './screens/Project'
 import { useDrawer } from './screens/shell/useDrawer'
+import { NavCue, type Cue } from './screens/shell/NavCue'
+import { classifyNavigation, initHistoryIndex } from './platform/historyDirection'
 
 /** #/t/<threadId> opens a conversation; anything else is a new chat. */
 function routeFromHash(): string | null {
@@ -24,6 +26,7 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null | 'offline'>(() => (getToken() ? true : null))
   const [threadId, setThreadId] = useState<string | null>(routeFromHash())
   const [project, setProject] = useState<string | null>(projectFromHash())
+  const [cue, setCue] = useState<Cue | null>(null)
 
   const probe = useCallback(() => {
     const token = getToken()
@@ -84,9 +87,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    initHistoryIndex()
     const onHash = () => {
-      setThreadId(routeFromHash())
-      setProject(projectFromHash())
+      const direction = classifyNavigation()
+      const nextThread = routeFromHash()
+      const nextProject = projectFromHash()
+      setThreadId(nextThread)
+      setProject(nextProject)
+      if (direction !== 'push') setCue((c) => ({ key: (c?.key ?? 0) + 1, direction, threadId: nextThread, project: nextProject }))
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
@@ -94,7 +102,7 @@ export default function App() {
 
   if (authenticated === null) return <div className="screen" />
   if (authenticated === false) return <AuthScreen onDone={checkAuth} />
-  return <Shell threadId={threadId} project={project} />
+  return <Shell threadId={threadId} project={project} cue={cue} />
 }
 
 function PcDownBanner() {
@@ -117,7 +125,7 @@ function PcDownBanner() {
   )
 }
 
-function Shell({ threadId, project }: { threadId: string | null; project: string | null }) {
+function Shell({ threadId, project, cue }: { threadId: string | null; project: string | null; cue: Cue | null }) {
   const { shell, open, covered, setOpen, handlers } = useDrawer()
 
   const go = useCallback(
@@ -147,6 +155,7 @@ function Shell({ threadId, project }: { threadId: string | null; project: string
           <Chat key={threadId ?? 'new'} threadId={threadId} openDrawer={() => setOpen(true)} go={go} />
         )}
         <PcDownBanner />
+        <NavCue cue={cue} />
         {covered ? <div className="main-cover" role="button" aria-label="Close menu" onClick={() => setOpen(false)} /> : null}
       </main>
     </div>

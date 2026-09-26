@@ -5,7 +5,7 @@ import AddProjectSheet from './AddProjectSheet'
 import { useStore } from '../store'
 import SettingsSheet from './SettingsSheet'
 import type { Project, ThreadSummary } from '../types'
-import { readLocal, writeLocal } from '../cache'
+import { PROJECTS_CACHE_KEY, readLocal, writeLocal } from '../cache'
 import { GlassPill } from '../ui'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { ChatRow } from './drawer/ChatRow'
@@ -13,7 +13,6 @@ import { ChatRowActions } from './drawer/ChatRowActions'
 import { useHiddenChats } from '../hiddenChats'
 
 const DAY = 86_400_000
-const PROJECTS_CACHE_KEY = 'orchestrator_projects_cache'
 
 function bucket(at?: number): string {
   if (!at) return 'Older'
