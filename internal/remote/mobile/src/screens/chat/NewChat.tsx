@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Folder, ShieldCheck, Workflow } from 'lucide-react'
+import { Folder } from 'lucide-react'
 import Sheet from '../../components/Sheet'
 import { ModelPicker } from '../../components/modelPicker/ModelPicker'
 import { ChatFrame } from '../../components/chrome/ChatFrame'
@@ -11,6 +11,7 @@ import { api } from '../../api'
 import { choiceModelName, defaultOptions } from '../../format'
 import { loadProviders, message, refreshSummaries, useStore } from '../../store'
 import type { ModelChoice, Project } from '../../types'
+import { StartOptions } from './StartOptions'
 import { usePreviewFlow } from './usePreviewFlow'
 
 interface NewChatProps {
@@ -109,23 +110,13 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
   return (
     <div className="screen">
       <ChatFrame header={header} dock={<Composer placeholder="Enter your text here...." onCreate={create} />}>
-        <div className="starters">
-          {error ? <div className="say error" style={{ margin: '0 12px 8px' }}>{error}</div> : null}
-          <button className="starter" onClick={() => setSheet('project')}>
-            <Folder size={21} aria-hidden />
-            <span className="grow">Project</span>
-            <span className="val">{project?.name || (projects.length ? 'Choose' : 'None')}</span>
-          </button>
-          <div className="starter" role="group">
-            <ShieldCheck size={21} aria-hidden />
-            <span className="grow">Run without asking</span>
-            <button className="switch" role="switch" aria-checked={autoApprove} aria-label="Run without asking" onClick={() => setAutoApprove((v) => !v)} />
-          </div>
-          <button className="starter" onClick={() => go('coordinator')}>
-            <Workflow size={21} aria-hidden />
-            <span className="grow">Plan with the orchestrator</span>
-          </button>
-        </div>
+        {error ? <div className="say error start-error">{error}</div> : null}
+        <StartOptions
+          projectName={project?.name ?? (projects.length ? undefined : 'None')}
+          onProject={() => setSheet('project')}
+          autoApprove={autoApprove}
+          onAutoApprove={setAutoApprove}
+        />
       </ChatFrame>
 
       {sheet === 'model' ? <ModelPicker value={choice} onChange={setLocalChoice} onClose={() => setSheet(null)} /> : null}

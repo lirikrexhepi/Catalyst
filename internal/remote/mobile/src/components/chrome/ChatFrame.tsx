@@ -21,14 +21,14 @@ export const ChatFrame = forwardRef<HTMLDivElement, ChatFrameProps>(function Cha
 
   return (
     <div className="chat-frame" style={vars}>
-      <div className="chat-scroll" ref={scrollRef} onScroll={onScroll}>
+      <div className="chat-scroll" ref={scrollRef} onScroll={onScroll} data-kb-follow="bottom">
         {children}
       </div>
-      <div className="chat-head" ref={head}>
+      <div className="chat-head" ref={head} data-kb-follow="top">
         {header}
       </div>
       {floating}
-      <div className="chat-dock" ref={foot}>
+      <div className="chat-dock" ref={foot} data-kb-follow="bottom">
         {dock}
       </div>
     </div>

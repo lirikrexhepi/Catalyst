@@ -1,5 +1,5 @@
 import { ChevronDown } from 'lucide-react'
-import { GlassPill, GlassRing, type GlassBorderStyle } from '../../ui'
+import { CHEVRON_DOWN_NUDGE, GlassPill, GlassRing, type GlassBorderStyle } from '../../ui'
 import { usageTone } from './usageTone'
 
 interface ModelSwitchProps {
@@ -17,7 +17,7 @@ export function ModelSwitch({ label, icon, usage = 0, onClick }: ModelSwitchProp
       {icon ? <img src={icon} alt="" className="model-switch-icon" draggable={false} /> : null}
       <span className="model-switch-label">{label}</span>
       <GlassRing size={19} progress={usage} color={usageTone(usage)} strokeWidth={1.8} trackOpacity={0.4} border={RING_RIM}>
-        <ChevronDown size={13} strokeWidth={2.5} aria-hidden />
+        <ChevronDown size={13} strokeWidth={2.5} style={CHEVRON_DOWN_NUDGE} aria-hidden />
       </GlassRing>
     </GlassPill>
   )

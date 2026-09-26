@@ -37,14 +37,14 @@
 .provider-tab:active { transform: scale(0.9); }
 
 .selected-bar { display: flex; align-items: center; gap: 10px; padding: 0 10px 0 24px; }
-.selected-bar-name { flex: 1; min-width: 0; font: 500 18px/1.2 var(--font); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.selected-bar-name { flex: 1; min-width: 0; font: 500 16px/1.25 var(--font); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .selected-bar-back { width: 44px; height: 44px; display: grid; place-items: center; flex-shrink: 0; color: #fff; touch-action: manipulation; }
 
 .effort-grid { display: flex; flex-direction: column; align-items: center; gap: 22px; margin: 26px 0 20px; }
 .effort-group { display: grid; grid-template-columns: 135px 135px; column-gap: 15px; row-gap: 22px; }
 .effort-button { display: grid; place-items: center; color: #fff; touch-action: manipulation; }
 .effort-button.wide { grid-column: 1 / -1; }
-.effort-button-label { position: relative; font: 500 20px/1 var(--font); white-space: nowrap; }
+.effort-button-label { position: relative; font: 500 16px/1 var(--font); white-space: nowrap; }
 .effort-default { position: absolute; left: 100%; top: -5px; margin-left: 2px; font: 500 10px/1 var(--font); color: #828282; }
 
 .chat-dock .composer-surface { transition: opacity 180ms var(--ease-out); }

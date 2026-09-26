@@ -1,6 +1,6 @@
-import { useRef, useState, type PointerEvent } from 'react'
+import { useRef, useState, type PointerEvent, type TouchEvent } from 'react'
 import { Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
-import { GlassCircle, GlassSquircle } from '../../ui'
+import { GlassCircle, GlassSquircle, SEND_NUDGE } from '../../ui'
 import { interrupt, removeQueued, send, useStore } from '../../store'
 import { AttachmentStrip } from './AttachmentStrip'
 import { QueuedList } from './QueuedList'
@@ -61,15 +61,29 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
     requestAnimationFrame(grow)
   }
 
+  const focusQuietly = () => {
+    const el = field.current
+    if (!el) return
+    el.focus({ preventScroll: true })
+    const end = el.value.length
+    el.setSelectionRange(end, end)
+  }
+
   const focusField = (e: PointerEvent<HTMLElement>) => {
     if ((e.target as Element).closest('button, textarea, input')) return
     e.preventDefault()
-    field.current?.focus()
+    focusQuietly()
+  }
+
+  const onFieldTouchEnd = (e: TouchEvent<HTMLTextAreaElement>) => {
+    if (document.activeElement === e.currentTarget) return
+    e.preventDefault()
+    focusQuietly()
   }
 
   const onMic = () => {
     if (dictation.supported) dictation.toggle()
-    else field.current?.focus()
+    else focusQuietly()
   }
 
   return (
@@ -91,6 +105,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
           placeholder={pcDown ? 'PC not responding' : placeholder}
           aria-label="Message"
           enterKeyHint="send"
+          onTouchEnd={onFieldTouchEnd}
           onChange={(e) => {
             setText(e.target.value)
             grow()
@@ -132,7 +147,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
             </GlassCircle>
           ) : (
             <GlassCircle size={BUTTON} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send">
-              <Send {...ICON} aria-hidden />
+              <Send {...ICON} style={SEND_NUDGE} aria-hidden />
             </GlassCircle>
           )}
         </div>

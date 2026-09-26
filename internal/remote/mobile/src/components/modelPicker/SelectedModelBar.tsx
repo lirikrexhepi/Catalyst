@@ -1,5 +1,5 @@
 import { ChevronLeft } from 'lucide-react'
-import { GlassRing, GlassSquircle } from '../../ui'
+import { CHEVRON_LEFT_NUDGE, GlassRing, GlassSquircle } from '../../ui'
 import { usageTone } from '../chrome/usageTone'
 import { PICKER } from './layout'
 import { ProviderIcon } from './ProviderIcon'
@@ -21,7 +21,7 @@ export function SelectedModelBar({ driver, providerName, modelName, usage, onBac
       <span className="selected-bar-name">{modelName}</span>
       <button className="selected-bar-back" onClick={onBack} aria-label="Back to models">
         <GlassRing size={34} progress={usage} color={usageTone(usage)} strokeWidth={2} trackOpacity={0.4} border={RING_RIM}>
-          <ChevronLeft size={28} strokeWidth={1.75} aria-hidden />
+          <ChevronLeft size={28} strokeWidth={1.75} style={CHEVRON_LEFT_NUDGE} aria-hidden />
         </GlassRing>
       </button>
     </GlassSquircle>
