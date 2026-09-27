@@ -3,7 +3,7 @@
  * Motion follows Apple's fluid-interface rules: gestures track the finger,
  * releases project velocity, and every transition can be interrupted.
  */
-:root {
+:root, .pair-screen {
   --bg: #000000;
   --ink: #000000;
   --panel: #141414;

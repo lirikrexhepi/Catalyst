@@ -1,7 +1,7 @@
 :root { --drawer-w: min(80vw, 360px); }
 
 .drawer {
-  background: #000; will-change: transform, opacity;
+  background: var(--drawer-bg); will-change: transform, opacity;
   transform: translateX(calc((var(--p, 0) - 1) * 22%)) scale(calc(0.96 + var(--p, 0) * 0.04));
   transform-origin: 0% 50%; opacity: calc(0.25 + var(--p, 0) * 0.75);
 }
@@ -10,7 +10,7 @@
   transform: translateX(calc(var(--p, 0) * var(--drawer-w))) scale(calc(1 - var(--p, 0) * 0.06));
   transform-origin: 0% 50%;
   border-radius: calc(min(var(--p, 0) * 200, 1) * 40px);
-  box-shadow: 0 0 0 calc(min(var(--p, 0) * 200, 1) * 0.5px) rgba(var(--ink), 0.12), -18px 0 40px rgba(0, 0, 0, calc(min(var(--p, 0) * 200, 1) * 0.55));
+  box-shadow: 0 0 0 calc(min(var(--p, 0) * 200, 1) * 0.5px) rgba(var(--ink), 0.12), -18px 0 40px rgba(0, 0, 0, calc(min(var(--p, 0) * 200, 1) * var(--main-shadow)));
 }
 .dw-head, .dw-scroll, .dw-foot { will-change: transform; }
 .dw-head { transform: translateX(calc((1 - var(--p, 0)) * -10px)); }
@@ -51,7 +51,7 @@
 .dw-empty { padding: 12px 20px; font: 400 14px/1.4 var(--font); color: var(--fg-3); }
 .dw-foot {
   position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: space-between;
-  padding: 28px 20px calc(var(--safe-bottom) + 14px); background: linear-gradient(transparent, #000 38%);
+  padding: 28px 20px calc(var(--safe-bottom) + 14px); background: linear-gradient(transparent, var(--drawer-bg) 38%);
 }
 .dw-new { justify-content: center; gap: 6px; color: var(--fg); font: 500 16px/1 var(--font); }
 

@@ -14,9 +14,9 @@ import (
 )
 
 type TunnelManager struct {
-	mu        sync.RWMutex
-	port      int
-	publicURL string
+	mu         sync.RWMutex
+	port       int
+	publicURL  string
 	connecting bool
 	lastError  string
 	// stop ends a KeepPublicTunnel retry loop; replaced on every start.
@@ -64,10 +64,8 @@ func (tm *TunnelManager) StartPublicTunnel(ctx context.Context) {
 	out, err := funnelCmd.CombinedOutput()
 	output := string(out)
 	if err != nil {
-		msg := strings.TrimSpace(output)
-		if strings.Contains(msg, "Funnel is not enabled") {
-			msg = "Funnel is not enabled on your tailnet. Run: tailscale funnel --bg " + target + " once in PowerShell after approving it in the Tailscale admin console."
-		} else if msg == "" {
+		msg := funnelFailure(strings.TrimSpace(output), target)
+		if msg == "" {
 			msg = err.Error()
 		}
 		tm.mu.Lock()
@@ -100,6 +98,31 @@ func (tm *TunnelManager) StartPublicTunnel(ctx context.Context) {
 	tm.connecting = false
 	tm.lastError = "Tailscale Funnel started but no public URL was found"
 	tm.mu.Unlock()
+}
+
+var tailscaleStateRegex = regexp.MustCompile(`unexpected state: (\w+)`)
+
+func funnelFailure(output, target string) string {
+	if strings.Contains(output, "Funnel is not enabled") {
+		return "Funnel is not enabled on your tailnet. Run: tailscale funnel --bg " + target + " once in PowerShell after approving it in the Tailscale admin console."
+	}
+	state := ""
+	if m := tailscaleStateRegex.FindStringSubmatch(output); m != nil {
+		state = m[1]
+	} else if strings.Contains(output, "is Tailscale running") || strings.Contains(output, "failed to connect to local tailscaled") {
+		state = "NoState"
+	}
+	switch state {
+	case "NoState", "Starting":
+		return "Tailscale isn't running on this PC yet, so your phone can't reach it. Tailscale waits for someone to sign in to Windows unless it runs unattended: open the Tailscale tray icon, Preferences, and turn on Run unattended."
+	case "NeedsLogin":
+		return "Tailscale is signed out on this PC, so your phone can't reach it. Sign in to Tailscale from its tray icon."
+	case "NeedsMachineAuth":
+		return "This PC is waiting for approval in the Tailscale admin console, so your phone can't reach it yet."
+	case "Stopped":
+		return "Tailscale is disconnected on this PC, so your phone can't reach it. Click Connect in the Tailscale tray icon."
+	}
+	return output
 }
 
 // funnelStatusURL reads `tailscale serve status --json` and returns the public

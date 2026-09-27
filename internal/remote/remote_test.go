@@ -87,6 +87,24 @@ func TestTunnelManager(t *testing.T) {
 	}
 }
 
+func TestFunnelFailureExplainsTailscaleState(t *testing.T) {
+	target := "http://127.0.0.1:4545"
+	cases := map[string]string{
+		"unexpected state: NoState":                                    "Run unattended",
+		"failed to connect to local tailscaled; is Tailscale running?": "Run unattended",
+		"unexpected state: NeedsLogin":                                 "signed out",
+		"unexpected state: Stopped":                                    "disconnected",
+		"unexpected state: NeedsMachineAuth":                           "admin console",
+		"Funnel is not enabled on your tailnet":                        "tailscale funnel --bg " + target,
+		"something else went wrong":                                    "something else went wrong",
+	}
+	for output, want := range cases {
+		if got := funnelFailure(output, target); !strings.Contains(got, want) {
+			t.Errorf("funnelFailure(%q) = %q, want it to mention %q", output, got, want)
+		}
+	}
+}
+
 func TestRemoteHTTPHandlers(t *testing.T) {
 	auth := NewAuthManager()
 	token := auth.Token()

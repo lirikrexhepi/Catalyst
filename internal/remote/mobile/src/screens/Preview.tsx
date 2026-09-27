@@ -181,7 +181,7 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
       <header className="topbar preview-bar">
         <div className="topbar-row">
           <BarButton icon={ChevronLeft} label="Back" onClick={onBack} />
-          <GlassSegmented options={DEVICE_OPTIONS} value={mode} onChange={setMode} height={44} padding={0} gap={6} fill="var(--glass-control)" lensFill="rgba(255,255,255,0.22)" />
+          <GlassSegmented options={DEVICE_OPTIONS} value={mode} onChange={setMode} height={44} padding={0} gap={6} fill="var(--glass-control)" lensFill="rgba(var(--ink), 0.2)" />
           <div className="topbar-end">
             <BarButton icon={RotateCw} label="Reload" onClick={() => setReloadKey((k) => k + 1)} disabled={!live} />
             <BarButton icon={SquareArrowOutUpRight} label="Open in browser" onClick={() => preview?.url && window.open(preview.url, '_blank', 'noopener,noreferrer')} disabled={!live} />

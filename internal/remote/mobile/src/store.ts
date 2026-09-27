@@ -486,7 +486,9 @@ function connect() {
     retry()
     return
   }
+  let opened = false
   socket.onopen = () => {
+    opened = true
     backoff = 1000
     logConnection('Connected to the PC')
     set({ connection: 'live', pcDown: false })
@@ -509,7 +511,11 @@ function connect() {
   }
   socket.onclose = (event) => {
     socket = null
-    logConnection(`Lost the live connection to the PC (code ${event.code})`)
+    logConnection(
+      opened
+        ? `Lost the live connection to the PC (code ${event.code})`
+        : `Couldn't connect to the PC (code ${event.code}). It may be off or asleep, or Tailscale on it isn't running or is signed out`,
+    )
     set({ connection: 'offline', pcDown: true })
     retry()
   }

@@ -2,7 +2,7 @@
 .ask-card-head { display: flex; align-items: center; gap: 6px; font: 500 13px/1 var(--font); color: var(--fg-3); }
 .ask-card-title { font: 500 16px/1.4 var(--font); overflow-wrap: anywhere; }
 .ask-card-detail {
-  margin: 0; max-height: 180px; overflow: auto; padding: 10px 12px; border-radius: 14px; background: rgba(0, 0, 0, 0.35);
+  margin: 0; max-height: 180px; overflow: auto; padding: 10px 12px; border-radius: 14px; background: var(--well);
   font: 400 12.5px/1.45 var(--font-code); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .ask-group { display: flex; flex-direction: column; gap: 8px; }

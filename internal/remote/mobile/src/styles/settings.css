@@ -18,3 +18,4 @@
 .settings-log-line.problem { color: var(--danger); }
 .settings-log-time { flex-shrink: 0; color: var(--fg-3); font-variant-numeric: tabular-nums; }
 .settings-log-text { flex: 1; min-width: 0; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.settings-log-line + .sheet-row::before { content: ''; position: absolute; left: 52px; right: 0; top: 0; height: 0.5px; background: rgba(var(--ink), 0.07); }
