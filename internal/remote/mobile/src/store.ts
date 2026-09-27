@@ -374,7 +374,7 @@ export function effectiveChoice(threadId: string): ModelChoice | undefined {
   const picked = state.choices[threadId]
   if (picked) return picked
   const summary = state.summaries.find((s) => s.threadId === threadId)
-  if (summary?.driver) return { driver: summary.driver, model: summary.model, options: summary.options }
+  if (summary?.driver) return { driver: summary.driver, account: summary.account, model: summary.model, options: summary.options }
   return undefined
 }
 
@@ -386,6 +386,7 @@ function choiceToSend(threadId: string): ModelChoice | undefined {
   if (
     summary &&
     summary.driver === picked.driver &&
+    (!picked.account || picked.account === summary.account) &&
     summary.model === picked.model &&
     JSON.stringify(summary.options ?? {}) === JSON.stringify(picked.options ?? {})
   ) {

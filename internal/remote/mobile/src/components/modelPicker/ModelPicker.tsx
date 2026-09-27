@@ -4,6 +4,7 @@ import { useElementSize } from '../../ui/geometry/useElementSize'
 import { loadProviders, useStore } from '../../store'
 import { defaultOptions } from '../../format'
 import type { ModelChoice } from '../../types'
+import { AccountRow, accountName } from './AccountRow'
 import { effortOption, selectedEffort, toggleOptions } from './effort'
 import { EffortGrid } from './EffortGrid'
 import { PICKER, effortHeight, listHeight } from './layout'
@@ -27,6 +28,7 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
   const providersLoading = useStore((s) => s.providersLoading)
   const [driver, setDriver] = useState(value?.driver || providers[0]?.driver || '')
   const [view, setView] = useState<'list' | 'effort'>('list')
+  const [pendingAccounts, setPendingAccounts] = useState<Record<string, string>>({})
   const [phase, setPhase] = useState<'enter' | 'open' | 'exit'>(() => (prefersReducedMotion() ? 'open' : 'enter'))
   const root = useRef<HTMLDivElement | null>(null)
   const listPane = useRef<HTMLDivElement | null>(null)
@@ -90,8 +92,12 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
   const toggles = toggleOptions(chosenModel, value)
   const tunable = choices.length > 0 || toggles.length > 0
 
+  const accounts = provider?.accounts ?? []
+  const showAccounts = status === 'ready' && accounts.length > 1
+  const shownAccount = value?.driver === driver ? (value.account ?? '') : (pendingAccounts[driver] ?? '')
+
   const listRows = status === 'ready' ? Math.max(provider?.models.length ?? 1, 1) : 3
-  const hList = listHeight(listRows)
+  const hList = Math.min(PICKER.frame, listHeight(listRows) + (showAccounts ? PICKER.accounts : 0))
   const hEffort = tunable ? effortHeight(choices.length, toggles.length) : effortHeight(4)
   const hMax = PICKER.frame
 
@@ -103,7 +109,16 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
       if (effortOption(model) || toggleOptions(model).length > 0) setView('effort')
       return
     }
-    onChange({ driver: provider.driver, model: id, options: defaultOptions(model?.options) })
+    const account = value?.driver === provider.driver ? value.account : pendingAccounts[provider.driver]
+    onChange({ driver: provider.driver, account: account || undefined, model: id, options: defaultOptions(model?.options) })
+  }
+
+  const pickAccount = (account: string) => {
+    if (value && value.driver === driver) {
+      onChange({ ...value, account: account || undefined })
+      return
+    }
+    setPendingAccounts((previous) => ({ ...previous, [driver]: account }))
   }
 
   const pickEffort = (id: string) => {
@@ -132,6 +147,7 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
         >
         <div ref={listPane} className="picker-pane" data-active={view === 'list'} aria-hidden={view !== 'list'} style={{ height: hList }}>
           <ModelList provider={provider} value={value} status={status} onPick={pickModel} onRetry={() => void loadProviders(true)} />
+          {showAccounts ? <AccountRow accounts={accounts} selected={shownAccount} onPick={pickAccount} /> : null}
           {status === 'ready' ? <ProviderBar providers={providers} active={driver} onPick={setDriver} /> : null}
         </div>
         <div ref={effortPane} className="picker-pane" data-active={view === 'effort'} aria-hidden={view !== 'effort'} style={{ height: hEffort }}>
@@ -141,7 +157,7 @@ export function ModelPicker({ value, usage = 0, onChange, onClose }: ModelPicker
               <SelectedModelBar
                 driver={value.driver}
                 providerName={chosenProvider?.name}
-                modelName={chosenModel.name}
+                modelName={[chosenModel.name, accountName(chosenProvider?.accounts, value.account)].filter(Boolean).join(' · ')}
                 usage={usage}
                 onBack={() => setView('list')}
               />

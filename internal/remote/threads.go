@@ -232,7 +232,7 @@ func (s *Server) threadSummaries() []ThreadSummary {
 				row, ok := agents[task.ThreadID]
 				if !ok {
 					row = ThreadSummary{
-						ThreadID: task.ThreadID, Kind: "agent", Driver: string(task.Driver), Account: task.Account, Model: task.Model,
+						ThreadID: task.ThreadID, Kind: "agent", Driver: string(task.Driver), Account: domain.NormalizeAccount(task.Account), Model: task.Model,
 						Options: task.Options, State: task.State, Cwd: meta.Workspace.Cwd, ProjectCwd: meta.Workspace.Cwd,
 						ProjectName: projectName(meta.Workspace.Cwd),
 					}

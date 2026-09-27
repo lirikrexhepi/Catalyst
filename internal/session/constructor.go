@@ -385,7 +385,7 @@ func (c *Constructor) ListAgents() []AgentView {
 				ThreadID:    task.ThreadID,
 				Title:       task.Title,
 				Driver:      task.Driver,
-				Account:     task.Account,
+				Account:     domain.NormalizeAccount(task.Account),
 				Model:       task.Model,
 				State:       task.State,
 				WorkspaceID: task.WorkspaceID,

@@ -25,6 +25,19 @@
 .provider-icon { display: block; object-fit: contain; flex-shrink: 0; }
 .provider-icon-fallback { display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--fg); font-weight: 600; }
 
+.account-row {
+  display: flex; gap: 8px; flex-shrink: 0; height: 34px; margin: 0 0 16px; padding: 0 20px;
+  overflow-x: auto; scrollbar-width: none; overscroll-behavior: contain;
+}
+.account-row::-webkit-scrollbar { display: none; }
+.account-pill {
+  flex-shrink: 0; height: 34px; padding: 0 14px; border-radius: 17px; white-space: nowrap;
+  font: 500 14px/1 var(--font); color: var(--fg); background: var(--surface-2); opacity: 0.5;
+  touch-action: manipulation; transition: opacity 220ms var(--ease-out), transform 180ms var(--ease-out);
+}
+.account-pill[aria-checked='true'] { opacity: 1; }
+.account-pill:active { transform: scale(0.95); }
+
 .picker-bar { flex-shrink: 0; margin: 0 auto 10px; }
 .provider-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 19px; }
 .provider-bar[data-count='1'] { justify-content: center; }
