@@ -38,7 +38,7 @@ func refuseToken(t *testing.T) *int {
 
 func storedCredentials(t *testing.T, home string) *oauthCredentials {
 	t.Helper()
-	credentials, err := loadCredentials(home)
+	credentials, err := loadCredentials(configDir(home))
 	if err != nil {
 		t.Fatalf("loadCredentials: %v", err)
 	}
@@ -103,11 +103,11 @@ func TestRefreshPreservesTheRestOfTheCredentialStore(t *testing.T) {
 		_, _ = w.Write([]byte(`{"access_token":"tok-new","refresh_token":"refresh-new","expires_in":28800}`))
 	})
 
-	if _, err := usableCredentials(context.Background(), home, nil); err != nil {
+	if _, err := usableCredentials(context.Background(), configDir(home), nil); err != nil {
 		t.Fatalf("usableCredentials: %v", err)
 	}
 
-	raw, err := os.ReadFile(credentialsFile(home))
+	raw, err := os.ReadFile(credentialsFile(configDir(home)))
 	if err != nil {
 		t.Fatalf("read back: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestRefreshAdoptsATokenAnotherClientAlreadyRenewed(t *testing.T) {
 	// written a fresh token of its own.
 	stale := &oauthCredentials{AccessToken: "tok-old", RefreshToken: "refresh-old", ExpiresAt: 1}
 
-	renewed, err := renewCredentials(context.Background(), home, nil, stale)
+	renewed, err := renewCredentials(context.Background(), configDir(home), nil, stale)
 	if err != nil {
 		t.Fatalf("renewCredentials: %v", err)
 	}
@@ -162,7 +162,7 @@ func TestRefreshRefusedGrantAsksForSignIn(t *testing.T) {
 		_, _ = w.Write([]byte(`{"error":"invalid_grant","error_description":"Refresh token not found or invalid"}`))
 	})
 
-	if _, err := usableCredentials(context.Background(), home, nil); !errors.Is(err, errCredentialsExpired) {
+	if _, err := usableCredentials(context.Background(), configDir(home), nil); !errors.Is(err, errCredentialsExpired) {
 		t.Fatalf("err = %v, want errCredentialsExpired", err)
 	}
 	// A refused grant must not disturb what is stored: the CLI may still be able
@@ -179,7 +179,7 @@ func TestRefreshOutageIsNotReportedAsSignedOut(t *testing.T) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	})
 
-	_, err := usableCredentials(context.Background(), home, nil)
+	_, err := usableCredentials(context.Background(), configDir(home), nil)
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -195,7 +195,7 @@ func TestValidTokenIsNeverRefreshed(t *testing.T) {
 	writeCredentials(t, home, time.Now().Add(time.Hour).UnixMilli(), "refresh-old")
 	calls := refuseToken(t)
 
-	credentials, err := usableCredentials(context.Background(), home, nil)
+	credentials, err := usableCredentials(context.Background(), configDir(home), nil)
 	if err != nil {
 		t.Fatalf("usableCredentials: %v", err)
 	}
@@ -214,7 +214,7 @@ func TestTokenAboutToExpireIsRefreshedEarly(t *testing.T) {
 		_, _ = w.Write([]byte(`{"access_token":"tok-new","expires_in":28800}`))
 	})
 
-	credentials, err := usableCredentials(context.Background(), home, nil)
+	credentials, err := usableCredentials(context.Background(), configDir(home), nil)
 	if err != nil {
 		t.Fatalf("usableCredentials: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestTokenAboutToExpireIsRefreshedEarly(t *testing.T) {
 func TestRenewalIsNotSpentTwiceWhenTheStoreLosesIt(t *testing.T) {
 	home := t.TempDir()
 	writeCredentials(t, home, time.Now().Add(-time.Hour).UnixMilli(), "refresh-old")
-	original, err := os.ReadFile(credentialsFile(home))
+	original, err := os.ReadFile(credentialsFile(configDir(home)))
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestRenewalIsNotSpentTwiceWhenTheStoreLosesIt(t *testing.T) {
 		_, _ = w.Write([]byte(`{"access_token":"tok-new","refresh_token":"refresh-new","expires_in":28800}`))
 	})
 
-	first, err := usableCredentials(context.Background(), home, nil)
+	first, err := usableCredentials(context.Background(), configDir(home), nil)
 	if err != nil {
 		t.Fatalf("first: %v", err)
 	}
@@ -249,11 +249,11 @@ func TestRenewalIsNotSpentTwiceWhenTheStoreLosesIt(t *testing.T) {
 	// The CLI writing its own copy back puts the expired token on disk again.
 	// Reaching for the grant a second time would rotate away the token the CLI
 	// is holding, and every poll after it would do the same.
-	if err := os.WriteFile(credentialsFile(home), original, 0o600); err != nil {
+	if err := os.WriteFile(credentialsFile(configDir(home)), original, 0o600); err != nil {
 		t.Fatalf("restore: %v", err)
 	}
 
-	second, err := usableCredentials(context.Background(), home, nil)
+	second, err := usableCredentials(context.Background(), configDir(home), nil)
 	if err != nil {
 		t.Fatalf("second: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestRefreshLeavesNoTemporaryFileBehind(t *testing.T) {
 		_, _ = w.Write([]byte(`{"access_token":"tok-new","refresh_token":"refresh-new","expires_in":28800}`))
 	})
 
-	if _, err := usableCredentials(context.Background(), home, nil); err != nil {
+	if _, err := usableCredentials(context.Background(), configDir(home), nil); err != nil {
 		t.Fatalf("usableCredentials: %v", err)
 	}
 
@@ -297,7 +297,7 @@ func TestLockIsReleasedSoLaterRefreshesProceed(t *testing.T) {
 	})
 
 	for attempt := 1; attempt <= 2; attempt++ {
-		if _, err := usableCredentials(context.Background(), home, nil); err != nil {
+		if _, err := usableCredentials(context.Background(), configDir(home), nil); err != nil {
 			t.Fatalf("attempt %d: %v", attempt, err)
 		}
 	}
@@ -310,7 +310,7 @@ func TestStaleLockDoesNotBlockRefreshForever(t *testing.T) {
 	home := t.TempDir()
 	writeCredentials(t, home, time.Now().Add(-time.Hour).UnixMilli(), "refresh-old")
 
-	path := filepath.Join(home, filepath.FromSlash(lockFile))
+	path := filepath.Join(configDir(home), lockFile)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -328,7 +328,7 @@ func TestStaleLockDoesNotBlockRefreshForever(t *testing.T) {
 
 	// A lock left by a killed process must expire, or quota stays broken until
 	// someone deletes a file they have no reason to know about.
-	credentials, err := usableCredentials(context.Background(), home, nil)
+	credentials, err := usableCredentials(context.Background(), configDir(home), nil)
 	if err != nil {
 		t.Fatalf("usableCredentials: %v", err)
 	}
@@ -343,13 +343,13 @@ func TestHeldLockTurnsAwayASecondRefresh(t *testing.T) {
 	lockWait = 50 * time.Millisecond
 	t.Cleanup(func() { lockWait = previous })
 
-	unlock, err := lockCredentials(home)
+	unlock, err := lockCredentials(configDir(home))
 	if err != nil {
 		t.Fatalf("lockCredentials: %v", err)
 	}
 	defer unlock()
 
-	if _, err := lockCredentials(home); err == nil {
+	if _, err := lockCredentials(configDir(home)); err == nil {
 		t.Error("expected the second lock attempt to be refused")
 	}
 }

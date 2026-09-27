@@ -20,7 +20,7 @@ var tokenEndpoint = "https://api.anthropic.com/v1/oauth/token"
 // stored on this machine was issued to it and is accepted for no other.
 const oauthClientID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 
-const lockFile = ".claude/.credentials.composer.lock"
+const lockFile = ".credentials.composer.lock"
 
 // lockStaleAfter bounds how long a lock left behind by a killed process can
 // block a refresh.
@@ -51,42 +51,42 @@ var renewed = struct {
 	byHome map[string]*oauthCredentials
 }{byHome: map[string]*oauthCredentials{}}
 
-func recallRenewed(home string) *oauthCredentials {
+func recallRenewed(dir string) *oauthCredentials {
 	renewed.Lock()
 	defer renewed.Unlock()
 
-	credentials := renewed.byHome[home]
+	credentials := renewed.byHome[dir]
 	if credentials == nil || expiringSoon(credentials) {
 		return nil
 	}
 	return credentials
 }
 
-func rememberRenewed(home string, credentials *oauthCredentials) {
+func rememberRenewed(dir string, credentials *oauthCredentials) {
 	renewed.Lock()
 	defer renewed.Unlock()
-	renewed.byHome[home] = credentials
+	renewed.byHome[dir] = credentials
 }
 
 // usableCredentials returns credentials good for a request right now, renewing
 // them through the refresh grant when the stored access token has run out.
-func usableCredentials(ctx context.Context, home string, client *http.Client) (*oauthCredentials, error) {
-	credentials, err := loadCredentials(home)
+func usableCredentials(ctx context.Context, dir string, client *http.Client) (*oauthCredentials, error) {
+	credentials, err := loadCredentials(dir)
 	if err != nil {
 		return nil, err
 	}
 	if !expiringSoon(credentials) {
 		return credentials, nil
 	}
-	if remembered := recallRenewed(home); remembered != nil {
+	if remembered := recallRenewed(dir); remembered != nil {
 		return remembered, nil
 	}
 
-	fresh, err := renewCredentials(ctx, home, client, credentials)
+	fresh, err := renewCredentials(ctx, dir, client, credentials)
 	if err != nil {
 		return nil, err
 	}
-	rememberRenewed(home, fresh)
+	rememberRenewed(dir, fresh)
 	return fresh, nil
 }
 
@@ -98,15 +98,15 @@ func usableCredentials(ctx context.Context, home string, client *http.Client) (*
 // A lock file serialises Composer against itself, and the store is re-read once
 // the lock is held, so a token another client renewed while this call waited is
 // adopted instead of a second exchange being spent on it.
-func renewCredentials(ctx context.Context, home string, client *http.Client, stale *oauthCredentials) (*oauthCredentials, error) {
-	unlock, err := lockCredentials(home)
+func renewCredentials(ctx context.Context, dir string, client *http.Client, stale *oauthCredentials) (*oauthCredentials, error) {
+	unlock, err := lockCredentials(dir)
 	if err != nil {
 		return nil, err
 	}
 	defer unlock()
 
 	current := stale
-	if latest, err := loadCredentials(home); err == nil {
+	if latest, err := loadCredentials(dir); err == nil {
 		if !expiringSoon(latest) {
 			return latest, nil
 		}
@@ -134,7 +134,7 @@ func renewCredentials(ctx context.Context, home string, client *http.Client, sta
 	// A failed write is not fatal. The exchange already happened, so discarding
 	// the result here would strand the rotated token and leave nothing able to
 	// authenticate; the caller holds it in memory instead.
-	_ = storeCredentials(home, &next)
+	_ = storeCredentials(dir, &next)
 	return &next, nil
 }
 
@@ -197,8 +197,8 @@ func refreshFailure(response *http.Response) error {
 	return fmt.Errorf("token refresh failed: %s", strings.TrimSpace(response.Status))
 }
 
-func lockCredentials(home string) (func(), error) {
-	path := filepath.Join(home, filepath.FromSlash(lockFile))
+func lockCredentials(dir string) (func(), error) {
+	path := filepath.Join(dir, lockFile)
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, err
 	}
