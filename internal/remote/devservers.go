@@ -10,15 +10,11 @@ import (
 
 var errDevServersUnavailable = errors.New("starting dev servers is not available")
 
-// DevServerRequest names where a dev server should run: the chat's project
-// when a thread is given, otherwise an explicit project folder.
 type DevServerRequest struct {
 	ThreadID string `json:"threadId,omitempty"`
 	Cwd      string `json:"cwd,omitempty"`
 }
 
-// DevServerInfo is a dev server the PC started itself, so no agent turn,
-// tool timeout or interrupt can end it.
 type DevServerInfo struct {
 	ID      string   `json:"id"`
 	Name    string   `json:"name"`
@@ -74,8 +70,6 @@ func (s *Server) handleDevServerStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, info)
 }
 
-// WarmPreview opens the public link for a port ahead of the phone asking,
-// so the page is ready by the time the preview screen appears.
 func (s *Server) WarmPreview(port int) {
 	if s.previews == nil || port <= 0 {
 		return

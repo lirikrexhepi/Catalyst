@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"composer/internal/devserver"
 	"composer/internal/logger"
 
 	"github.com/wailsapp/wails/v2"
@@ -19,6 +20,10 @@ import (
 var assets embed.FS
 
 func main() {
+	if devserver.IsShim(os.Args[0]) {
+		os.Exit(devserver.RunShim(os.Args[1:]))
+	}
+
 	// Clean up any legacy shim executables so agents never encounter or invoke them.
 	binDir := filepath.Join(configRoot(), "bin")
 	_ = os.Remove(filepath.Join(binDir, "composer-serve.exe"))
@@ -47,6 +52,10 @@ func main() {
 	// gateway port, history and database, so it hands over before NewApp
 	// opens any of them.
 	if !bindingsBuild {
+		if !claimWindow() {
+			logger.Infof("Main", "The desktop window is already open; focusing it")
+			return
+		}
 		takeOverFromHeadless()
 	}
 

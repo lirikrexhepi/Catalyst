@@ -2,9 +2,6 @@ package session
 
 import "sync"
 
-// TurnNotes holds one-shot context the app wants an agent to see with its
-// next turn, such as a dev server the app started for it. The note rides in
-// the text sent to the CLI only; the transcript keeps the user's own words.
 type TurnNotes struct {
 	mu    sync.Mutex
 	notes map[string]func() string
@@ -33,9 +30,6 @@ func (n *TurnNotes) take(threadID string) string {
 	return note()
 }
 
-// QueueTurnNote attaches a note to the next message sent to the thread. The
-// function runs at send time, so a note about something that has since gone
-// away can return "" and nothing is added.
 func (m *Manager) QueueTurnNote(threadID string, note func() string) {
 	m.notes.Queue(threadID, note)
 }

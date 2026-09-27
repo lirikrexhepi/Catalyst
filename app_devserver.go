@@ -99,10 +99,6 @@ func (a *App) runningDevServerIn(cwd string) (devserver.Snapshot, bool) {
 	return devserver.Snapshot{}, false
 }
 
-// remoteStartDevServer runs the project's own dev script from the app rather
-// than asking an agent to. An agent runs it as a foreground tool call that
-// its CLI kills after a couple of minutes or on the next interrupt, and
-// reasoning about it costs most of a minute before anything starts.
 func (a *App) remoteStartDevServer(_ context.Context, req remote.DevServerRequest) (remote.DevServerInfo, error) {
 	cwd := req.Cwd
 	if req.ThreadID != "" {
@@ -169,8 +165,6 @@ func (a *App) warmPreviewWhenListening(id string) {
 	}
 }
 
-// queueDevServerNote tells the chat's agent, once, with its next message,
-// that the server is already up, so it uses it instead of starting another.
 func (a *App) queueDevServerNote(threadID, id string) {
 	if threadID == "" {
 		return

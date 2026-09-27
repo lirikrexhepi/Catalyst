@@ -63,7 +63,18 @@ func BaseEnvironment() map[string]string {
 		}
 		out[k] = v
 	}
+	for k, v := range quietUpdaters {
+		if _, set := out[k]; !set {
+			out[k] = v
+		}
+	}
 	return out
+}
+
+var quietUpdaters = map[string]string{
+	"AGY_CLI_DISABLE_AUTO_UPDATE": "1",
+	"DISABLE_AUTOUPDATER":         "1",
+	"OPENCODE_DISABLE_AUTOUPDATE": "true",
 }
 
 func Environ() map[string]string {

@@ -14,16 +14,8 @@ import (
 	"composer/internal/logger"
 )
 
-// Tailscale Funnel only publishes these HTTPS ports; 443 carries the phone
-// gateway, so previews take the other two.
 var funnelPreviewPorts = []int{8443, 10000}
 
-// startFunnel publishes a dev server on the gateway's own Tailscale hostname.
-// The hostname already resolves and holds a certificate, so the link works
-// the moment the command returns, unlike a fresh quick-tunnel name that has
-// to reach DNS first. Funnel keeps the Host header, which Vite and similar
-// dev servers reject, so traffic passes through a local proxy that rewrites
-// it to localhost the way cloudflared's --http-host-header does.
 func (m *PreviewManager) startFunnel(port int) (*previewTunnel, bool) {
 	base := ""
 	if m.funnelBase != nil {
