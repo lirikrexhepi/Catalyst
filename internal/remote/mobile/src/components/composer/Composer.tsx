@@ -1,7 +1,8 @@
 import { useRef, useState, type PointerEvent, type TouchEvent } from 'react'
-import { Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
+import { AudioLines, Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
 import { GlassCircle, GlassSquircle, SEND_NUDGE } from '../../ui'
 import { interrupt, removeQueued, send, useStore } from '../../store'
+import { PcDownNotice } from '../status/PcDownNotice'
 import { AttachmentStrip } from './AttachmentStrip'
 import { QueuedList } from './QueuedList'
 import { useAttachments } from './useAttachments'
@@ -16,6 +17,8 @@ interface ComposerProps {
 const MAX_INPUT_HEIGHT = 132
 const ICON = { size: 24, strokeWidth: 1.75 } as const
 const BUTTON = 44
+const TAP_MS = 350
+const TAP_SLOP = 10
 
 export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   const thread = useStore((s) => (threadId ? s.threads[threadId] : undefined))
@@ -23,6 +26,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   const [text, setText] = useState('')
   const [creating, setCreating] = useState(false)
   const field = useRef<HTMLTextAreaElement | null>(null)
+  const touch = useRef({ at: 0, x: 0, y: 0 })
   const attachments = useAttachments(field)
   const dictation = useDictation((spoken) => {
     if (!spoken) return
@@ -71,12 +75,26 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
 
   const focusField = (e: PointerEvent<HTMLElement>) => {
     if ((e.target as Element).closest('button, textarea, input')) return
+    const el = field.current
+    if (el && document.activeElement === el) {
+      if (el.selectionStart === el.selectionEnd) e.preventDefault()
+      return
+    }
     e.preventDefault()
     focusQuietly()
   }
 
+  const onFieldTouchStart = (e: TouchEvent<HTMLTextAreaElement>) => {
+    const t = e.touches[0]
+    touch.current = { at: e.timeStamp, x: t.clientX, y: t.clientY }
+  }
+
   const onFieldTouchEnd = (e: TouchEvent<HTMLTextAreaElement>) => {
     if (document.activeElement === e.currentTarget) return
+    const t = e.changedTouches[0]
+    const start = touch.current
+    const tap = e.timeStamp - start.at < TAP_MS && Math.hypot(t.clientX - start.x, t.clientY - start.y) < TAP_SLOP
+    if (!tap) return
     e.preventDefault()
     focusQuietly()
   }
@@ -96,6 +114,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
       {thread ? <QueuedList items={thread.queued} onRemove={(id) => threadId && removeQueued(threadId, id)} /> : null}
       <AttachmentStrip files={attachments.files} onRemove={attachments.remove} />
       {attachments.error ? <div className="hint composer-error">{attachments.error}</div> : null}
+      <PcDownNotice placement="dock" />
       <GlassSquircle radius={30} fill="var(--composer-fill)" className="composer-surface" onPointerDown={focusField}>
         <textarea
           ref={field}
@@ -105,6 +124,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
           placeholder={pcDown ? 'PC not responding' : placeholder}
           aria-label="Message"
           enterKeyHint="send"
+          onTouchStart={onFieldTouchStart}
           onTouchEnd={onFieldTouchEnd}
           onChange={(e) => {
             setText(e.target.value)
@@ -138,9 +158,9 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
             onClick={onMic}
             aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
             aria-pressed={dictation.listening}
-            className="on-accent"
+            className={dictation.listening ? 'composer-mic listening on-accent' : 'composer-mic on-accent'}
           >
-            <Mic {...ICON} aria-hidden />
+            {dictation.listening ? <AudioLines {...ICON} aria-hidden /> : <Mic {...ICON} aria-hidden />}
           </GlassCircle>
           {busy && !canSend ? (
             <GlassCircle size={BUTTON} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding" className="on-accent">

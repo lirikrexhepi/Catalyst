@@ -13,10 +13,31 @@ function resolved(): 'dark' | 'light' {
   return pref
 }
 
+export type ChromeSurface = 'chat' | 'drawer'
+
+const SURFACE_TOKEN: Record<ChromeSurface, string> = { chat: '--chat-bg', drawer: '--drawer-bg' }
+let surface: ChromeSurface = 'chat'
+
+function paintChrome() {
+  const root = document.documentElement
+  root.dataset.surface = surface
+  const color = getComputedStyle(root).getPropertyValue(SURFACE_TOKEN[surface]).trim()
+  if (color) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
+}
+
+export function setChromeSurface(next: ChromeSurface) {
+  if (next === surface) return
+  surface = next
+  paintChrome()
+}
+
 function apply() {
   const theme = resolved()
   document.documentElement.dataset.theme = theme
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'light' ? '#f2f2f4' : '#111111')
+  document
+    .querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+    ?.setAttribute('content', theme === 'light' ? 'default' : 'black-translucent')
+  paintChrome()
 }
 
 export function initTheme() {

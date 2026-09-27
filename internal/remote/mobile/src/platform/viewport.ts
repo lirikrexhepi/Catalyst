@@ -14,13 +14,31 @@ function insideScroller(target: EventTarget | null): boolean {
   return false
 }
 
+function editableTarget(target: EventTarget | null): boolean {
+  const el = target instanceof Element ? target.closest('textarea, input, [contenteditable="true"]') : null
+  return el !== null && el === document.activeElement
+}
+
+function selecting(): boolean {
+  const active = document.activeElement
+  if (active instanceof HTMLTextAreaElement || active instanceof HTMLInputElement) {
+    try {
+      if (active.selectionStart !== null && active.selectionStart !== active.selectionEnd) return true
+    } catch {
+      return false
+    }
+  }
+  const selection = document.getSelection()
+  return Boolean(selection && !selection.isCollapsed)
+}
+
 function panLock() {
   let allow = true
   const onStart = (e: TouchEvent) => {
-    allow = insideScroller(e.target)
+    allow = insideScroller(e.target) || editableTarget(e.target)
   }
   const onMove = (e: TouchEvent) => {
-    if (!allow && e.cancelable) e.preventDefault()
+    if (!allow && e.cancelable && !selecting()) e.preventDefault()
   }
   return {
     on() {

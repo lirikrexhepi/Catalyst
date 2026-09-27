@@ -59,6 +59,7 @@ button.sheet-row:active { background-color: rgba(var(--ink), 0.05); }
 .status-card-text strong { font-weight: 500; color: var(--fg); }
 .status-card-action { flex-shrink: 0; padding: 0 16px; font: 500 14px/1 var(--font); color: var(--fg); }
 .status-pill { position: absolute; left: 0; right: 0; top: calc(var(--safe-top) + 62px); z-index: 5; display: flex; justify-content: center; pointer-events: none; }
+.status-pill.in-dock { position: static; z-index: auto; }
 .status-pill-body { gap: 6px; max-width: min(80vw, 300px); padding: 0 14px 0 12px; color: var(--fg); font: 500 14px/1 var(--font); will-change: transform, opacity; }
 .status-pill-body > span:not([aria-hidden]) { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status-pill-body.has-action { padding-right: 4px; pointer-events: auto; }

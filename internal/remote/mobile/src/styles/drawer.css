@@ -1,5 +1,9 @@
 :root { --drawer-w: min(80vw, 360px); }
 
+.shell { background: var(--chat-bg); }
+.shell::before { content: ''; position: absolute; inset: 0; background: var(--drawer-bg); opacity: min(calc(var(--p, 0) * 100), 1); pointer-events: none; }
+:root[data-surface='drawer'] .shell { background: var(--drawer-bg); }
+
 .drawer {
   background: var(--drawer-bg); will-change: transform, opacity;
   transform: translateX(calc((var(--p, 0) - 1) * 22%)) scale(calc(0.96 + var(--p, 0) * 0.04));

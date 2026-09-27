@@ -6,7 +6,18 @@
   <meta name="theme-color" content="#111111">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <script>
+    (function () {
+      var pref = 'dark'
+      try { pref = JSON.parse(localStorage.getItem('orchestrator_theme') || '"dark"') } catch (e) {}
+      var light = pref === 'light' || (pref === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches)
+      document.documentElement.setAttribute('data-theme', light ? 'light' : 'dark')
+      if (!light) return
+      document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f2f2f4')
+      document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'default')
+    })()
+  </script>
   <meta name="apple-mobile-web-app-title" content="Orchestrator">
   <meta name="application-name" content="Orchestrator">
   <link rel="manifest" href="/manifest.json">

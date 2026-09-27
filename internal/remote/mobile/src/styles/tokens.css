@@ -9,7 +9,8 @@
   --input-font-size: 16px;
   --send: #21629f;
   --voice: #344e67;
-  --voice-live: #4a78a3;
+  --voice-live: #c8453c;
+  --voice-ring: rgba(226, 84, 72, 0.55);
 
   --usage-low: #2b821f;
   --usage-mid: #a04b26;
@@ -25,6 +26,9 @@
 html {
   font-synthesis: none;
 }
+
+html, body { background: var(--chat-bg); }
+:root[data-surface='drawer'], :root[data-surface='drawer'] body { background: var(--drawer-bg); }
 
 body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .say, .md, .bubble-text, .status-card-text, .thought-body, .out, .diff, .code, .notice, .ask-card-title, .ask-card-detail, input, textarea, [contenteditable='true'] {
@@ -76,6 +80,8 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
   --glass-control: #e6e6ea;
   --composer-fill: linear-gradient(to bottom left, #ffffff, #f3f3f6);
   --placeholder: #8a8a8e;
+  --voice-live: #d6453a;
+  --voice-ring: rgba(214, 69, 58, 0.4);
   --bg: #f2f2f4;
   --panel: #ffffff;
   --raise: #ececf0;

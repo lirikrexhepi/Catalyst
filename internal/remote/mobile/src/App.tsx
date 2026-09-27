@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, getToken } from './api'
-import { retryNow, setPresence, startSync, useStore } from './store'
+import { setPresence, startSync } from './store'
 import { resyncPush } from './push'
 import AuthScreen from './screens/Auth'
 import Drawer from './screens/Drawer'
 import Chat from './screens/Chat'
 import ProjectScreen from './screens/Project'
 import { useDrawer } from './screens/shell/useDrawer'
-import { Loader2, WifiOff } from 'lucide-react'
-import { StatusPill } from './components/status/StatusPill'
+import { PcDownNotice } from './components/status/PcDownNotice'
 import { NavCue, type Cue } from './screens/shell/NavCue'
 import { classifyNavigation, initHistoryIndex } from './platform/historyDirection'
+import { setChromeSurface } from './theme'
 
 /** #/t/<threadId> opens a conversation; anything else is a new chat. */
 function routeFromHash(): string | null {
@@ -107,37 +107,13 @@ export default function App() {
   return <Shell threadId={threadId} project={project} cue={cue} />
 }
 
-function PcDownBanner() {
-  const pcDown = useStore((st) => st.pcDown)
-  const [shown, setShown] = useState(false)
-  const [retrying, setRetrying] = useState(false)
-  useEffect(() => {
-    if (!pcDown) {
-      setShown(false)
-      return
-    }
-    const timer = window.setTimeout(() => setShown(true), 1500)
-    return () => window.clearTimeout(timer)
-  }, [pcDown])
-  useEffect(() => {
-    if (!retrying) return
-    const timer = window.setTimeout(() => setRetrying(false), 1800)
-    return () => window.clearTimeout(timer)
-  }, [retrying])
-  const retry = () => {
-    setRetrying(true)
-    retryNow()
-  }
-  if (!shown) return null
-  return (
-    <StatusPill icon={retrying ? Loader2 : WifiOff} action={{ label: 'Retry', onClick: retry, busy: retrying }}>
-      {retrying ? 'Reconnecting' : "Can't reach your PC"}
-    </StatusPill>
-  )
-}
-
 function Shell({ threadId, project, cue }: { threadId: string | null; project: string | null; cue: Cue | null }) {
   const { shell, open, covered, setOpen, handlers } = useDrawer()
+
+  useEffect(() => {
+    setChromeSurface(covered ? 'drawer' : 'chat')
+    return () => setChromeSurface('chat')
+  }, [covered])
 
   const go = useCallback(
     (id: string | null) => {
@@ -165,7 +141,7 @@ function Shell({ threadId, project, cue }: { threadId: string | null; project: s
         ) : (
           <Chat key={threadId ?? 'new'} threadId={threadId} openDrawer={() => setOpen(true)} go={go} />
         )}
-        <PcDownBanner />
+        {project ? <PcDownNotice /> : null}
         <NavCue cue={cue} />
         {covered ? <div className="main-cover" role="button" aria-label="Close menu" onClick={() => setOpen(false)} /> : null}
       </main>
