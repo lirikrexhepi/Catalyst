@@ -305,10 +305,7 @@ func (s *Server) handleThread(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, errors.New("missing thread id"))
 		return
 	}
-	events, lastSeq := s.manager.HistorySnapshot(threadID)
-	if len(events) == 0 {
-		events, lastSeq = s.threadHistory(threadID), 0
-	}
+	events, lastSeq := s.threadSnapshot(threadID)
 	writeJSON(w, http.StatusOK, map[string]any{"events": events, "lastSeq": lastSeq})
 }
 
