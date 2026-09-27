@@ -4,7 +4,7 @@
   display: flex; flex-direction: column; padding-top: var(--head-h); padding-bottom: var(--dock-h);
 }
 .chat-head {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 3; pointer-events: none; background: var(--chat-bg);
+  position: absolute; top: 0; left: 0; right: 0; z-index: 3; pointer-events: none; background: var(--head-fill);
 }
 .chat-head::after {
   content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 12px; pointer-events: none;

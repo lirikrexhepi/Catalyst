@@ -53,11 +53,6 @@ export function PcSection() {
           trailing={<GlassSwitch label="Keep the PC awake while this app is open" checked={keepAwake} onChange={setKeepAwake} />}
         />
       </SheetList>
-      <SheetNote>
-        {keepAwake
-          ? "The PC won't sleep or hibernate while this app is open. Once you close it, the PC's usual sleep settings apply, and the phone can't wake it."
-          : "The PC follows its usual sleep settings, and the phone can't wake it."}
-      </SheetNote>
       <SheetList>
         {canPowerOff ? (
           <SheetRow icon={Power} label={powerLabel} tone="danger" disabled={power === 'sending' || power === 'done'} onClick={shutdown} />

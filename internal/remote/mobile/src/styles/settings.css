@@ -2,7 +2,7 @@
   position: fixed; left: 0; right: 0; top: var(--app-y, 0px); height: var(--app-h, 100%); z-index: 35;
   display: flex; flex-direction: column; background: var(--chat-bg); color: var(--fg); will-change: transform;
 }
-.settings-head { display: flex; align-items: center; gap: 12px; padding: calc(var(--safe-top) + 6px) 20px 10px; }
+.settings-head { display: flex; align-items: center; gap: 12px; padding: calc(var(--safe-top) + 6px) 20px 10px; background: var(--head-fill); }
 .settings-head h1 { margin: 0; font: 500 22px/1.2 var(--font); color: var(--fg); }
 .settings-body {
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;

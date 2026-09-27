@@ -1,5 +1,5 @@
 .scrub-zone {
-  position: absolute; right: 0; top: min(68%, calc(100% - var(--dock-h, 0px) - 72px)); z-index: 4; width: 44px; padding: 26px 0;
+  position: absolute; right: 0; top: min(68%, calc(100% - var(--dock-h, 0px) - 72px)); z-index: 4; width: 28px; padding: 26px 0;
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px; transform: translateY(-50%);
   touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
