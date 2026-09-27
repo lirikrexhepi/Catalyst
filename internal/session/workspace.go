@@ -157,6 +157,20 @@ func (w *Workspaces) SetTaskModel(threadID string, driver domain.DriverKind, mod
 	}
 }
 
+func (w *Workspaces) SetTaskAccount(threadID, account string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	id, ok := w.byThread[threadID]
+	if !ok {
+		return
+	}
+	if task, ok := w.tasks[id]; ok {
+		task.Account = domain.NormalizeAccount(account)
+		task.UpdatedAt = time.Now().UnixMilli()
+	}
+}
+
 // SetSummary records a task's compacted context. Captured while the agent is
 // still alive so a crashed or force-closed session keeps its history.
 func (w *Workspaces) SetSummary(threadID, summary string) {

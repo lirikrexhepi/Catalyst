@@ -19,6 +19,7 @@ type AgentView struct {
 	ThreadID    string            `json:"threadId"`
 	Title       string            `json:"title"`
 	Driver      domain.DriverKind `json:"driver"`
+	Account     string            `json:"account,omitempty"`
 	Model       string            `json:"model,omitempty"`
 	State       domain.TaskState  `json:"state"`
 	Cwd         string            `json:"cwd"`
@@ -253,6 +254,7 @@ func (c *Constructor) execute(turnID string, tasks []TaskRequest, cfg Config) {
 				Title:  task.Title,
 				Prompt: task.Prompt,
 				Driver:  domain.DriverKind(cfg.Driver),
+				Account: cfg.Account,
 				Model:   cfg.Model,
 				Options: cfg.Options,
 				Cwd:     cwd,
@@ -261,6 +263,7 @@ func (c *Constructor) execute(turnID string, tasks []TaskRequest, cfg Config) {
 
 		result, err = c.spawner.Spawn(ctx, requests, SpawnOptions{
 			Driver:      domain.DriverKind(cfg.Driver),
+			Account:     cfg.Account,
 			Model:       cfg.Model,
 			Options:     cfg.Options,
 			Cwd:         cfg.Cwd,
@@ -345,6 +348,7 @@ func (c *Constructor) EnsureLive(ctx context.Context, threadID string) error {
 	}
 	_, err := c.manager.Start(ctx, task.Driver, domain.SessionStartInput{
 		ThreadID:   threadID,
+		Account:    domain.NormalizeAccount(task.Account),
 		Cwd:        cwd,
 		Model:      task.Model,
 		Options:    task.Options,
@@ -381,6 +385,7 @@ func (c *Constructor) ListAgents() []AgentView {
 				ThreadID:    task.ThreadID,
 				Title:       task.Title,
 				Driver:      task.Driver,
+				Account:     task.Account,
 				Model:       task.Model,
 				State:       task.State,
 				WorkspaceID: task.WorkspaceID,

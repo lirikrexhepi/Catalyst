@@ -52,6 +52,7 @@ type ProviderSettings struct {
 	Model        string            `json:"model,omitempty"`
 	PrintTimeout string            `json:"printTimeout,omitempty"`
 	Enabled      bool              `json:"enabled"`
+	Unset        []string          `json:"-"`
 }
 
 type ProviderSnapshot struct {
@@ -68,6 +69,26 @@ type ProviderSnapshot struct {
 	// snapshot so the UI can honour a preferred model without a second call per
 	// provider on every refresh.
 	Settings ProviderSettings `json:"settings"`
+	Accounts []Account        `json:"accounts,omitempty"`
+}
+
+const DefaultAccountID = "default"
+
+type Account struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	ConfigDir string `json:"configDir,omitempty"`
+}
+
+func (a Account) IsDefault() bool {
+	return a.ID == "" || a.ID == DefaultAccountID
+}
+
+func NormalizeAccount(id string) string {
+	if id == "" {
+		return DefaultAccountID
+	}
+	return id
 }
 
 type Model struct {
@@ -120,6 +141,7 @@ const (
 type SessionStartInput struct {
 	ThreadID   string         `json:"threadId"`
 	InstanceID string         `json:"instanceId"`
+	Account    string         `json:"account,omitempty"`
 	Cwd        string         `json:"cwd"`
 	Model      string         `json:"model,omitempty"`
 	Permission PermissionMode `json:"permissionMode,omitempty"`
@@ -150,6 +172,7 @@ type Session struct {
 	ThreadID          string     `json:"threadId"`
 	InstanceID        string     `json:"instanceId"`
 	Driver            DriverKind `json:"driver"`
+	Account           string     `json:"account,omitempty"`
 	ProviderSessionID string     `json:"providerSessionId,omitempty"`
 	Cwd               string     `json:"cwd"`
 	Model             string     `json:"model,omitempty"`

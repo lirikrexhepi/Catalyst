@@ -11,6 +11,8 @@ import (
 // DriverUsage is the running total for one CLI.
 type DriverUsage struct {
 	Driver           domain.DriverKind `json:"driver"`
+	Account          string            `json:"account,omitempty"`
+	AccountName      string            `json:"accountName,omitempty"`
 	InputTokens      int64             `json:"inputTokens"`
 	OutputTokens     int64             `json:"outputTokens"`
 	CacheReadTokens  int64             `json:"cacheReadTokens"`
@@ -39,6 +41,10 @@ type UsageReport struct {
 // SetLimits records quota read from a source outside the event stream, such as
 // a CLI's own on-disk cache. Reported windows replace stored ones by name.
 func (t *UsageTracker) SetLimits(driver domain.DriverKind, limits []domain.RateLimit, fetchedAt int64) {
+	t.SetAccountLimits(driver, domain.DefaultAccountID, limits, fetchedAt)
+}
+
+func (t *UsageTracker) SetAccountLimits(driver domain.DriverKind, account string, limits []domain.RateLimit, fetchedAt int64) {
 	if driver == "" || len(limits) == 0 {
 		return
 	}
@@ -46,11 +52,7 @@ func (t *UsageTracker) SetLimits(driver domain.DriverKind, limits []domain.RateL
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	entry := t.drivers[driver]
-	if entry == nil {
-		entry = &DriverUsage{Driver: driver}
-		t.drivers[driver] = entry
-	}
+	entry := t.entry(driver, account)
 	t.mergeLimits(entry, limits)
 	entry.LimitsFetchedAt = fetchedAt
 	entry.LimitsError = ""
@@ -59,6 +61,10 @@ func (t *UsageTracker) SetLimits(driver domain.DriverKind, limits []domain.RateL
 // SetQuotaError records why a CLI's limits are missing. Stored per driver so a
 // signed-out or offline CLI explains itself instead of silently showing nothing.
 func (t *UsageTracker) SetQuotaError(driver domain.DriverKind, message string) {
+	t.SetAccountQuotaError(driver, domain.DefaultAccountID, message)
+}
+
+func (t *UsageTracker) SetAccountQuotaError(driver domain.DriverKind, account, message string) {
 	if driver == "" {
 		return
 	}
@@ -66,11 +72,7 @@ func (t *UsageTracker) SetQuotaError(driver domain.DriverKind, message string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	entry := t.drivers[driver]
-	if entry == nil {
-		entry = &DriverUsage{Driver: driver}
-		t.drivers[driver] = entry
-	}
+	entry := t.entry(driver, account)
 	// A previous good reading is kept: a transient failure should not blank a
 	// figure the user was just looking at.
 	entry.LimitsError = message
@@ -84,17 +86,36 @@ func (t *UsageTracker) SetQuotaError(driver domain.DriverKind, message string) {
 // turn is kept and the delta against it is what accrues.
 type UsageTracker struct {
 	mu        sync.RWMutex
-	drivers   map[domain.DriverKind]*DriverUsage
+	drivers   map[usageKey]*DriverUsage
 	turns     map[string]domain.Usage
-	threads   map[string]domain.DriverKind
+	threads   map[string]usageKey
 	startedAt int64
+}
+
+type usageKey struct {
+	driver  domain.DriverKind
+	account string
+}
+
+func keyFor(driver domain.DriverKind, account string) usageKey {
+	return usageKey{driver: driver, account: domain.NormalizeAccount(account)}
+}
+
+func (t *UsageTracker) entry(driver domain.DriverKind, account string) *DriverUsage {
+	key := keyFor(driver, account)
+	entry := t.drivers[key]
+	if entry == nil {
+		entry = &DriverUsage{Driver: driver, Account: key.account}
+		t.drivers[key] = entry
+	}
+	return entry
 }
 
 func NewUsageTracker() *UsageTracker {
 	return &UsageTracker{
-		drivers:   make(map[domain.DriverKind]*DriverUsage),
+		drivers:   make(map[usageKey]*DriverUsage),
 		turns:     make(map[string]domain.Usage),
-		threads:   make(map[string]domain.DriverKind),
+		threads:   make(map[string]usageKey),
 		startedAt: time.Now().UnixMilli(),
 	}
 }
@@ -104,25 +125,25 @@ func (t *UsageTracker) Observe(event domain.RuntimeEvent) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	driver := event.Driver
-	if driver == "" {
+	key := keyFor(event.Driver, event.Account)
+	if event.Driver == "" {
 		// Only usage/session events carry the driver on every adapter, so fall
 		// back to the driver this thread was started with.
-		driver = t.threads[event.ThreadID]
+		key = t.threads[event.ThreadID]
+	} else if event.Account == "" {
+		if known, ok := t.threads[event.ThreadID]; ok && known.driver == event.Driver {
+			key = known
+		}
 	}
-	if driver == "" {
+	if key.driver == "" {
 		return
 	}
 
-	entry := t.drivers[driver]
-	if entry == nil {
-		entry = &DriverUsage{Driver: driver}
-		t.drivers[driver] = entry
-	}
+	entry := t.entry(key.driver, key.account)
 
 	switch event.Kind {
 	case domain.EventSessionStarted:
-		t.threads[event.ThreadID] = driver
+		t.threads[event.ThreadID] = key
 		entry.Sessions++
 		entry.LastActiveAt = event.At
 
@@ -211,9 +232,22 @@ func (t *UsageTracker) Report() UsageReport {
 		if leftTotal != rightTotal {
 			return leftTotal > rightTotal
 		}
-		return left.Driver < right.Driver
+		if left.Driver != right.Driver {
+			return left.Driver < right.Driver
+		}
+		return left.Account < right.Account
 	})
 	return report
+}
+
+func (t *UsageTracker) Forget(driver domain.DriverKind, account string) {
+	key := keyFor(driver, account)
+	if key.account == domain.DefaultAccountID {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.drivers, key)
 }
 
 // Reset clears counters so a user can measure a single piece of work.
@@ -225,11 +259,12 @@ func (t *UsageTracker) Reset() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	carried := make(map[domain.DriverKind]*DriverUsage, len(t.drivers))
-	for driver, entry := range t.drivers {
+	carried := make(map[usageKey]*DriverUsage, len(t.drivers))
+	for key, entry := range t.drivers {
 		if len(entry.Limits) > 0 || entry.LimitsError != "" {
-			carried[driver] = &DriverUsage{
-				Driver:          driver,
+			carried[key] = &DriverUsage{
+				Driver:          key.driver,
+				Account:         key.account,
 				Limits:          entry.Limits,
 				LimitsFetchedAt: entry.LimitsFetchedAt,
 				LimitsError:     entry.LimitsError,

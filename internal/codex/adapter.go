@@ -95,7 +95,7 @@ func (a *Adapter) connection(ctx context.Context) (*jsonrpc.Conn, error) {
 	}
 
 	args := append([]string{"app-server"}, shell.TokenizeArgs(a.settings.LaunchArgs)...)
-	env := shell.Merge(shell.BaseEnvironment(), a.settings.Env)
+	env := provider.LaunchEnv(a.settings)
 
 	procCtx, cancel := context.WithCancel(context.Background())
 	proc, err := process.Start(procCtx, process.Spec{

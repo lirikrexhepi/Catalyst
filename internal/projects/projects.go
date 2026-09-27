@@ -29,8 +29,9 @@ type Project struct {
 	// Order is the selection counter this entry was last touched at. UsedAt is
 	// shown to the user; this is what actually sorts, so two selections in the
 	// same millisecond still order correctly.
-	Order   int64 `json:"order,omitempty"`
-	Missing bool  `json:"missing,omitempty"`
+	Order    int64             `json:"order,omitempty"`
+	Missing  bool              `json:"missing,omitempty"`
+	Accounts map[string]string `json:"accounts,omitempty"`
 }
 
 // state is the on-disk shape: the list plus which entry is active.
@@ -268,6 +269,73 @@ func (s *Store) Activate(id string) (Project, error) {
 	}
 	selected.Missing = !isDir(selected.Path)
 	return selected, nil
+}
+
+func (s *Store) SetAccount(id, driver, account string) (Project, error) {
+	s.mu.Lock()
+	var updated Project
+	found := false
+	for i := range s.saved.Projects {
+		if s.saved.Projects[i].ID != id {
+			continue
+		}
+		accounts := make(map[string]string, len(s.saved.Projects[i].Accounts)+1)
+		for key, value := range s.saved.Projects[i].Accounts {
+			accounts[key] = value
+		}
+		if account == "" {
+			delete(accounts, driver)
+		} else {
+			accounts[driver] = account
+		}
+		if len(accounts) == 0 {
+			accounts = nil
+		}
+		s.saved.Projects[i].Accounts = accounts
+		updated = s.saved.Projects[i]
+		found = true
+		break
+	}
+	s.mu.Unlock()
+
+	if !found {
+		return Project{}, ErrNotFound
+	}
+	if err := s.persist(); err != nil {
+		return Project{}, err
+	}
+	updated.Missing = !isDir(updated.Path)
+	return updated, nil
+}
+
+func (s *Store) AccountFor(dir, driver string) string {
+	if strings.TrimSpace(dir) == "" {
+		return ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	best, bestLen := "", -1
+	for _, project := range s.saved.Projects {
+		account := project.Accounts[driver]
+		if account == "" || !within(dir, project.Path) {
+			continue
+		}
+		if len(project.Path) > bestLen {
+			best, bestLen = account, len(project.Path)
+		}
+	}
+	return best
+}
+
+func within(dir, root string) bool {
+	if samePath(dir, root) {
+		return true
+	}
+	rel, err := filepath.Rel(filepath.Clean(root), filepath.Clean(dir))
+	if err != nil || rel == "." || filepath.IsAbs(rel) {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // persist writes the whole file via a temp file, so a crash mid-write cannot

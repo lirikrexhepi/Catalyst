@@ -39,6 +39,7 @@ type Task struct {
 	Prompt      string       `json:"prompt"`
 	Driver      DriverKind   `json:"driver"`
 	Drivers     []DriverKind `json:"drivers,omitempty"`
+	Account     string       `json:"account,omitempty"`
 	Model       string       `json:"model,omitempty"`
 	Models      []string     `json:"models,omitempty"`
 	Options     ModelOptions `json:"options,omitempty"`

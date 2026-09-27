@@ -50,6 +50,10 @@ func RunCommand(ctx context.Context, binary string, args []string, env map[strin
 	return result
 }
 
+func LaunchEnv(settings domain.ProviderSettings) map[string]string {
+	return shell.Merge(Without(shell.BaseEnvironment(), settings.Unset...), settings.Env)
+}
+
 func ParseVersion(output string) string {
 	return versionPattern.FindString(output)
 }
@@ -57,7 +61,7 @@ func ParseVersion(output string) string {
 // ProbeVersion is the standard availability check: resolve the binary, run
 // `--version`, and classify the outcome into a snapshot.
 func ProbeVersion(ctx context.Context, binary string, settings domain.ProviderSettings, args ...string) domain.ProviderSnapshot {
-	env := shell.Merge(shell.BaseEnvironment(), settings.Env)
+	env := LaunchEnv(settings)
 
 	commandPath, found := shell.LookPath(binary, env)
 	if !found {
