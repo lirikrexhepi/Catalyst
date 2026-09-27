@@ -202,15 +202,20 @@ export async function loadThread(threadId: string, force = false) {
       const pending = t.blocks.filter(
         (b) => b.type === 'user' && b.pending && !folded.blocks.some((f) => f.type === 'user' && f.content === b.content),
       )
+      const liveSeq = typeof snapshot.lastSeq === 'number' ? snapshot.lastSeq : folded.lastSeq
+      const stale = liveSeq === 0
       return {
         ...folded,
         blocks: [...folded.blocks, ...pending],
-        lastSeq: snapshot.lastSeq || folded.lastSeq,
+        lastSeq: liveSeq,
+        busy: stale ? false : folded.busy,
+        turnStartedAt: stale ? undefined : folded.turnStartedAt,
         loading: false,
         sending: t.sending,
       }
     })
     scheduleSave(threadId)
+    void drainQueue(threadId)
   } catch (e) {
     const error = failure(e)
     patchThread(threadId, (t) => ({ ...t, loading: false, error }))
@@ -250,6 +255,7 @@ function applyEvents(events: RuntimeEvent[]) {
       if (fresh.length > 0) {
         threads = { ...threads, [threadId]: fold(t, fresh) }
         scheduleSave(threadId)
+        if (fresh.some((e) => e.kind === 'turn.completed' || e.kind === 'turn.failed')) finished.push(threadId)
       }
     }
 
@@ -272,7 +278,7 @@ function applyEvents(events: RuntimeEvent[]) {
             summary.busy = false
             summary.turnStartedAt = undefined
             summary.attention = ''
-            finished.push(threadId)
+            if (!finished.includes(threadId)) finished.push(threadId)
             refresh = true
             break
           case 'agent.message':
@@ -439,7 +445,7 @@ async function dispatch(threadId: string, text: string, files: FileRef[], choice
 
 async function drainQueue(threadId: string) {
   const t = state.threads[threadId]
-  if (!t || t.queued.length === 0 || t.busy) return
+  if (!t || t.queued.length === 0 || t.busy || t.sending) return
   const [next, ...rest] = t.queued
   patchThread(threadId, (th) => ({ ...th, queued: rest }))
   await dispatch(threadId, next.text, next.files, next.choice)

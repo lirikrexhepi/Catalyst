@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ChevronLeft, Loader2, Monitor, Play, RotateCw, Smartphone, SquareArrowOutUpRight } from 'lucide-react'
+import { Bot, ChevronLeft, Loader2, Monitor, Play, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
-import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary } from '../components/sheet'
+import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary, SheetRow } from '../components/sheet'
 import SiteCard from '../components/SiteCard'
 import { StatusCard } from '../components/status/StatusCard'
 import { api } from '../api'
 import { serversForThread } from '../servers'
-import { message } from '../store'
+import { message, send } from '../store'
 import type { DevServer, PreviewInfo } from '../types'
 
 /** Desktop mode renders the site at this width, like a laptop browser. */
@@ -21,10 +21,32 @@ const DEVICE_OPTIONS = [
 const START_TIMEOUT_MS = 120_000
 const START_POLL_MS = 600
 
+const ASK_AGENT_PROMPT =
+  "Start this project's dev server so I can preview it. Run it in the background so it keeps running after your turn, " +
+  "don't wait on it, and reply with the local URL it listens on."
+
 function findServer(groups: { servers: DevServer[] }[], port: number): DevServer | undefined {
   for (const g of groups) for (const s of g.servers) if (s.port === port) return s
   return undefined
 }
+
+type Launch =
+  | { phase: 'idle' }
+  | { phase: 'starting'; command?: string; folder?: string }
+  | { phase: 'asking' }
+  | { phase: 'failed'; error: string; noScript: boolean }
+
+function folderLabel(dir: string, root?: string): string | undefined {
+  const norm = (p: string) => p.replace(/\\/g, '/').replace(/\/+$/, '')
+  const d = norm(dir)
+  if (!d) return undefined
+  const r = root ? norm(root) : ''
+  if (r && d.toLowerCase() === r.toLowerCase()) return undefined
+  if (r && d.toLowerCase().startsWith(r.toLowerCase() + '/')) return d.slice(r.length + 1)
+  return d.split('/').pop()
+}
+
+const wait = (ms: number) => new Promise((r) => window.setTimeout(r, ms))
 
 export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
   threadId: string | null
@@ -35,55 +57,97 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
   const [mine, setMine] = useState<DevServer[]>([])
   const [others, setOthers] = useState<DevServer[]>([])
   const [loaded, setLoaded] = useState(false)
-  const [starting, setStarting] = useState(false)
+  const [launch, setLaunch] = useState<Launch>({ phase: 'idle' })
   const [error, setError] = useState<string | null>(null)
   const first = useRef(true)
+  const autoStarted = useRef(false)
+  const alive = useRef(true)
   const canStart = Boolean(threadId || cwd)
+  const asking = launch.phase === 'asking'
+
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
 
   const load = useCallback(async () => {
     try {
       const groups = await api.servers()
+      if (!alive.current) return
       const own = threadId ? serversForThread(groups, threadId) : []
       const ownPorts = new Set(own.map((s) => s.port))
       const rest = groups.flatMap((g) => g.servers).filter((s) => !ownPorts.has(s.port))
       setMine(own)
       setOthers(rest)
-      if (first.current && own.length === 1) onOpen(own[0])
+      setError(null)
+      if ((first.current && own.length === 1) || (asking && own.length > 0)) onOpen(own[0])
     } catch (e) {
-      setError(message(e))
+      if (alive.current) setError(message(e))
     } finally {
       first.current = false
-      setLoaded(true)
+      if (alive.current) setLoaded(true)
     }
-  }, [threadId, onOpen])
+  }, [threadId, onOpen, asking])
 
   useEffect(() => {
     void load()
-    const id = window.setInterval(() => void load(), 8000)
+    const id = window.setInterval(() => void load(), asking ? 2500 : 8000)
     return () => window.clearInterval(id)
-  }, [load])
+  }, [load, asking])
 
-  const start = async () => {
-    setError(null)
-    setStarting(true)
+  const start = useCallback(async () => {
+    setLaunch({ phase: 'starting' })
     try {
       let server = await api.startDevServer(threadId ? { threadId, cwd } : { cwd })
       const deadline = Date.now() + START_TIMEOUT_MS
-      while (!server.port && server.status === 'running' && Date.now() < deadline) {
-        await new Promise((r) => window.setTimeout(r, START_POLL_MS))
+      while (alive.current && !server.port && server.status === 'running' && Date.now() < deadline) {
+        setLaunch({ phase: 'starting', command: server.command, folder: folderLabel(server.cwd, cwd) })
+        await wait(START_POLL_MS)
         server = await api.devServer(server.id)
       }
+      if (!alive.current) return
       if (server.port) {
         onOpen({ pid: 0, port: server.port, name: server.name, kind: 'dev', ownerThreadId: threadId ?? undefined })
         return
       }
       const last = server.log?.filter((l) => l.trim()).pop()
-      setError(server.status === 'running' ? 'The dev server has not reported a port yet.' : last || 'The dev server stopped while starting.')
+      const what = server.command || 'The dev server'
+      setLaunch({
+        phase: 'failed',
+        noScript: false,
+        error:
+          server.status === 'running'
+            ? `${what} is running but has not said which port it listens on.`
+            : `${what} stopped while starting${last ? `: ${last}` : '.'}`,
+      })
     } catch (e) {
-      setError(message(e))
+      if (!alive.current) return
+      const noScript = typeof e === 'object' && e !== null && (e as { status?: number }).status === 422
+      setLaunch({ phase: 'failed', noScript, error: noScript ? (e as Error).message : message(e) })
     }
-    setStarting(false)
+  }, [threadId, cwd, onOpen])
+
+  const ask = async () => {
+    if (!threadId) return
+    setLaunch({ phase: 'asking' })
+    try {
+      await send(threadId, ASK_AGENT_PROMPT)
+    } catch (e) {
+      setLaunch({ phase: 'failed', noScript: false, error: message(e) })
+    }
   }
+
+  useEffect(() => {
+    if (!loaded || autoStarted.current) return
+    autoStarted.current = true
+    if (mine.length === 0 && canStart) void start()
+  }, [loaded, mine.length, canStart, start])
+
+  const failed = launch.phase === 'failed' ? launch : null
+  const busy = launch.phase === 'starting' || asking
+  const offerAgent = Boolean(threadId) && !busy
 
   return (
     <Sheet title="Preview" onClose={onClose}>
@@ -96,10 +160,47 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
         </SheetList>
       ) : null}
       {loaded && mine.length === 0 && canStart ? (
-        <SheetPrimary disabled={starting} onClick={() => void start()}>
-          {starting ? <Loader2 size={20} className="spin" aria-hidden /> : <Play size={20} strokeWidth={ICON_STROKE} aria-hidden />}
-          <span>{starting ? 'Starting dev server' : 'Start dev server'}</span>
-        </SheetPrimary>
+        <>
+          {launch.phase === 'starting' ? (
+            <SheetList>
+              <SheetRow
+                icon={SquareTerminal}
+                label={launch.command || 'Starting dev server'}
+                detail={launch.folder}
+                trailing={<Loader2 size={18} className="spin sheet-row-chevron" aria-hidden />}
+              />
+            </SheetList>
+          ) : null}
+          {launch.phase === 'starting' ? (
+            <SheetNote>{launch.command ? 'Running on your PC. The preview opens once the site is up.' : 'Finding the dev script on your PC'}</SheetNote>
+          ) : null}
+          {asking ? (
+            <>
+              <SheetList>
+                <SheetRow icon={Bot} label="Asked the agent to start it" trailing={<Loader2 size={18} className="spin sheet-row-chevron" aria-hidden />} />
+              </SheetList>
+              <SheetNote>The preview opens once a server for this chat is listening.</SheetNote>
+            </>
+          ) : null}
+          {failed ? <SheetNote tone="error">{failed.error}</SheetNote> : null}
+          {failed?.noScript && threadId ? (
+            <SheetPrimary onClick={() => void ask()}>
+              <Bot size={20} strokeWidth={ICON_STROKE} aria-hidden />
+              <span>Ask the agent to start it</span>
+            </SheetPrimary>
+          ) : null}
+          {launch.phase === 'idle' || (failed && !failed.noScript) ? (
+            <SheetPrimary onClick={() => void start()}>
+              <Play size={20} strokeWidth={ICON_STROKE} aria-hidden />
+              <span>{failed ? 'Try again' : 'Start dev server'}</span>
+            </SheetPrimary>
+          ) : null}
+          {offerAgent && !failed?.noScript ? (
+            <SheetList>
+              <SheetRow icon={Bot} label="Ask the agent instead" chevron onClick={() => void ask()} />
+            </SheetList>
+          ) : null}
+        </>
       ) : null}
       {loaded && others.length > 0 ? (
         <>

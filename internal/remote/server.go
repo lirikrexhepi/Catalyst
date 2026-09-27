@@ -338,21 +338,67 @@ func (s *Server) threadHistory(threadID string) []domain.RuntimeEvent {
 	if s.recorder == nil || s.history == nil {
 		return []domain.RuntimeEvent{}
 	}
+	stored, known := s.storedTranscript(threadID)
+	if !known && threadID == session.CoordinatorThreadID {
+		return s.coordinator.History()
+	}
+	return stored
+}
+
+func (s *Server) storedTranscript(threadID string) ([]domain.RuntimeEvent, bool) {
+	if s.recorder == nil || s.history == nil {
+		return []domain.RuntimeEvent{}, false
+	}
 	workspaceID, ok := s.recorder.WorkspaceOf(threadID)
 	if !ok {
-		if threadID == session.CoordinatorThreadID {
-			return s.coordinator.History()
-		}
-		return []domain.RuntimeEvent{}
+		return []domain.RuntimeEvent{}, false
 	}
 	loaded, err := s.history.Load(workspaceID)
 	if err != nil {
-		return []domain.RuntimeEvent{}
+		return []domain.RuntimeEvent{}, true
 	}
 	if events, ok := loaded.Transcripts[threadID]; ok {
-		return events
+		return events, true
 	}
-	return []domain.RuntimeEvent{}
+	return []domain.RuntimeEvent{}, true
+}
+
+func (s *Server) threadSnapshot(threadID string) ([]domain.RuntimeEvent, uint64) {
+	live, lastSeq := s.manager.HistorySnapshot(threadID)
+	if len(live) == 0 {
+		return s.threadHistory(threadID), 0
+	}
+	stored, _ := s.storedTranscript(threadID)
+	return joinTranscripts(stored, live), lastSeq
+}
+
+func joinTranscripts(stored, live []domain.RuntimeEvent) []domain.RuntimeEvent {
+	if len(stored) == 0 || len(live) == 0 {
+		return live
+	}
+	first := live[0]
+	cut := -1
+	for i, event := range stored {
+		if event.Kind == first.Kind && event.TurnID == first.TurnID && event.ItemID == first.ItemID && event.At == first.At {
+			cut = i
+			break
+		}
+	}
+	if cut < 0 {
+		cut = len(stored)
+		for i, event := range stored {
+			if event.At >= first.At {
+				cut = i
+				break
+			}
+		}
+	}
+	if cut == 0 {
+		return live
+	}
+	out := make([]domain.RuntimeEvent, 0, cut+len(live))
+	out = append(out, stored[:cut]...)
+	return append(out, live...)
 }
 
 func (s *Server) handleAgents(w http.ResponseWriter, r *http.Request) {

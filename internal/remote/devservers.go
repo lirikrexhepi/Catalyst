@@ -10,6 +10,8 @@ import (
 
 var errDevServersUnavailable = errors.New("starting dev servers is not available")
 
+var ErrNoDevScript = errors.New("no dev, start or serve script was found in this project's package.json files")
+
 type DevServerRequest struct {
 	ThreadID string `json:"threadId,omitempty"`
 	Cwd      string `json:"cwd,omitempty"`
@@ -47,7 +49,11 @@ func (s *Server) handleDevServerStart(w http.ResponseWriter, r *http.Request) {
 	}
 	info, err := hooks.Start(r.Context(), req)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err)
+		status := http.StatusBadRequest
+		if errors.Is(err, ErrNoDevScript) {
+			status = http.StatusUnprocessableEntity
+		}
+		writeError(w, status, err)
 		return
 	}
 	if info.Port > 0 {

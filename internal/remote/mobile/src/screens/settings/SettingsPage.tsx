@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { SheetNote } from '../../components/sheet'
+import { buildStamp } from '../../buildInfo'
 import { AppearanceSection } from './AppearanceSection'
 import { NotificationSettings } from './NotificationSettings'
 import { MonitorsSection } from './MonitorsSection'
@@ -27,6 +29,7 @@ export function SettingsPage({ onClose }: { onClose: () => void }) {
         <Section title="This PC">
           <PcSection />
         </Section>
+        <SheetNote>{buildStamp()}</SheetNote>
       </SubPage>
       {logs ? <LogsPage onClose={() => setLogs(false)} /> : null}
     </>
