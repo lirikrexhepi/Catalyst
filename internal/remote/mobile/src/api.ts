@@ -176,6 +176,8 @@ export const api = {
   folder: (path: string) => request<{ folder: FolderListing }>(`/api/folders?${q({ path })}`),
   addProject: (path: string) =>
     request<Project>('/api/projects/add', { method: 'POST', body: JSON.stringify({ path }) }),
+  devServerStop: (pid: number, port: number) =>
+    request<{ ok?: boolean }>('/api/devserver/stop', { method: 'POST', body: JSON.stringify({ pid, port }) }),
   previewStop: (port: number) =>
     request<{ ok?: boolean }>('/api/preview/stop', { method: 'POST', body: JSON.stringify({ port }) }),
   pushKey: () => request<{ publicKey: string }>('/api/push/key'),

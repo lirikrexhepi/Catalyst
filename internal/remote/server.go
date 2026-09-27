@@ -266,6 +266,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/preview/stop", s.requireAuth(s.handlePreviewStop))
 	mux.HandleFunc("/api/devserver/start", s.requireAuth(s.handleDevServerStart))
 	mux.HandleFunc("/api/devserver/status", s.requireAuth(s.handleDevServerStatus))
+	mux.HandleFunc("/api/devserver/stop", s.requireAuth(s.handleDevServerStop))
 	mux.HandleFunc("/api/pc/monitors", s.requireAuth(s.handleMonitors))
 	mux.HandleFunc("/api/pc/monitors/off", s.requireAuth(s.handleMonitorsOff))
 	mux.HandleFunc("/api/pc/monitors/auto", s.requireAuth(s.handleMonitorsAuto))

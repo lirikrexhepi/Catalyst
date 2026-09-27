@@ -113,6 +113,7 @@ func (a *App) wireRemote() {
 		DevServers: remote.DevServerHooks{
 			Start:  a.remoteStartDevServer,
 			Status: a.remoteDevServerStatus,
+			Stop:   a.StopServer,
 		},
 		PC: a.pcHooks(),
 	})

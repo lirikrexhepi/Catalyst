@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bot, Check, ChevronLeft, Loader2, Minus, Monitor, Play, Plus, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
+import { Bot, Check, ChevronLeft, Loader2, Minus, Monitor, Play, Plus, Square, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
-import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary, SheetRow } from '../components/sheet'
+import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary, SheetRow, useArmed } from '../components/sheet'
 import SiteCard from '../components/SiteCard'
 import { StatusCard } from '../components/status/StatusCard'
 import { api } from '../api'
@@ -231,8 +231,46 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
  * the PC replaces a dropped tunnel, and shows it either as a phone would or
  * as a desktop browser would, turned sideways to use the whole screen.
  */
-export function PreviewScreen({ port, name, onBack }: { port: number; name: string; onBack: () => void }) {
-  const [preview, setPreview] = useState<PreviewInfo | null>(null)
+const previewCache = new Map<number, PreviewInfo>()
+
+export function PreviewScreen({
+  port,
+  name,
+  onBack,
+  onGone,
+  onStopped,
+}: {
+  port: number
+  name: string
+  onBack: () => void
+  onGone?: () => void
+  onStopped?: () => void
+}) {
+  const [preview, setPreviewState] = useState<PreviewInfo | null>(() => previewCache.get(port) ?? null)
+  const setPreview = useCallback(
+    (next: PreviewInfo | null) => {
+      if (next?.url && next.state !== 'failed') previewCache.set(port, next)
+      setPreviewState(next)
+    },
+    [port],
+  )
+  const [pid, setPid] = useState(0)
+  const gone = useRef(onGone)
+  gone.current = onGone
+  const [stopping, setStopping] = useState(false)
+  const [stopArmed, confirmStop] = useArmed()
+  const stop = () => {
+    if (!pid || stopping || !confirmStop()) return
+    setStopping(true)
+    api
+      .devServerStop(pid, port)
+      .then(() => {
+        previewCache.delete(port)
+        onStopped?.()
+      })
+      .catch((e) => setError(message(e)))
+      .finally(() => setStopping(false))
+  }
   const [error, setError] = useState<string | null>(null)
   const [mode, setMode] = useState<'phone' | 'desktop'>('phone')
   const [levels, setLevels] = useState<{ phone: number; desktop: number }>({ ...DEFAULT_LEVEL })
@@ -248,9 +286,15 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
     try {
       const found = findServer(await api.servers(), port)
       if (!found) {
+        previewCache.delete(port)
+        if (gone.current) {
+          gone.current()
+          return
+        }
         setError(`Nothing is running on localhost:${port} any more.`)
         return
       }
+      setPid(found.pid)
       const p = found.preview
       // No tunnel, or a failed one: ask for a fresh one. Start is idempotent.
       if (!p || p.state === 'failed') {
@@ -263,12 +307,18 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
     } catch (e) {
       setError(message(e))
     }
-  }, [port])
+  }, [port, setPreview])
 
   useEffect(() => {
     api
       .previewStart(port)
-      .then((p) => setPreview((cur) => (cur?.state === 'live' ? cur : p)))
+      .then((p) =>
+        setPreviewState((cur) => {
+          const next = cur?.state === 'live' ? cur : p
+          if (next?.url && next.state !== 'failed') previewCache.set(port, next)
+          return next
+        }),
+      )
       .catch(() => undefined)
     void poll()
   }, [poll, port])
@@ -296,6 +346,7 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
             <GlassSegmented options={DEVICE_OPTIONS} value={mode} onChange={setMode} height={44} padding={0} gap={6} fill="var(--glass-control)" lensFill="rgba(var(--ink), 0.2)" />
           </div>
           <div className="topbar-end">
+            <BarButton icon={stopArmed ? Check : Square} label={stopArmed ? 'Tap again to stop the dev server' : 'Stop dev server'} onClick={stop} disabled={!pid || stopping} />
             <BarButton icon={RotateCw} label="Reload" onClick={() => setReloadKey((k) => k + 1)} disabled={!live} />
             <BarButton icon={SquareArrowOutUpRight} label="Open in browser" onClick={() => preview?.url && window.open(preview.url, '_blank', 'noopener,noreferrer')} disabled={!live} />
           </div>
