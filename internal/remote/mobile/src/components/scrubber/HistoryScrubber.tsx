@@ -3,6 +3,8 @@ import type { ThreadSummary } from '../../types'
 import { VelocityTracker, capture, prefersReducedMotion, springAt } from '../../ui'
 import { hapticTick } from '../../platform/haptics'
 import { useHiddenChats } from '../../hiddenChats'
+import { ModelStack } from '../../screens/drawer/ModelStack'
+import { relative } from '../../format'
 import { SCRUB, driftStarts, edgeDrift, gain, magnet, slotPose, tickLength } from './scrubMath'
 
 interface HistoryScrubberProps {
@@ -347,7 +349,11 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
                 aria-selected={c.threadId === currentId}
                 className="scrub-item"
               >
-                <span className="scrub-label">{c.title || c.preview || 'Untitled chat'}</span>
+                <ModelStack drivers={c.drivers && c.drivers.length > 0 ? c.drivers : c.driver ? [c.driver] : []} />
+                <span className="scrub-text">
+                  <span className="scrub-label">{c.title || c.preview || 'Untitled chat'}</span>
+                  <span className="scrub-meta">{[c.projectName || 'No project', relative(c.lastActivity)].filter(Boolean).join(' · ')}</span>
+                </span>
               </div>
             ))}
           </div>

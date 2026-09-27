@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bot, ChevronLeft, Loader2, Monitor, Play, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
+import { Bot, Check, ChevronLeft, Loader2, Minus, Monitor, Play, Plus, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
 import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary, SheetRow } from '../components/sheet'
@@ -7,11 +7,14 @@ import SiteCard from '../components/SiteCard'
 import { StatusCard } from '../components/status/StatusCard'
 import { api } from '../api'
 import { serversForThread } from '../servers'
+import { useLongPress } from '../hooks/useLongPress'
 import { message, send } from '../store'
 import type { DevServer, PreviewInfo } from '../types'
 
 /** Desktop mode renders the site at this width, like a laptop browser. */
-const DESKTOP_WIDTH = 1280
+const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600, 1920] as const
+const PHONE_FACTORS = [0.8, 0.9, 1, 1.15, 1.3, 1.5] as const
+const DEFAULT_LEVEL = { phone: 2, desktop: 1 } as const
 
 const DEVICE_OPTIONS = [
   { value: 'phone', label: 'Phone layout', icon: <Smartphone size={24} strokeWidth={ICON_STROKE} /> },
@@ -232,6 +235,13 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
   const [preview, setPreview] = useState<PreviewInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [mode, setMode] = useState<'phone' | 'desktop'>('phone')
+  const [levels, setLevels] = useState<{ phone: number; desktop: number }>({ ...DEFAULT_LEVEL })
+  const [adjusting, setAdjusting] = useState(false)
+  const [resolution, setResolution] = useState<{ w: number; h: number } | null>(null)
+  const hold = useLongPress(() => setAdjusting((a) => !a))
+  const steps = mode === 'desktop' ? DESKTOP_WIDTHS.length : PHONE_FACTORS.length
+  const level = levels[mode]
+  const shift = (by: number) => setLevels((l) => ({ ...l, [mode]: Math.max(0, Math.min(steps - 1, l[mode] + by)) }))
   const [reloadKey, setReloadKey] = useState(0)
 
   const poll = useCallback(async () => {
@@ -282,22 +292,42 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
       <header className="topbar preview-bar">
         <div className="topbar-row">
           <BarButton icon={ChevronLeft} label="Back" onClick={onBack} />
-          <GlassSegmented options={DEVICE_OPTIONS} value={mode} onChange={setMode} height={44} padding={0} gap={6} fill="var(--glass-control)" lensFill="rgba(var(--ink), 0.2)" />
+          <div className="preview-device" {...hold}>
+            <GlassSegmented options={DEVICE_OPTIONS} value={mode} onChange={setMode} height={44} padding={0} gap={6} fill="var(--glass-control)" lensFill="rgba(var(--ink), 0.2)" />
+          </div>
           <div className="topbar-end">
             <BarButton icon={RotateCw} label="Reload" onClick={() => setReloadKey((k) => k + 1)} disabled={!live} />
             <BarButton icon={SquareArrowOutUpRight} label="Open in browser" onClick={() => preview?.url && window.open(preview.url, '_blank', 'noopener,noreferrer')} disabled={!live} />
           </div>
         </div>
         <div className="preview-site">
-          <GlassPill height={30} fill="var(--glass-control)" className="preview-site-pill">
-            {name} · localhost:{port}
-          </GlassPill>
+          {adjusting ? (
+            <GlassPill height={36} fill="var(--glass-control)" className="preview-scale">
+              <button type="button" className="preview-scale-step" aria-label="Lower resolution" disabled={level === 0} onClick={() => shift(-1)}>
+                <Minus size={18} strokeWidth={ICON_STROKE} />
+              </button>
+              <button type="button" className="preview-scale-value" onClick={() => setLevels((l) => ({ ...l, [mode]: DEFAULT_LEVEL[mode] }))}>
+                {resolution ? `${resolution.w} × ${resolution.h}` : '…'}
+              </button>
+              <button type="button" className="preview-scale-step" aria-label="Higher resolution" disabled={level === steps - 1} onClick={() => shift(1)}>
+                <Plus size={18} strokeWidth={ICON_STROKE} />
+              </button>
+              <button type="button" className="preview-scale-step" aria-label="Done" onClick={() => setAdjusting(false)}>
+                <Check size={18} strokeWidth={ICON_STROKE} />
+              </button>
+            </GlassPill>
+          ) : (
+            <GlassPill height={30} fill="var(--glass-control)" className="preview-site-pill">
+              {name} · localhost:{port}
+              {resolution ? ` · ${resolution.w}×${resolution.h}` : ''}
+            </GlassPill>
+          )}
         </div>
       </header>
 
       <div className="preview-stage">
         {live ? (
-          <Frame key={`${preview!.url}-${reloadKey}`} url={preview!.url!} desktop={mode === 'desktop'} />
+          <Frame key={`${preview!.url}-${reloadKey}`} url={preview!.url!} desktop={mode === 'desktop'} level={level} onResolution={setResolution} />
         ) : (
           <div className="preview-wait">
             {error ? (
@@ -319,10 +349,20 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
 
 /**
  * The site itself. Phone mode fills the stage. Desktop mode lays the page out
- * at DESKTOP_WIDTH and scales it down; held upright, the frame is turned 90°
+ * at the chosen desktop width and scales it down; held upright, the frame is turned 90°
  * so the phone can be rotated to read a landscape desktop page full size.
  */
-function Frame({ url, desktop }: { url: string; desktop: boolean }) {
+function Frame({
+  url,
+  desktop,
+  level,
+  onResolution,
+}: {
+  url: string
+  desktop: boolean
+  level: number
+  onResolution: (r: { w: number; h: number }) => void
+}) {
   const stage = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
 
@@ -337,15 +377,17 @@ function Frame({ url, desktop }: { url: string; desktop: boolean }) {
   }, [])
 
   let style: React.CSSProperties = { width: '100%', height: '100%' }
+  let res = { w: Math.round(size.w), h: Math.round(size.h) }
   if (desktop && size.w > 0) {
+    const width = DESKTOP_WIDTHS[level] ?? DESKTOP_WIDTHS[DEFAULT_LEVEL.desktop]
     const portrait = size.h > size.w
-    // Upright phone: the long side becomes the page width.
     const across = portrait ? size.h : size.w
     const down = portrait ? size.w : size.h
-    const scale = across / DESKTOP_WIDTH
+    const scale = across / width
     const height = down / scale
+    res = { w: width, h: Math.round(height) }
     style = {
-      width: DESKTOP_WIDTH,
+      width,
       height,
       position: 'absolute',
       left: 0,
@@ -353,7 +395,25 @@ function Frame({ url, desktop }: { url: string; desktop: boolean }) {
       transformOrigin: '0 0',
       transform: portrait ? `translate(${size.w}px, 0) rotate(90deg) scale(${scale})` : `scale(${scale})`,
     }
+  } else if (size.w > 0) {
+    const factor = PHONE_FACTORS[level] ?? 1
+    res = { w: Math.round(size.w * factor), h: Math.round(size.h * factor) }
+    if (factor !== 1) {
+      style = {
+        width: size.w * factor,
+        height: size.h * factor,
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        transformOrigin: '0 0',
+        transform: `scale(${1 / factor})`,
+      }
+    }
   }
+
+  useEffect(() => {
+    if (res.w > 0) onResolution(res)
+  }, [res.w, res.h, onResolution])
 
   return (
     <div className="preview-frame" ref={stage}>

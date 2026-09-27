@@ -87,6 +87,12 @@ button.start-row:active { opacity: 0.6; }
 .preview.viewer { background: var(--chat-bg); }
 .preview-bar { position: relative; z-index: 3; }
 .preview-site { display: flex; justify-content: center; margin-top: 14px; }
+.preview-device { display: flex; -webkit-touch-callout: none; }
+.preview-scale { gap: 2px; padding: 0 4px; font: 500 14px/1 var(--font); color: var(--fg); }
+.preview-scale-step { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 16px; color: var(--fg); touch-action: manipulation; }
+.preview-scale-step:disabled { opacity: 0.35; }
+.preview-scale-step:active, .preview-scale-value:active { background: rgba(var(--ink), 0.08); }
+.preview-scale-value { min-width: 104px; height: 32px; padding: 0 8px; border-radius: 16px; font-variant-numeric: tabular-nums; color: var(--fg); }
 .preview-site-pill { padding: 0 14px; max-width: calc(100vw - 40px); font: 400 13px/1 var(--font); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .preview .preview-stage { margin-top: 14px; }
 
