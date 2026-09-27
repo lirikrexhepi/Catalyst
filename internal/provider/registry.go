@@ -19,6 +19,77 @@ type Registry struct {
 	// prefs persists settings between runs. Optional: without it the registry
 	// behaves exactly as before and every existing test stays valid.
 	prefs *Prefs
+
+	accounts *Accounts
+}
+
+func (r *Registry) UseAccounts(accounts *Accounts) {
+	r.mu.Lock()
+	r.accounts = accounts
+	r.cache = make(map[domain.DriverKind]domain.ProviderSnapshot, len(r.drivers))
+	r.mu.Unlock()
+}
+
+func (r *Registry) AccountStore() *Accounts {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.accounts
+}
+
+func (r *Registry) SupportsAccounts(kind domain.DriverKind) bool {
+	r.mu.RLock()
+	driver, ok := r.drivers[kind]
+	accounts := r.accounts
+	r.mu.RUnlock()
+	if !ok || accounts == nil {
+		return false
+	}
+	_, ok = driver.(AccountDriver)
+	return ok
+}
+
+func (r *Registry) Accounts(kind domain.DriverKind) []domain.Account {
+	if !r.SupportsAccounts(kind) {
+		return []domain.Account{{ID: domain.DefaultAccountID, Name: defaultAccountName}}
+	}
+	return r.AccountStore().List(kind)
+}
+
+func (r *Registry) Account(kind domain.DriverKind, id string) (domain.Account, bool) {
+	id = domain.NormalizeAccount(id)
+	for _, account := range r.Accounts(kind) {
+		if account.ID == id {
+			return account, true
+		}
+	}
+	return domain.Account{}, false
+}
+
+func (r *Registry) ResolveAccount(kind domain.DriverKind, preferred ...string) string {
+	for _, id := range preferred {
+		if id == "" {
+			continue
+		}
+		if _, ok := r.Account(kind, id); ok {
+			return domain.NormalizeAccount(id)
+		}
+	}
+	return domain.DefaultAccountID
+}
+
+func (r *Registry) LaunchSettings(kind domain.DriverKind, accountID string) (domain.ProviderSettings, error) {
+	r.mu.RLock()
+	driver, ok := r.drivers[kind]
+	settings := r.settings[kind]
+	r.mu.RUnlock()
+	if !ok {
+		return domain.ProviderSettings{}, fmt.Errorf("unknown provider %q", kind)
+	}
+	account, found := r.Account(kind, accountID)
+	if !found {
+		return domain.ProviderSettings{}, fmt.Errorf("%s account %q no longer exists", driver.DisplayName(), accountID)
+	}
+	return AccountSettings(settings, account, driver)
 }
 
 // UsePrefs attaches persistent storage and applies whatever was saved earlier,
@@ -87,14 +158,14 @@ func (r *Registry) SetSettings(kind domain.DriverKind, settings domain.ProviderS
 	return prefs.Set(kind, settings)
 }
 
-func (r *Registry) NewAdapter(kind domain.DriverKind, emit Emitter) (Adapter, error) {
-	r.mu.RLock()
-	driver, ok := r.drivers[kind]
-	settings := r.settings[kind]
-	r.mu.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("unknown provider %q", kind)
+func (r *Registry) NewAdapter(kind domain.DriverKind, accountID string, emit Emitter) (Adapter, error) {
+	settings, err := r.LaunchSettings(kind, accountID)
+	if err != nil {
+		return nil, err
 	}
+	r.mu.RLock()
+	driver := r.drivers[kind]
+	r.mu.RUnlock()
 	return driver.NewAdapter(settings, emit)
 }
 
@@ -133,7 +204,7 @@ func (r *Registry) probeOne(ctx context.Context, kind domain.DriverKind, force b
 	r.mu.RUnlock()
 
 	if !force && hasCached && time.Since(time.UnixMilli(cached.CheckedAt)) < snapshotTTL {
-		return cached
+		return r.withAccounts(kind, cached)
 	}
 
 	snapshot := driver.Probe(ctx, settings)
@@ -145,5 +216,13 @@ func (r *Registry) probeOne(ctx context.Context, kind domain.DriverKind, force b
 	r.mu.Lock()
 	r.cache[kind] = snapshot
 	r.mu.Unlock()
+	return r.withAccounts(kind, snapshot)
+}
+
+func (r *Registry) withAccounts(kind domain.DriverKind, snapshot domain.ProviderSnapshot) domain.ProviderSnapshot {
+	snapshot.Accounts = nil
+	if r.SupportsAccounts(kind) {
+		snapshot.Accounts = r.Accounts(kind)
+	}
 	return snapshot
 }

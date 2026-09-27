@@ -78,7 +78,7 @@ func (a *Adapter) binary() string {
 }
 
 func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput) (domain.Session, error) {
-	env := shell.Merge(shell.BaseEnvironment(), a.settings.Env)
+	env := provider.LaunchEnv(a.settings)
 	if _, ok := shell.LookPath(a.binary(), env); !ok {
 		return domain.Session{}, fmt.Errorf("%w: %s", process.ErrNotFound, a.binary())
 	}
@@ -209,7 +209,7 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 		Command: a.binary(),
 		Args:    a.buildArgs(s, prompt),
 		Cwd:     s.cwd,
-		Env:     shell.Merge(shell.BaseEnvironment(), a.settings.Env),
+		Env:     provider.LaunchEnv(a.settings),
 	})
 	if err != nil {
 		s.finishTurn()

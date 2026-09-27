@@ -5,10 +5,11 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
-const credentialsPath = ".claude/.credentials.json"
+const credentialsName = ".credentials.json"
 
 const credentialsKey = "claudeAiOauth"
 
@@ -29,14 +30,26 @@ type oauthCredentials struct {
 	SubscriptionType      string `json:"subscriptionType"`
 }
 
-func credentialsFile(home string) string {
-	return filepath.Join(home, filepath.FromSlash(credentialsPath))
+func configDir(home string) string {
+	return filepath.Join(home, ".claude")
+}
+
+func credentialsFile(dir string) string {
+	return filepath.Join(dir, credentialsName)
+}
+
+func usesKeychain(dir string) bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(filepath.Clean(dir), filepath.Clean(configDir(home)))
 }
 
 // loadCredentials returns what is stored without judging its age, so a caller
 // can decide between refreshing and giving up.
-func loadCredentials(home string) (*oauthCredentials, error) {
-	raw, err := readCredentialsBlob(home)
+func loadCredentials(dir string) (*oauthCredentials, error) {
+	raw, err := readCredentialsBlob(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -60,10 +73,13 @@ func loadCredentials(home string) (*oauthCredentials, error) {
 	return &credentials, nil
 }
 
-func readCredentialsBlob(home string) ([]byte, error) {
-	raw, err := os.ReadFile(credentialsFile(home))
+func readCredentialsBlob(dir string) ([]byte, error) {
+	raw, err := os.ReadFile(credentialsFile(dir))
 	if err == nil {
 		return raw, nil
+	}
+	if !usesKeychain(dir) {
+		return nil, errNoCredentials
 	}
 	raw, err = keychainCredentials()
 	if err != nil {
@@ -96,8 +112,8 @@ func refreshTokenUsable(credentials *oauthCredentials) bool {
 // Composer's, and it holds unrelated state such as MCP server tokens that must
 // survive. The write lands on a temporary file and is renamed into place, so a
 // crash mid-write cannot leave the CLI with a truncated credential store.
-func storeCredentials(home string, credentials *oauthCredentials) error {
-	raw, err := readCredentialsBlob(home)
+func storeCredentials(dir string, credentials *oauthCredentials) error {
+	raw, err := readCredentialsBlob(dir)
 	if err != nil {
 		return err
 	}
@@ -130,12 +146,15 @@ func storeCredentials(home string, credentials *oauthCredentials) error {
 	if err != nil {
 		return err
 	}
-	return writeCredentialsBlob(home, encoded)
+	return writeCredentialsBlob(dir, encoded)
 }
 
-func writeCredentialsBlob(home string, encoded []byte) error {
-	path := credentialsFile(home)
+func writeCredentialsBlob(dir string, encoded []byte) error {
+	path := credentialsFile(dir)
 	if _, err := os.Stat(path); err != nil {
+		if !usesKeychain(dir) {
+			return errNoCredentials
+		}
 		return storeKeychainCredentials(encoded)
 	}
 

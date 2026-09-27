@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useOrchestratorStore } from './useOrchestratorStore';
 import { LiquidGlass } from '../../liquid-glass';
@@ -6,6 +6,47 @@ import { ScrollArea } from '../common/ScrollArea';
 import { AIModel, CLIProvider } from './types';
 import { providerIcon } from './providerIcons';
 import { useTheme } from '../../themes';
+import { ActiveProject } from '../../../wailsjs/go/main/App';
+import { CLIAccount } from './types';
+
+interface AccountRowProps {
+  accounts: CLIAccount[];
+  selectedId: string;
+  onSelect: (accountId: string) => void;
+  isLight?: boolean;
+}
+
+const AccountRow: React.FC<AccountRowProps> = ({ accounts, selectedId, onSelect, isLight }) => (
+  <div className="flex flex-col gap-1 pt-0.5">
+    <span className={`px-1 text-[10px] font-semibold font-['Geist'] tracking-tight uppercase ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+      Account
+    </span>
+    <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Account">
+      {accounts.map((account) => {
+        const selected = account.id === selectedId;
+        return (
+          <button
+            key={account.id}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(account.id);
+            }}
+            className={`h-[26px] max-w-full px-2.5 rounded-[8px] border text-[12px] font-medium font-['Geist'] tracking-tight truncate transition-all duration-150 cursor-pointer active:scale-[0.97] ${
+              selected
+                ? 'bg-white/[0.12] border-white/[0.10] text-white'
+                : 'border-transparent text-white/60 hover:text-white hover:bg-white/[0.06]'
+            }`}
+          >
+            {account.name}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
 
 export interface ModelPickerProps {
   selectedModelId?: string;
@@ -93,6 +134,22 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       : store.selectedProviderId;
 
   const currentModels = store.getModelsForProvider(selectedProviderId);
+  const choosesAccount = propModelId === undefined && propProviderId === undefined;
+  const accounts = store.providers.find((p) => p.id === selectedProviderId)?.accounts ?? [];
+  const setAccountProject = store.setAccountProject;
+
+  useEffect(() => {
+    if (!choosesAccount) return;
+    let live = true;
+    ActiveProject()
+      .then((project) => {
+        if (live && project?.path) setAccountProject(project.path, project.accounts ?? {});
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [choosesAccount, setAccountProject]);
   const hasMoreThan5 = currentModels.length > 5;
   const selectedProviderIndex = store.providers.findIndex((p) => p.id === selectedProviderId);
 
@@ -147,6 +204,18 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
         scrollable={hasMoreThan5}
         isLight={isLight}
       />
+
+      {choosesAccount && accounts.length > 1 && (
+        <>
+          <div className="h-[1px] bg-white/[0.08] my-1.5 mx-1" />
+          <AccountRow
+            accounts={accounts}
+            selectedId={store.shownAccount(selectedProviderId)}
+            onSelect={(accountId) => store.selectAccount(selectedProviderId, accountId)}
+            isLight={isLight}
+          />
+        </>
+      )}
 
       {/* Divider */}
       {store.providers.length > 0 && <div className="h-[1px] bg-white/[0.08] my-1.5 mx-1" />}

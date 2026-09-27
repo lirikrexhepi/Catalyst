@@ -86,6 +86,7 @@ export interface ThreadSummary {
   title: string
   kind: 'coordinator' | 'agent'
   driver: string
+  account?: string
   drivers?: string[]
   model: string
   options?: ModelOptions
@@ -124,14 +125,21 @@ export interface ModelInfo {
   options?: OptionDescriptor[]
 }
 
+export interface AccountInfo {
+  id: string
+  name: string
+}
+
 export interface ProviderInfo {
   driver: string
   name: string
   models: ModelInfo[]
+  accounts?: AccountInfo[]
 }
 
 export interface ModelChoice {
   driver: string
+  account?: string
   model: string
   options?: ModelOptions
 }

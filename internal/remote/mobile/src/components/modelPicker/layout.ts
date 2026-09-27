@@ -5,6 +5,7 @@ export const PICKER = {
   row: 49,
   listGap: 25,
   bar: 64,
+  accounts: 50,
   barWidth: 325,
   barRadius: 24,
   barInset: 10,

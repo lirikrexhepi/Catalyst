@@ -256,6 +256,12 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   const projects = useProjects(useCallback(() => endSessionRef.current?.(), []));
   const composerFiles = useAttachments();
 
+  useEffect(() => {
+    if (projects.active?.path) {
+      useOrchestratorStore.getState().setAccountProject(projects.active.path, projects.active.accounts ?? {});
+    }
+  }, [projects.active]);
+
   const backgroundStyle = useMemo<React.CSSProperties>(
     () =>
       wallpaper.selected

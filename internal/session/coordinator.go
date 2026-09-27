@@ -37,6 +37,7 @@ type Coordinator struct {
 
 	mu         sync.Mutex
 	driver     domain.DriverKind
+	account    string
 	model      string
 	options    domain.ModelOptions
 	cwd        string
@@ -103,6 +104,7 @@ func (c *Coordinator) BindWorkspace(workspaceID string) string {
 // Config is the frontend-facing selection for the coordinator thread.
 type Config struct {
 	Driver     string                `json:"driver"`
+	Account    string                `json:"account,omitempty"`
 	Model      string                `json:"model,omitempty"`
 	Options    domain.ModelOptions   `json:"options,omitempty"`
 	Cwd        string                `json:"cwd,omitempty"`
@@ -191,10 +193,15 @@ func (c *Coordinator) ensureSession(ctx context.Context, cfg Config) error {
 		}
 	}
 
+	account, err := c.manager.ResolveAccount(driver, cwd, cfg.Account)
+	if err != nil {
+		return err
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.started && c.matches(driver, cfg, cwd) {
+	if c.started && c.matches(driver, account, cfg, cwd) {
 		return nil
 	}
 	if c.started {
@@ -215,6 +222,7 @@ func (c *Coordinator) ensureSession(ctx context.Context, cfg Config) error {
 
 	if _, err := c.manager.Start(ctx, driver, domain.SessionStartInput{
 		ThreadID:   CoordinatorThreadID,
+		Account:    account,
 		Cwd:        cwd,
 		Model:      cfg.Model,
 		Options:    cfg.Options,
@@ -224,7 +232,7 @@ func (c *Coordinator) ensureSession(ctx context.Context, cfg Config) error {
 		return err
 	}
 
-	c.driver, c.model, c.options, c.permission, c.cwd, c.started = driver, cfg.Model, cfg.Options, cfg.Permission, cwd, true
+	c.driver, c.account, c.model, c.options, c.permission, c.cwd, c.started = driver, account, cfg.Model, cfg.Options, cfg.Permission, cwd, true
 	c.primed = false
 	return nil
 }
@@ -238,13 +246,13 @@ func (c *Coordinator) CurrentConfig() (Config, bool) {
 		return Config{}, false
 	}
 	return Config{
-		Driver: string(c.driver), Model: c.model, Options: c.options,
+		Driver: string(c.driver), Account: c.account, Model: c.model, Options: c.options,
 		Cwd: c.cwd, Permission: c.permission,
 	}, true
 }
 
-func (c *Coordinator) matches(driver domain.DriverKind, cfg Config, cwd string) bool {
-	return c.driver == driver && c.model == cfg.Model && c.cwd == cwd &&
+func (c *Coordinator) matches(driver domain.DriverKind, account string, cfg Config, cwd string) bool {
+	return c.driver == driver && c.account == account && c.model == cfg.Model && c.cwd == cwd &&
 		c.permission == cfg.Permission &&
 		sameOptions(c.options, cfg.Options)
 }

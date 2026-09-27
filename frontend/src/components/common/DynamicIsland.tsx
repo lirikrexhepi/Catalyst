@@ -493,9 +493,15 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   }, [selectedProviderId, selectedModelId, activeTask?.model, usageReport]);
 
   // Driver usage data
+  const shownAccount = useOrchestratorStore((state) => state.shownAccount(driverName));
   const driverData = useMemo(() => {
-    return usageReport?.drivers?.find((d) => d.driver === driverName);
-  }, [usageReport, driverName]);
+    const entries = usageReport?.drivers?.filter((d) => d.driver === driverName) ?? [];
+    return (
+      entries.find((d) => (d.account || 'default') === shownAccount) ||
+      entries.find((d) => (d.account || 'default') === 'default') ||
+      entries[0]
+    );
+  }, [usageReport, driverName, shownAccount]);
 
   // Session limit (five_hour window)
   const sessionLimit = useMemo(() => {

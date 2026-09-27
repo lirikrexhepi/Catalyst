@@ -21,7 +21,7 @@ type Manager struct {
 	bus      *Bus
 
 	mu       sync.RWMutex
-	adapters map[domain.DriverKind]provider.Adapter
+	adapters map[adapterKey]provider.Adapter
 	// retired adapters were replaced after a settings change but may still own
 	// live sessions; they are stopped on shutdown.
 	retired  []provider.Adapter
@@ -32,6 +32,38 @@ type Manager struct {
 	// exactly as before, which keeps every existing test unchanged.
 	recorder Recorder
 	notes    TurnNotes
+
+	accountFor AccountResolver
+}
+
+type AccountResolver func(kind domain.DriverKind, cwd string) string
+
+type adapterKey struct {
+	driver  domain.DriverKind
+	account string
+}
+
+func (m *Manager) SetAccountResolver(resolve AccountResolver) {
+	m.mu.Lock()
+	m.accountFor = resolve
+	m.mu.Unlock()
+}
+
+func (m *Manager) ResolveAccount(kind domain.DriverKind, cwd, requested string) (string, error) {
+	if requested != "" {
+		if _, ok := m.registry.Account(kind, requested); !ok {
+			return "", fmt.Errorf("%s account %q no longer exists", domain.DriverLabel(kind), requested)
+		}
+		return domain.NormalizeAccount(requested), nil
+	}
+	m.mu.RLock()
+	resolve := m.accountFor
+	m.mu.RUnlock()
+	preferred := ""
+	if resolve != nil {
+		preferred = resolve(kind, cwd)
+	}
+	return m.registry.ResolveAccount(kind, preferred), nil
 }
 
 // Recorder receives events for durable storage. Implemented by the history
@@ -69,7 +101,7 @@ func NewManager(registry *provider.Registry) *Manager {
 	return &Manager{
 		registry: registry,
 		bus:      NewBus(),
-		adapters: make(map[domain.DriverKind]provider.Adapter),
+		adapters: make(map[adapterKey]provider.Adapter),
 		threads:  make(map[string]*record),
 		history:  make(map[string][]domain.RuntimeEvent),
 	}
@@ -92,9 +124,10 @@ func (m *Manager) SessionPID(threadID string) (int, bool) {
 	return reporter.SessionPID(threadID)
 }
 
-func (m *Manager) adapterFor(kind domain.DriverKind) (provider.Adapter, error) {
+func (m *Manager) adapterFor(kind domain.DriverKind, account string) (provider.Adapter, error) {
+	key := adapterKey{driver: kind, account: domain.NormalizeAccount(account)}
 	m.mu.RLock()
-	adapter, ok := m.adapters[kind]
+	adapter, ok := m.adapters[key]
 	m.mu.RUnlock()
 	if ok {
 		return adapter, nil
@@ -102,15 +135,15 @@ func (m *Manager) adapterFor(kind domain.DriverKind) (provider.Adapter, error) {
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if adapter, ok := m.adapters[kind]; ok {
+	if adapter, ok := m.adapters[key]; ok {
 		return adapter, nil
 	}
 
-	adapter, err := m.registry.NewAdapter(kind, provider.EmitterFunc(m.record))
+	adapter, err := m.registry.NewAdapter(kind, key.account, provider.EmitterFunc(m.record))
 	if err != nil {
 		return nil, err
 	}
-	m.adapters[kind] = adapter
+	m.adapters[key] = adapter
 	return adapter, nil
 }
 
@@ -119,10 +152,15 @@ func (m *Manager) record(event domain.RuntimeEvent) {
 	// Adapters report their own events and do not all know their driver kind, so
 	// the manager fills it in from the thread's session. Consumers that group by
 	// CLI (usage totals, diagnostics) depend on this being present.
-	if event.Driver == "" && event.ThreadID != "" {
+	if (event.Driver == "" || event.Account == "") && event.ThreadID != "" {
 		m.mu.RLock()
 		if entry, ok := m.threads[event.ThreadID]; ok {
-			event.Driver = entry.session.Driver
+			if event.Driver == "" {
+				event.Driver = entry.session.Driver
+			}
+			if event.Account == "" && event.Driver == entry.session.Driver {
+				event.Account = entry.session.Account
+			}
 		}
 		m.mu.RUnlock()
 	}
@@ -198,9 +236,12 @@ func (m *Manager) LastActivity(threadID string) int64 {
 func (m *Manager) ResetAdapter(kind domain.DriverKind) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if adapter, ok := m.adapters[kind]; ok {
+	for key, adapter := range m.adapters {
+		if key.driver != kind {
+			continue
+		}
 		m.retired = append(m.retired, adapter)
-		delete(m.adapters, kind)
+		delete(m.adapters, key)
 	}
 }
 
@@ -216,7 +257,13 @@ func (m *Manager) Start(ctx context.Context, kind domain.DriverKind, in domain.S
 		return domain.Session{}, fmt.Errorf("thread %s already has an active session", in.ThreadID)
 	}
 
-	adapter, err := m.adapterFor(kind)
+	account, err := m.ResolveAccount(kind, in.Cwd, in.Account)
+	if err != nil {
+		return domain.Session{}, err
+	}
+	in.Account = account
+
+	adapter, err := m.adapterFor(kind, account)
 	if err != nil {
 		return domain.Session{}, err
 	}
@@ -226,7 +273,7 @@ func (m *Manager) Start(ctx context.Context, kind domain.DriverKind, in domain.S
 	// map. Registering afterwards would leave those first events unattributed.
 	m.mu.Lock()
 	m.threads[in.ThreadID] = &record{
-		session: domain.Session{ThreadID: in.ThreadID, Driver: kind, Cwd: in.Cwd, Model: in.Model},
+		session: domain.Session{ThreadID: in.ThreadID, Driver: kind, Account: account, Cwd: in.Cwd, Model: in.Model},
 		adapter: adapter,
 		input:   in,
 	}
@@ -243,6 +290,7 @@ func (m *Manager) Start(ctx context.Context, kind domain.DriverKind, in domain.S
 	if session.Driver == "" {
 		session.Driver = kind
 	}
+	session.Account = account
 
 	m.mu.Lock()
 	m.threads[in.ThreadID] = &record{session: session, adapter: adapter, input: in, lastAt: time.Now().UnixMilli()}
@@ -471,7 +519,7 @@ func (m *Manager) StopAll(ctx context.Context) {
 	}
 	adapters = append(adapters, m.retired...)
 	m.retired = nil
-	m.adapters = make(map[domain.DriverKind]provider.Adapter)
+	m.adapters = make(map[adapterKey]provider.Adapter)
 	m.threads = make(map[string]*record)
 	m.mu.Unlock()
 

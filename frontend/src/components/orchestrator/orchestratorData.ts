@@ -13,6 +13,7 @@ export function toProvider(snapshot: domain.ProviderSnapshot): CLIProvider {
   return {
     id: snapshot.driver,
     name: snapshot.displayName,
+    accounts: (snapshot.accounts ?? []).map((account) => ({ id: account.id, name: account.name })),
     icon: providerIcon(snapshot.driver),
     availability: snapshot.availability,
     version: snapshot.version,

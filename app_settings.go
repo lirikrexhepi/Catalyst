@@ -18,7 +18,8 @@ import (
 // without an agent having to run first, and without waiting on a request.
 func (a *App) UsageReport() session.UsageReport {
 	a.refreshQuota()
-	return a.usage.Report()
+	a.refreshAccountQuotas(false)
+	return a.nameUsage(a.usage.Report())
 }
 
 // refreshQuota pulls limits from every CLI whose quota Composer can reach.
@@ -55,6 +56,7 @@ func (a *App) refreshQuota() {
 func (a *App) RefreshUsage() session.UsageReport {
 	a.quota.Invalidate()
 	a.opencodeQuota.Invalidate()
+	a.refreshAccountQuotas(true)
 	return a.UsageReport()
 }
 

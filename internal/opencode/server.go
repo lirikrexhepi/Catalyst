@@ -17,6 +17,7 @@ import (
 	"composer/internal/domain"
 	"composer/internal/logger"
 	"composer/internal/process"
+	"composer/internal/provider"
 	"composer/internal/shell"
 )
 
@@ -63,7 +64,7 @@ func startServer(ctx context.Context, settings domain.ProviderSettings, client *
 		[]string{"serve", "--hostname=" + defaultHostname, fmt.Sprintf("--port=%d", port), "--print-logs", "--log-level=INFO"},
 		shell.TokenizeArgs(settings.LaunchArgs)...,
 	)
-	env := shell.Merge(shell.BaseEnvironment(), settings.Env)
+	env := provider.LaunchEnv(settings)
 
 	procCwd := cwd
 	if procCwd == "" {

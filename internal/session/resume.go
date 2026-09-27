@@ -12,6 +12,7 @@ type ResumeRequest struct {
 	ThreadID string              `json:"threadId"`
 	Title    string              `json:"title"`
 	Driver   domain.DriverKind   `json:"driver"`
+	Account  string              `json:"account,omitempty"`
 	Model    string              `json:"model,omitempty"`
 	Options  domain.ModelOptions `json:"options,omitempty"`
 	// Cwd is where the task ran. A worktree that has since been merged away or
@@ -95,6 +96,7 @@ func (s *Spawner) resumeOne(ctx context.Context, request ResumeRequest) ResumeOu
 
 	start := domain.SessionStartInput{
 		ThreadID:   request.ThreadID,
+		Account:    domain.NormalizeAccount(request.Account),
 		Cwd:        cwd,
 		Model:      request.Model,
 		Options:    request.Options,

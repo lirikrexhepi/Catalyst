@@ -193,7 +193,7 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	}
 	in.Cwd = cwd
 
-	env := shell.Merge(shell.BaseEnvironment(), a.settings.Env)
+	env := provider.LaunchEnv(a.settings)
 	procCtx, cancel := context.WithCancel(context.Background())
 
 	proc, err := process.Start(procCtx, process.Spec{

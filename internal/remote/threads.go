@@ -19,6 +19,7 @@ import (
 // ModelChoice is the provider, model and options the phone picked for a send.
 type ModelChoice struct {
 	Driver  string              `json:"driver"`
+	Account string              `json:"account,omitempty"`
 	Model   string              `json:"model"`
 	Options domain.ModelOptions `json:"options,omitempty"`
 }
@@ -72,6 +73,7 @@ type ThreadSummary struct {
 	Title         string              `json:"title"`
 	Kind          string              `json:"kind"` // "coordinator" | "agent"
 	Driver        string              `json:"driver"`
+	Account       string              `json:"account,omitempty"`
 	Drivers       []string            `json:"drivers,omitempty"`
 	Model         string              `json:"model"`
 	Options       domain.ModelOptions `json:"options,omitempty"`
@@ -186,9 +188,9 @@ func (s *Server) threadSummaries() []ThreadSummary {
 
 	coord := ThreadSummary{ThreadID: session.CoordinatorThreadID, Title: "Orchestrator", Kind: "coordinator", Live: true}
 	if cfg, ok := s.coordinator.CurrentConfig(); ok {
-		coord.Driver, coord.Model, coord.Options, coord.Cwd = cfg.Driver, cfg.Model, cfg.Options, cfg.Cwd
+		coord.Driver, coord.Account, coord.Model, coord.Options, coord.Cwd = cfg.Driver, cfg.Account, cfg.Model, cfg.Options, cfg.Cwd
 	} else if cfg := s.orchestrator.LastConfig(); cfg.Driver != "" {
-		coord.Driver, coord.Model, coord.Options, coord.Cwd = cfg.Driver, cfg.Model, cfg.Options, cfg.Cwd
+		coord.Driver, coord.Account, coord.Model, coord.Options, coord.Cwd = cfg.Driver, cfg.Account, cfg.Model, cfg.Options, cfg.Cwd
 	}
 	coord.ProjectName = projectName(coord.Cwd)
 	events, _ := s.manager.HistorySnapshot(session.CoordinatorThreadID)
@@ -200,7 +202,7 @@ func (s *Server) threadSummaries() []ThreadSummary {
 	for _, agent := range s.orchestrator.ListAgents() {
 		row := ThreadSummary{
 			ThreadID: agent.ThreadID, Title: agent.Title, Kind: "agent",
-			Driver: string(agent.Driver), Model: agent.Model, State: agent.State,
+			Driver: string(agent.Driver), Account: agent.Account, Model: agent.Model, State: agent.State,
 			Cwd: agent.Cwd, ProjectCwd: agent.ProjectCwd, ProjectName: projectName(agent.ProjectCwd),
 			Branch: agent.Branch, Live: agent.Live,
 		}
@@ -230,7 +232,7 @@ func (s *Server) threadSummaries() []ThreadSummary {
 				row, ok := agents[task.ThreadID]
 				if !ok {
 					row = ThreadSummary{
-						ThreadID: task.ThreadID, Kind: "agent", Driver: string(task.Driver), Model: task.Model,
+						ThreadID: task.ThreadID, Kind: "agent", Driver: string(task.Driver), Account: domain.NormalizeAccount(task.Account), Model: task.Model,
 						Options: task.Options, State: task.State, Cwd: meta.Workspace.Cwd, ProjectCwd: meta.Workspace.Cwd,
 						ProjectName: projectName(meta.Workspace.Cwd),
 					}
@@ -321,10 +323,15 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 		Default bool                      `json:"default,omitempty"`
 		Options []domain.OptionDescriptor `json:"options,omitempty"`
 	}
+	type account struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
 	type provider struct {
-		Driver string  `json:"driver"`
-		Name   string  `json:"name"`
-		Models []model `json:"models"`
+		Driver   string    `json:"driver"`
+		Name     string    `json:"name"`
+		Models   []model   `json:"models"`
+		Accounts []account `json:"accounts,omitempty"`
 	}
 	out := make([]provider, 0)
 	for _, snap := range hooks.Providers(r.URL.Query().Get("refresh") == "1") {
@@ -334,6 +341,9 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 		p := provider{Driver: string(snap.Driver), Name: snap.DisplayName, Models: []model{}}
 		for _, m := range snap.Models {
 			p.Models = append(p.Models, model{ID: m.ID, Name: firstNonEmpty(m.DisplayName, m.ID), Default: m.Default, Options: m.Options})
+		}
+		for _, a := range snap.Accounts {
+			p.Accounts = append(p.Accounts, account{ID: a.ID, Name: a.Name})
 		}
 		out = append(out, p)
 	}
@@ -371,7 +381,7 @@ func (s *Server) handleThreadSend(w http.ResponseWriter, r *http.Request) {
 	if body.ThreadID == session.CoordinatorThreadID {
 		cfg := s.currentCoordinatorConfig()
 		if c := body.Choice; c != nil && c.Driver != "" {
-			cfg.Driver, cfg.Model, cfg.Options = c.Driver, c.Model, c.Options
+			cfg.Driver, cfg.Account, cfg.Model, cfg.Options = c.Driver, c.Account, c.Model, c.Options
 		}
 		s.orchestrator.Remember(cfg)
 		turnID, err := s.coordinator.SendWithContext(ctx, cfg, body.Text, SessionNote, body.Files)

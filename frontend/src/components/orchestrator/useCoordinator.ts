@@ -153,6 +153,7 @@ export function useCoordinator(options: CoordinatorOptions = {}): Coordinator {
       const turnId = await CoordinatorSendFiles(
         {
           driver: model.providerId,
+          account: useOrchestratorStore.getState().accountFor(model.providerId, project.path),
           model: model.id,
           options: toModelOptions(model, store.getCurrentModelSettings(model.id)),
           permissionMode: store.autoApprovePermissions ? 'bypassPermissions' : 'default',

@@ -20,6 +20,7 @@ type SpawnRequest struct {
 	Title   string              `json:"title"`
 	Prompt  string              `json:"prompt"`
 	Driver  domain.DriverKind   `json:"driver,omitempty"`
+	Account string              `json:"account,omitempty"`
 	Model   string              `json:"model,omitempty"`
 	Options domain.ModelOptions `json:"options,omitempty"`
 	// Cwd overrides the plan-wide directory, so a task naming another project
@@ -33,6 +34,7 @@ type SpawnRequest struct {
 // SpawnOptions carries the choices the user makes once per plan.
 type SpawnOptions struct {
 	Driver      domain.DriverKind     `json:"driver"`
+	Account     string                `json:"account,omitempty"`
 	Model       string                `json:"model,omitempty"`
 	Options     domain.ModelOptions   `json:"options,omitempty"`
 	Cwd         string                `json:"cwd"`
@@ -176,6 +178,14 @@ func (s *Spawner) spawnOne(
 	if model == "" {
 		model, options = opts.Model, opts.Options
 	}
+	requested := request.Account
+	if requested == "" && driver == opts.Driver {
+		requested = opts.Account
+	}
+	account, err := s.manager.ResolveAccount(driver, cwd, requested)
+	if err != nil {
+		return nil, err
+	}
 
 	workdir := cwd
 	var worktree *domain.Worktree
@@ -198,6 +208,7 @@ func (s *Spawner) spawnOne(
 		Title:    request.Title,
 		Prompt:   request.Prompt,
 		Driver:   driver,
+		Account:  account,
 		Model:    model,
 		Options:  options,
 		State:    domain.TaskRunning,
@@ -216,6 +227,7 @@ func (s *Spawner) spawnOne(
 
 	if _, err := s.manager.Start(ctx, driver, domain.SessionStartInput{
 		ThreadID:   threadID,
+		Account:    account,
 		Cwd:        workdir,
 		Model:      model,
 		Options:    options,

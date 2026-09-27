@@ -102,6 +102,7 @@ func (a *App) ResumeHistoryThread(workspaceID, threadID string) (session.ResumeR
 			ThreadID:          task.ThreadID,
 			Title:             task.Title,
 			Driver:            task.Driver,
+			Account:           task.Account,
 			Model:             task.Model,
 			Options:           task.Options,
 			Cwd:               cwd,

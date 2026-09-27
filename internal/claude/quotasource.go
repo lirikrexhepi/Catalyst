@@ -26,7 +26,8 @@ const quotaBudget = 25 * time.Second
 // why a signed-out or offline app still shows the last figures the CLI saw
 // rather than nothing.
 type QuotaSource struct {
-	home   string
+	fetch  func(ctx context.Context, client *http.Client) ([]domain.RateLimit, int64, error)
+	read   func() ([]domain.RateLimit, int64, error)
 	ttl    time.Duration
 	client *http.Client
 
@@ -53,7 +54,21 @@ func (s *QuotaSource) OnUpdate(notify func()) {
 
 func NewQuotaSource(home string) *QuotaSource {
 	return &QuotaSource{
-		home:   home,
+		fetch: func(ctx context.Context, client *http.Client) ([]domain.RateLimit, int64, error) {
+			return FetchQuota(ctx, home, client)
+		},
+		read:   func() ([]domain.RateLimit, int64, error) { return ReadQuota(home) },
+		ttl:    quotaTTL,
+		client: &http.Client{Timeout: quotaTimeout},
+	}
+}
+
+func NewAccountQuotaSource(dir string) *QuotaSource {
+	return &QuotaSource{
+		fetch: func(ctx context.Context, client *http.Client) ([]domain.RateLimit, int64, error) {
+			return FetchAccountQuota(ctx, dir, client)
+		},
+		read:   func() ([]domain.RateLimit, int64, error) { return ReadAccountQuota(dir) },
 		ttl:    quotaTTL,
 		client: &http.Client{Timeout: quotaTimeout},
 	}
@@ -67,7 +82,7 @@ func (s *QuotaSource) Snapshot() ([]domain.RateLimit, int64, error) {
 
 	if !s.seeded {
 		s.seeded = true
-		if limits, fetchedAt, err := ReadQuota(s.home); err == nil && len(limits) > 0 {
+		if limits, fetchedAt, err := s.read(); err == nil && len(limits) > 0 {
 			s.limits, s.fetchedAt = limits, fetchedAt
 		}
 	}
@@ -90,9 +105,9 @@ func (s *QuotaSource) refresh() {
 	ctx, cancel := context.WithTimeout(context.Background(), quotaBudget)
 	defer cancel()
 
-	limits, fetchedAt, err := FetchQuota(ctx, s.home, s.client)
+	limits, fetchedAt, err := s.fetch(ctx, s.client)
 	if err != nil {
-		if cached, cachedAt, cacheErr := ReadQuota(s.home); cacheErr == nil && len(cached) > 0 {
+		if cached, cachedAt, cacheErr := s.read(); cacheErr == nil && len(cached) > 0 {
 			s.store(cached, cachedAt, err)
 			return
 		}

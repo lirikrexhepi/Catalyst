@@ -112,8 +112,11 @@ func FetchQuota(ctx context.Context, home string, client *http.Client) ([]domain
 	if err != nil {
 		return nil, 0, err
 	}
+	return FetchAccountQuota(ctx, configDir(home), client)
+}
 
-	credentials, err := usableCredentials(ctx, home, client)
+func FetchAccountQuota(ctx context.Context, dir string, client *http.Client) ([]domain.RateLimit, int64, error) {
+	credentials, err := usableCredentials(ctx, dir, client)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -164,8 +167,15 @@ func ReadQuota(home string) ([]domain.RateLimit, int64, error) {
 	if err != nil {
 		return nil, 0, err
 	}
+	return readQuotaFile(filepath.Join(home, quotaFile))
+}
 
-	raw, err := os.ReadFile(filepath.Join(home, quotaFile))
+func ReadAccountQuota(dir string) ([]domain.RateLimit, int64, error) {
+	return readQuotaFile(filepath.Join(dir, quotaFile))
+}
+
+func readQuotaFile(path string) ([]domain.RateLimit, int64, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, 0, err
 	}
