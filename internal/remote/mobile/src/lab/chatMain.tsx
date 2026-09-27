@@ -21,6 +21,7 @@ import Feed from '../feed/Feed'
 import { WifiOff } from 'lucide-react'
 import { StatusPill } from '../components/status/StatusPill'
 import type { AgentStreamBlock } from '../feed/types'
+import { useDrawer } from '../screens/shell/useDrawer'
 
 const ASK_BLOCKS = [
   {
@@ -47,8 +48,24 @@ const ASK_BLOCKS = [
 trackVisualViewport()
 initTheme()
 
+function SwipeShell() {
+  const { shell, open, covered, setOpen, handlers } = useDrawer()
+  return (
+    <div className="shell" ref={shell} {...handlers}>
+      <nav className="drawer" aria-hidden={!open}>
+        <Drawer current="lab-1" project={null} go={() => setOpen(false)} openProject={() => undefined} />
+      </nav>
+      <main className="main">
+        <Chat threadId="lab-thread" openDrawer={() => setOpen(true)} go={() => undefined} />
+        {covered ? <div className="main-cover" role="button" aria-label="Close menu" onClick={() => setOpen(false)} /> : null}
+      </main>
+    </div>
+  )
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
+    {location.hash === '#swipe' ? <SwipeShell /> : (
     <div className="shell" style={location.hash === '#drawer' ? ({ '--p': 1 } as CSSProperties) : undefined}>
       {location.hash === '#drawer' ? (
         <nav className="drawer">
@@ -67,5 +84,6 @@ createRoot(document.getElementById('root')!).render(
         {location.hash === '#preview' ? <PreviewScreen port={5173} name="Configurator" onBack={() => undefined} /> : null}
       </main>
     </div>
+    )}
   </StrictMode>,
 )

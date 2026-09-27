@@ -11,6 +11,7 @@ export const SPRINGS = {
   follow: { damping: 0.9, response: 0.2 },
   bouncy: { damping: 0.8, response: 0.38 },
   sheet: { damping: 0.8, response: 0.3 },
+  drawer: { damping: 0.84, response: 0.46 },
 } as const satisfies Record<string, SpringConfig>
 
 export interface SpringState {

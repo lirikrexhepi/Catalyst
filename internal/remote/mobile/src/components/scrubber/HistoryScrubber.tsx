@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { ThreadSummary } from '../../types'
-import { capture, prefersReducedMotion } from '../../ui'
+import { VelocityTracker, capture, prefersReducedMotion, springAt } from '../../ui'
 import { hapticTick } from '../../platform/haptics'
 import { useHiddenChats } from '../../hiddenChats'
-import { SCRUB, driftSpeed, slotPose, tickLength } from './scrubMath'
+import { SCRUB, driftStarts, edgeDrift, gain, magnet, slotPose, tickLength } from './scrubMath'
 
 interface HistoryScrubberProps {
   chats: ThreadSummary[]
@@ -17,19 +17,27 @@ interface Gesture {
   y0: number
   x: number
   y: number
+  lastY: number
   frameTop: number
+  driftUp: number
+  driftDown: number
   timer: number
   active: boolean
   done: boolean
+  raw: number
   focus: number
+  velocity: number
+  max: number
   center: number
   armed: boolean
   armness: number
   armDistance: number
   last: number
+  lastMove: number
   raf: number
   rounded: number
   hapticDue: boolean
+  tracker: VelocityTracker
 }
 
 interface Session {
@@ -46,6 +54,10 @@ function recent(chats: ThreadSummary[], hidden: ReadonlySet<string>): ThreadSumm
     .slice()
     .sort((a, b) => (b.lastActivity ?? 0) - (a.lastActivity ?? 0))
     .slice(0, SCRUB.maxChats)
+}
+
+function clampRaw(raw: number, max: number): number {
+  return Math.min(max + SCRUB.overscroll, Math.max(-SCRUB.overscroll, raw))
 }
 
 function cssPx(el: Element, name: string): number {
@@ -87,32 +99,44 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
     })
   }, [])
 
+  const advance = useCallback((g: Gesture, now: number) => {
+    const dt = Math.min(0.05, Math.max(0, (now - g.last) / 1000))
+    g.last = now
+    const drift = g.armed ? 0 : edgeDrift(g.y, g.driftUp, g.driftDown)
+    if (drift !== 0) {
+      g.raw = clampRaw(g.raw + drift * dt, g.max)
+      g.lastMove = now
+    }
+    const idle = now - g.lastMove > SCRUB.idleMs
+    if (idle) g.raw = Math.min(g.max, Math.max(0, Math.round(g.raw)))
+    const speed = Math.abs(g.tracker.velocity().y) + Math.abs(drift) * SCRUB.pxPerChat
+    const target = idle ? g.raw : magnet(g.raw, speed, g.max)
+    if (dt > 0) {
+      const s = springAt(g.focus, target, g.velocity, idle ? SCRUB.settle : SCRUB.follow, dt)
+      g.focus = s.value
+      g.velocity = s.velocity
+      if (Math.abs(target - g.focus) < 0.0005 && Math.abs(g.velocity) < 0.005) {
+        g.focus = target
+        g.velocity = 0
+      }
+      g.armness += ((g.armed ? 1 : 0) - g.armness) * (1 - Math.exp(-dt * 16))
+    }
+    const rounded = Math.round(target)
+    if (rounded !== g.rounded) {
+      g.rounded = rounded
+      g.hapticDue = true
+    }
+  }, [])
+
   const tick = useCallback(
     (now: number) => {
       const g = gesture.current
-      const s = sessionRef.current
-      if (!g || !s || !g.active || g.done) return
-      const dt = Math.min(0.05, (now - g.last) / 1000)
-      g.last = now
-      const speed = g.armed ? 0 : driftSpeed(g.y - g.y0)
-      const max = s.chats.length - 1
-      if (speed !== 0) {
-        g.focus = Math.min(max, Math.max(0, g.focus + speed * dt))
-      } else {
-        const target = Math.round(g.focus)
-        g.focus += (target - g.focus) * (1 - Math.exp(-dt * SCRUB.settle))
-        if (Math.abs(target - g.focus) < 0.001) g.focus = target
-      }
-      g.armness += ((g.armed ? 1 : 0) - g.armness) * (1 - Math.exp(-dt * 16))
-      const rounded = Math.round(g.focus)
-      if (rounded !== g.rounded) {
-        g.rounded = rounded
-        g.hapticDue = true
-      }
+      if (!g || !sessionRef.current || !g.active || g.done) return
+      advance(g, now)
       render()
       g.raf = requestAnimationFrame(tick)
     },
-    [render],
+    [advance, render],
   )
 
   const fadeAndClose = (ms: number, then?: () => void) => {
@@ -157,18 +181,28 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
     const pool = recent(latest.current.chats, latest.current.hidden)
     if (pool.length === 0) {
       gesture.current = null
+      zone.current?.classList.remove('active')
       return
     }
     const rect = frameEl.getBoundingClientRect()
-    const top = cssPx(frameEl, '--head-h') + SCRUB.step * 2.3
-    const bottom = rect.height - cssPx(frameEl, '--dock-h') - SCRUB.step * 2.3
-    const found = pool.findIndex((c) => c.threadId === latest.current.currentId)
-    g.focus = Math.max(0, found)
-    g.rounded = Math.round(g.focus)
+    const head = cssPx(frameEl, '--head-h')
+    const dock = rect.height - cssPx(frameEl, '--dock-h')
+    const top = head + SCRUB.step * 2.3
+    const bottom = dock - SCRUB.step * 2.3
+    const found = Math.max(0, pool.findIndex((c) => c.threadId === latest.current.currentId))
+    g.max = pool.length - 1
+    g.raw = found
+    g.focus = found
+    g.velocity = 0
+    g.rounded = found
+    const drift = driftStarts(g.y0, head, dock)
+    g.driftUp = drift.up
+    g.driftDown = drift.down
     g.center = Math.min(Math.max(g.y0, top), Math.max(top, bottom))
     g.armDistance = Math.max(SCRUB.armMin, window.innerWidth * SCRUB.armFraction)
+    g.last = performance.now()
+    g.lastMove = g.last
     g.active = true
-    zone.current?.classList.add('active')
     setSession({ chats: pool, focus0: g.focus })
   }
 
@@ -186,8 +220,7 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
       ],
       { duration: 260, easing: EASE },
     )
-    g.last = performance.now()
-    g.raf = requestAnimationFrame(tick)
+    if (!g.raf) g.raf = requestAnimationFrame(tick)
   }, [session, render, tick])
 
   useEffect(() => {
@@ -215,26 +248,38 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
     if (gesture.current || !e.isPrimary) return
     const frameEl = zone.current?.closest('.chat-frame')
     const top = frameEl ? frameEl.getBoundingClientRect().top : 0
+    const y = e.clientY - top
     capture(e.currentTarget, e.pointerId)
+    zone.current?.classList.add('active')
+    const tracker = new VelocityTracker()
+    tracker.reset(0, y)
     gesture.current = {
       pointer: e.pointerId,
       x0: e.clientX,
-      y0: e.clientY - top,
+      y0: y,
       x: e.clientX,
-      y: e.clientY - top,
+      y,
+      lastY: y,
       frameTop: top,
+      driftUp: 0,
+      driftDown: 0,
       timer: window.setTimeout(activate, SCRUB.hold),
       active: false,
       done: false,
+      raw: 0,
       focus: 0,
+      velocity: 0,
+      max: 0,
       center: 0,
       armed: false,
       armness: 0,
       armDistance: SCRUB.armMin,
       last: 0,
+      lastMove: 0,
       raf: 0,
       rounded: 0,
       hapticDue: false,
+      tracker,
     }
   }
 
@@ -243,18 +288,27 @@ export function HistoryScrubber({ chats, currentId, onPick }: HistoryScrubberPro
     if (!g || e.pointerId !== g.pointer || g.done) return
     const y = e.clientY - g.frameTop
     if (!g.active) {
-      if (Math.hypot(e.clientX - g.x0, y - g.y0) > SCRUB.slop) {
-        stop(g)
-        gesture.current = null
-      }
-      return
+      if (Math.hypot(e.clientX - g.x0, y - g.y0) < SCRUB.slop) return
+      window.clearTimeout(g.timer)
+      activate()
+      if (gesture.current !== g || !g.active) return
     }
+    const now = performance.now()
     g.x = e.clientX
     g.y = y
+    g.tracker.push(0, y)
+    const dy = y - g.lastY
+    g.lastY = y
+    if (!g.armed && dy !== 0) {
+      g.raw = clampRaw(g.raw + (dy / SCRUB.pxPerChat) * gain(Math.abs(g.tracker.velocity().y)), g.max)
+      g.lastMove = now
+    }
     const dx = g.x0 - g.x
     const wasArmed = g.armed
     if (!g.armed && dx >= g.armDistance) g.armed = true
     else if (g.armed && dx < g.armDistance * SCRUB.disarmRatio) g.armed = false
+    advance(g, now)
+    render()
     if (g.armed !== wasArmed || g.hapticDue) {
       g.hapticDue = false
       hapticTick()

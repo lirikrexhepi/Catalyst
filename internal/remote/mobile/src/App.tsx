@@ -8,9 +8,8 @@ import Chat from './screens/Chat'
 import ProjectScreen from './screens/Project'
 import { useDrawer } from './screens/shell/useDrawer'
 import { PcDownNotice } from './components/status/PcDownNotice'
-import { NavCue, type Cue } from './screens/shell/NavCue'
-import { classifyNavigation, initHistoryIndex } from './platform/historyDirection'
 import { setChromeSurface } from './theme'
+import { replaceRoute } from './platform/route'
 
 /** #/t/<threadId> opens a conversation; anything else is a new chat. */
 function routeFromHash(): string | null {
@@ -28,7 +27,6 @@ export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null | 'offline'>(() => (getToken() ? true : null))
   const [threadId, setThreadId] = useState<string | null>(routeFromHash())
   const [project, setProject] = useState<string | null>(projectFromHash())
-  const [cue, setCue] = useState<Cue | null>(null)
 
   const probe = useCallback(() => {
     const token = getToken()
@@ -82,21 +80,16 @@ export default function App() {
       const data = event.data as { type?: string; url?: string } | null
       if (data?.type !== 'open' || !data.url) return
       const target = new URL(data.url, window.location.origin)
-      window.location.hash = target.hash
+      replaceRoute(target.hash)
     }
     navigator.serviceWorker.addEventListener('message', onMessage)
     return () => navigator.serviceWorker.removeEventListener('message', onMessage)
   }, [])
 
   useEffect(() => {
-    initHistoryIndex()
     const onHash = () => {
-      const direction = classifyNavigation()
-      const nextThread = routeFromHash()
-      const nextProject = projectFromHash()
-      setThreadId(nextThread)
-      setProject(nextProject)
-      if (direction !== 'push') setCue((c) => ({ key: (c?.key ?? 0) + 1, direction, threadId: nextThread, project: nextProject }))
+      setThreadId(routeFromHash())
+      setProject(projectFromHash())
     }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
@@ -104,10 +97,10 @@ export default function App() {
 
   if (authenticated === null) return <div className="screen" />
   if (authenticated === false) return <AuthScreen onDone={checkAuth} />
-  return <Shell threadId={threadId} project={project} cue={cue} />
+  return <Shell threadId={threadId} project={project} />
 }
 
-function Shell({ threadId, project, cue }: { threadId: string | null; project: string | null; cue: Cue | null }) {
+function Shell({ threadId, project }: { threadId: string | null; project: string | null }) {
   const { shell, open, covered, setOpen, handlers } = useDrawer()
 
   useEffect(() => {
@@ -117,14 +110,14 @@ function Shell({ threadId, project, cue }: { threadId: string | null; project: s
 
   const go = useCallback(
     (id: string | null) => {
-      window.location.hash = id ? `#/t/${encodeURIComponent(id)}` : '#/new'
+      replaceRoute(id ? `#/t/${encodeURIComponent(id)}` : '#/new')
       setOpen(false)
     },
     [setOpen],
   )
   const openProject = useCallback(
     (path: string) => {
-      window.location.hash = `#/p/${encodeURIComponent(path)}`
+      replaceRoute(`#/p/${encodeURIComponent(path)}`)
       setOpen(false)
     },
     [setOpen],
@@ -142,7 +135,6 @@ function Shell({ threadId, project, cue }: { threadId: string | null; project: s
           <Chat key={threadId ?? 'new'} threadId={threadId} openDrawer={() => setOpen(true)} go={go} />
         )}
         {project ? <PcDownNotice /> : null}
-        <NavCue cue={cue} />
         {covered ? <div className="main-cover" role="button" aria-label="Close menu" onClick={() => setOpen(false)} /> : null}
       </main>
     </div>

@@ -14,9 +14,10 @@ import './styles/settings.css'
 import App from './App'
 import { trackVisualViewport } from './platform/viewport'
 import { installSpringEasing } from './ui/motion/springEasing'
+import { SPRINGS } from './ui/motion/spring'
 
 trackVisualViewport()
-installSpringEasing('ease-drawer', { damping: 0.84, response: 0.46 })
+installSpringEasing('ease-drawer', SPRINGS.drawer)
 
 initTheme()
 
