@@ -50,12 +50,15 @@ type Server struct {
 	notifier     *Notifier
 	presence     map[*websocket.Conn]clientPresence
 	cancelNotify func()
+	awake        awakeHold
+	awakeStop    chan struct{}
 }
 
 type clientPresence struct {
-	threadID string
-	visible  bool
-	at       time.Time
+	threadID  string
+	visible   bool
+	keepAwake bool
+	at        time.Time
 }
 
 func NewServer(
@@ -134,6 +137,9 @@ func (s *Server) Start(ctx context.Context) error {
 	s.cancelNotify = cancelNotify
 	go s.notifier.Run(notifyEvents)
 
+	s.awakeStop = make(chan struct{})
+	go s.watchAwake(s.awakeStop)
+
 	// Publish through Tailscale Funnel for stable worldwide access
 	go s.tunnel.KeepPublicTunnel(ctx)
 
@@ -163,6 +169,12 @@ func (s *Server) Stop() {
 	}
 
 	s.tunnel.Stop()
+
+	if s.awakeStop != nil {
+		close(s.awakeStop)
+		s.awakeStop = nil
+	}
+	s.applyAwake(false)
 
 	if s.previews != nil {
 		s.previews.StopAll()
@@ -614,6 +626,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		delete(s.clients, conn)
 		delete(s.presence, conn)
 		s.mu.Unlock()
+		s.updateAwake()
 		_ = conn.Close()
 	}()
 
@@ -628,8 +641,9 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 		if msg.Action == "presence" {
 			s.mu.Lock()
-			s.presence[conn] = clientPresence{threadID: msg.ThreadID, visible: msg.Visible, at: time.Now()}
+			s.presence[conn] = clientPresence{threadID: msg.ThreadID, visible: msg.Visible, keepAwake: msg.KeepAwake, at: time.Now()}
 			s.mu.Unlock()
+			s.updateAwake()
 			continue
 		}
 		s.handleClientAction(msg)

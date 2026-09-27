@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Power, Unplug } from 'lucide-react'
+import { Coffee, Power, Unplug } from 'lucide-react'
 import { SheetList, SheetNote, SheetRow, useArmed } from '../../components/sheet'
 import { api, getBase, setBase, setToken } from '../../api'
 import { useStore } from '../../store'
+import { GlassSwitch } from '../../ui'
+import { setKeepAwake, useKeepAwake } from '../../keepAwake'
 
 export function PcSection() {
   const connection = useStore((s) => s.connection)
@@ -11,6 +13,7 @@ export function PcSection() {
   const [power, setPower] = useState<'idle' | 'sending' | 'done' | string>('idle')
   const [shutdownArmed, confirmShutdown] = useArmed()
   const [disconnectArmed, confirmDisconnect] = useArmed()
+  const keepAwake = useKeepAwake()
 
   useEffect(() => {
     api
@@ -42,6 +45,18 @@ export function PcSection() {
 
   return (
     <>
+      <SheetList>
+        <SheetRow
+          icon={Coffee}
+          label="Keep awake while open"
+          trailing={<GlassSwitch label="Keep the PC awake while this app is open" checked={keepAwake} onChange={setKeepAwake} />}
+        />
+      </SheetList>
+      <SheetNote>
+        {keepAwake
+          ? "The PC won't sleep or hibernate while this app is open. Once you close it, the PC's usual sleep settings apply, and the phone can't wake it."
+          : "The PC follows its usual sleep settings, and the phone can't wake it."}
+      </SheetNote>
       <SheetList>
         {canPowerOff ? (
           <SheetRow icon={Power} label={powerLabel} tone="danger" disabled={power === 'sending' || power === 'done'} onClick={shutdown} />

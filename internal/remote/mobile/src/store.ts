@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { logConnection } from './connectionLog'
+import { keepAwakeEnabled, onKeepAwakeChange } from './keepAwake'
 import { api, getBase, getToken } from './api'
 import { reduceEvent, userBlock } from './feed/reducer'
 import { readLocal, readThread, writeLocal, writeThread } from './cache'
@@ -533,7 +534,9 @@ let presenceThread = ''
 function sendPresence() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return
   try {
-    socket.send(JSON.stringify({ action: 'presence', threadId: presenceThread, visible: document.visibilityState === 'visible' }))
+    socket.send(
+      JSON.stringify({ action: 'presence', threadId: presenceThread, visible: document.visibilityState === 'visible', keepAwake: keepAwakeEnabled() }),
+    )
   } catch {
     return
   }
@@ -578,6 +581,7 @@ export function startSync() {
     if (document.visibilityState === 'visible') sendPresence()
   }, 10000)
   document.addEventListener('visibilitychange', sendPresence)
+  onKeepAwakeChange(sendPresence)
   window.addEventListener('pagehide', sendPresence)
   // iOS suspends sockets in the background; reconnect the moment we return.
   document.addEventListener('visibilitychange', () => {
