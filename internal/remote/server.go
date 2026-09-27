@@ -71,7 +71,7 @@ func NewServer(
 	if port <= 0 {
 		port = 4545
 	}
-	return &Server{
+	s := &Server{
 		port:         port,
 		auth:         NewAuthManager(),
 		tunnel:       NewTunnelManager(port),
@@ -92,6 +92,8 @@ func NewServer(
 			},
 		},
 	}
+	s.previews.funnelBase = s.publicURL
+	return s
 }
 
 func (s *Server) Start(ctx context.Context) error {
@@ -250,6 +252,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/servers", s.requireAuth(s.handleServers))
 	mux.HandleFunc("/api/preview/start", s.requireAuth(s.handlePreviewStart))
 	mux.HandleFunc("/api/preview/stop", s.requireAuth(s.handlePreviewStop))
+	mux.HandleFunc("/api/devserver/start", s.requireAuth(s.handleDevServerStart))
+	mux.HandleFunc("/api/devserver/status", s.requireAuth(s.handleDevServerStatus))
 	mux.HandleFunc("/api/ws", s.handleWebSocket)
 	mux.HandleFunc("/api/system/shutdown", s.requireAuth(s.handleSystemShutdown))
 	mux.HandleFunc("/api/push/key", s.requireAuth(s.handlePushKey))

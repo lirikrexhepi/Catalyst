@@ -4,9 +4,10 @@ import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
 import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary } from '../components/sheet'
 import SiteCard from '../components/SiteCard'
+import { StatusCard } from '../components/status/StatusCard'
 import { api } from '../api'
 import { serversForThread } from '../servers'
-import { message, send } from '../store'
+import { message } from '../store'
 import type { DevServer, PreviewInfo } from '../types'
 
 /** Desktop mode renders the site at this width, like a laptop browser. */
@@ -17,32 +18,27 @@ const DEVICE_OPTIONS = [
   { value: 'desktop', label: 'Desktop layout', icon: <Monitor size={24} strokeWidth={ICON_STROKE} /> },
 ] as const
 
-const START_PROMPT =
-  "Start this project's dev server so I can preview it. Run it in the background so it keeps running after your turn, " +
-  "don't wait on it, and reply with the local URL it listens on."
+const START_TIMEOUT_MS = 120_000
+const START_POLL_MS = 600
 
 function findServer(groups: { servers: DevServer[] }[], port: number): DevServer | undefined {
   for (const g of groups) for (const s of g.servers) if (s.port === port) return s
   return undefined
 }
 
-/**
- * The Play button's flow. One dev server for this chat opens straight away;
- * otherwise a picker lists this chat's servers, the rest of the PC's, and can
- * ask the agent to start one and then waits for it to appear.
- */
-export function PreviewLauncher({ threadId, canAsk, onClose, onOpen }: {
+export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
   threadId: string | null
-  canAsk: boolean
+  cwd?: string
   onClose: () => void
   onOpen: (server: DevServer) => void
 }) {
   const [mine, setMine] = useState<DevServer[]>([])
   const [others, setOthers] = useState<DevServer[]>([])
   const [loaded, setLoaded] = useState(false)
-  const [waiting, setWaiting] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const first = useRef(true)
+  const canStart = Boolean(threadId || cwd)
 
   const load = useCallback(async () => {
     try {
@@ -52,36 +48,41 @@ export function PreviewLauncher({ threadId, canAsk, onClose, onOpen }: {
       const rest = groups.flatMap((g) => g.servers).filter((s) => !ownPorts.has(s.port))
       setMine(own)
       setOthers(rest)
-      setError(null)
-      // The common case skips the picker: exactly one site for this chat.
       if (first.current && own.length === 1) onOpen(own[0])
-      if (waiting && own.length > 0) {
-        setWaiting(false)
-        onOpen(own[0])
-      }
     } catch (e) {
       setError(message(e))
     } finally {
       first.current = false
       setLoaded(true)
     }
-  }, [threadId, waiting, onOpen])
+  }, [threadId, onOpen])
 
   useEffect(() => {
     void load()
-    const id = window.setInterval(() => void load(), waiting ? 2500 : 8000)
+    const id = window.setInterval(() => void load(), 8000)
     return () => window.clearInterval(id)
-  }, [load, waiting])
+  }, [load])
 
-  const ask = async () => {
-    if (!threadId) return
+  const start = async () => {
     setError(null)
+    setStarting(true)
     try {
-      await send(threadId, START_PROMPT)
-      setWaiting(true)
+      let server = await api.startDevServer(threadId ? { threadId, cwd } : { cwd })
+      const deadline = Date.now() + START_TIMEOUT_MS
+      while (!server.port && server.status === 'running' && Date.now() < deadline) {
+        await new Promise((r) => window.setTimeout(r, START_POLL_MS))
+        server = await api.devServer(server.id)
+      }
+      if (server.port) {
+        onOpen({ pid: 0, port: server.port, name: server.name, kind: 'dev', ownerThreadId: threadId ?? undefined })
+        return
+      }
+      const last = server.log?.filter((l) => l.trim()).pop()
+      setError(server.status === 'running' ? 'The dev server has not reported a port yet.' : last || 'The dev server stopped while starting.')
     } catch (e) {
       setError(message(e))
     }
+    setStarting(false)
   }
 
   return (
@@ -94,10 +95,10 @@ export function PreviewLauncher({ threadId, canAsk, onClose, onOpen }: {
           ))}
         </SheetList>
       ) : null}
-      {loaded && mine.length === 0 && threadId ? (
-        <SheetPrimary disabled={!canAsk || waiting} onClick={() => void ask()}>
-          {waiting ? <Loader2 size={20} className="spin" aria-hidden /> : <Play size={20} strokeWidth={ICON_STROKE} aria-hidden />}
-          <span>{waiting ? 'Starting dev server' : 'Start dev server'}</span>
+      {loaded && mine.length === 0 && canStart ? (
+        <SheetPrimary disabled={starting} onClick={() => void start()}>
+          {starting ? <Loader2 size={20} className="spin" aria-hidden /> : <Play size={20} strokeWidth={ICON_STROKE} aria-hidden />}
+          <span>{starting ? 'Starting dev server' : 'Start dev server'}</span>
         </SheetPrimary>
       ) : null}
       {loaded && others.length > 0 ? (
@@ -110,7 +111,7 @@ export function PreviewLauncher({ threadId, canAsk, onClose, onOpen }: {
           </SheetList>
         </>
       ) : null}
-      {loaded && mine.length === 0 && others.length === 0 && !threadId ? (
+      {loaded && mine.length === 0 && others.length === 0 && !canStart ? (
         <SheetList>
           <SheetEmpty>No dev servers running</SheetEmpty>
         </SheetList>
@@ -154,8 +155,12 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
   }, [port])
 
   useEffect(() => {
+    api
+      .previewStart(port)
+      .then((p) => setPreview((cur) => (cur?.state === 'live' ? cur : p)))
+      .catch(() => undefined)
     void poll()
-  }, [poll])
+  }, [poll, port])
   const live = preview?.state === 'live' && Boolean(preview.url)
   useEffect(() => {
     const id = window.setInterval(() => void poll(), live ? 10000 : 2000)
@@ -193,21 +198,15 @@ export function PreviewScreen({ port, name, onBack }: { port: number; name: stri
         {live ? (
           <Frame key={`${preview!.url}-${reloadKey}`} url={preview!.url!} desktop={mode === 'desktop'} />
         ) : (
-          <div className="empty">
+          <div className="preview-wait">
             {error ? (
-              <>
-                <strong>Preview unavailable</strong>
+              <StatusCard title="Preview unavailable" action={{ label: 'Retry', onClick: retry }}>
                 {error}
-                <div style={{ marginTop: 14 }}>
-                  <button className="btn" onClick={retry}>
-                    Try again
-                  </button>
-                </div>
-              </>
+              </StatusCard>
             ) : (
               <>
-                <Loader2 size={22} className="spin" aria-hidden="true" />
-                <div style={{ marginTop: 10 }}>Creating a public link for your dev server…</div>
+                <Loader2 size={22} className="spin" aria-hidden />
+                <span>Opening preview</span>
               </>
             )}
           </div>

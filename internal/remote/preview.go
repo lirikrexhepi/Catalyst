@@ -33,10 +33,20 @@ type PreviewInfo struct {
 
 type previewTunnel struct {
 	cmd       *exec.Cmd
+	closeFn   func()
 	url       string
 	state     PreviewState
 	errMsg    string
 	startedAt int64
+}
+
+func (t *previewTunnel) close() {
+	if t.closeFn != nil {
+		t.closeFn()
+	}
+	if t.cmd != nil && t.cmd.Process != nil {
+		_ = t.cmd.Process.Kill()
+	}
 }
 
 var quickTunnelURL = regexp.MustCompile(`https://[A-Za-z0-9-]+\.trycloudflare\.com`)
@@ -46,13 +56,15 @@ var quickTunnelURL = regexp.MustCompile(`https://[A-Za-z0-9-]+\.trycloudflare\.c
 // URL in its own browser, so the site keeps its root path and every asset
 // loads exactly as it does on the desktop preview.
 type PreviewManager struct {
-	mu      sync.Mutex
-	tunnels map[int]*previewTunnel
-	ownPort int
+	mu          sync.Mutex
+	tunnels     map[int]*previewTunnel
+	ownPort     int
+	funnelBase  func() string
+	funnelInUse map[int]bool
 }
 
 func NewPreviewManager(ownPort int) *PreviewManager {
-	return &PreviewManager{tunnels: make(map[int]*previewTunnel), ownPort: ownPort}
+	return &PreviewManager{tunnels: make(map[int]*previewTunnel), ownPort: ownPort, funnelInUse: make(map[int]bool)}
 }
 
 func (m *PreviewManager) Snapshot() []PreviewInfo {
@@ -85,11 +97,21 @@ func (m *PreviewManager) Start(port int) (PreviewInfo, error) {
 		return info, nil
 	}
 	// A failed attempt is replaced rather than reported again.
-	if t, ok := m.tunnels[port]; ok && t.cmd != nil && t.cmd.Process != nil {
-		_ = t.cmd.Process.Kill()
-	}
+	stale, hadStale := m.tunnels[port]
 	delete(m.tunnels, port)
 	m.mu.Unlock()
+	if hadStale {
+		stale.close()
+	}
+
+	if t, ok := m.startFunnel(port); ok {
+		m.mu.Lock()
+		m.tunnels[port] = t
+		m.mu.Unlock()
+		logger.Infof("Preview", "localhost:%d is live at %s", port, t.url)
+		go m.supervise(port, t, t.url, nil)
+		return PreviewInfo{Port: port, URL: t.url, State: PreviewLive, StartedAt: t.startedAt}, nil
+	}
 
 	bin, err := resolveBinary()
 	if err != nil {
@@ -180,7 +202,7 @@ func (m *PreviewManager) watch(port int, t *previewTunnel, stderr io.Reader) {
 			return
 		case <-deadline:
 			m.fail(port, t, "timed out waiting for Cloudflare to publish the link")
-			_ = t.cmd.Process.Kill()
+			t.close()
 			return
 		}
 	}
@@ -271,8 +293,8 @@ func (m *PreviewManager) drop(port int, t *previewTunnel) bool {
 }
 
 func (m *PreviewManager) stopIf(port int, t *previewTunnel) {
-	if m.drop(port, t) && t.cmd != nil && t.cmd.Process != nil {
-		_ = t.cmd.Process.Kill()
+	if m.drop(port, t) {
+		t.close()
 	}
 }
 
@@ -321,8 +343,8 @@ func (m *PreviewManager) Stop(port int) {
 		delete(m.tunnels, port)
 	}
 	m.mu.Unlock()
-	if ok && t.cmd != nil && t.cmd.Process != nil {
-		_ = t.cmd.Process.Kill()
+	if ok {
+		t.close()
 	}
 }
 
@@ -332,9 +354,7 @@ func (m *PreviewManager) StopAll() {
 	m.tunnels = make(map[int]*previewTunnel)
 	m.mu.Unlock()
 	for _, t := range tunnels {
-		if t.cmd != nil && t.cmd.Process != nil {
-			_ = t.cmd.Process.Kill()
-		}
+		t.close()
 	}
 }
 

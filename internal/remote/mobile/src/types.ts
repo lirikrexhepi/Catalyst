@@ -155,6 +155,16 @@ export interface PreviewInfo {
   startedAt?: number
 }
 
+export interface ManagedDevServer {
+  id: string
+  name: string
+  command: string
+  cwd: string
+  port?: number
+  status: 'running' | 'exited' | 'failed'
+  log?: string[]
+}
+
 export interface DevServer {
   pid: number
   port: number

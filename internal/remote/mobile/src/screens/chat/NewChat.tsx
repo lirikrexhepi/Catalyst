@@ -52,7 +52,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
   const [autoApprove, setAutoApprove] = useState(remembered.autoApprove ?? true)
   const [sheet, setSheet] = useState<'model' | 'project' | 'add' | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const preview = usePreviewFlow(null, false)
+  const preview = usePreviewFlow(null, cwd || undefined)
 
   const loadProjects = useCallback((select?: string) => {
     api

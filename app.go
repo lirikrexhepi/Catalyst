@@ -342,7 +342,7 @@ func (a *App) trackTaskState(event domain.RuntimeEvent) {
 
 // shutdown stops every agent CLI so none outlive the window.
 func (a *App) shutdown(ctx context.Context) {
-	if !a.headless && a.keepRunningOnClose() && a.ownsGateway() {
+	if !bindingsBuild && !a.headless && a.keepRunningOnClose() && a.ownsGateway() {
 		a.handOffToBackground()
 	}
 	if a.remoteServer != nil {

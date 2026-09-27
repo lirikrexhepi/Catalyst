@@ -195,7 +195,7 @@ export default function ProjectScreen({ path, openDrawer }: { path: string; open
       )}
 
       {previewing === 'pick' && (
-        <PreviewLauncher threadId={null} canAsk={false} onClose={() => setPreviewing(null)} onOpen={setPreviewing} />
+        <PreviewLauncher threadId={null} cwd={path} onClose={() => setPreviewing(null)} onOpen={setPreviewing} />
       )}
       {previewing && previewing !== 'pick' && (
         <PreviewScreen port={previewing.port} name={previewing.name || 'Dev server'} onBack={() => setPreviewing(null)} />

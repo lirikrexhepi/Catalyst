@@ -46,7 +46,9 @@ func main() {
 	// A PC powered on remotely may already be running headless. It owns the
 	// gateway port, history and database, so it hands over before NewApp
 	// opens any of them.
-	takeOverFromHeadless()
+	if !bindingsBuild {
+		takeOverFromHeadless()
+	}
 
 	// Create an instance of the app structure
 	app := NewApp()

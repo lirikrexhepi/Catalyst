@@ -35,7 +35,7 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
   const [picking, setPicking] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const coordinator = threadId === 'coordinator'
-  const preview = usePreviewFlow(coordinator ? null : threadId, Boolean(summary?.live))
+  const preview = usePreviewFlow(coordinator ? null : threadId, summary?.projectCwd || summary?.cwd)
   const { scroller, pinned, onScroll, jump } = useStickToBottom([thread?.blocks, thread?.busy], threadId)
 
   useEffect(() => {

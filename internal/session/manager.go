@@ -31,6 +31,7 @@ type Manager struct {
 	// recorder persists transcripts. Optional: a manager without one behaves
 	// exactly as before, which keeps every existing test unchanged.
 	recorder Recorder
+	notes    TurnNotes
 }
 
 // Recorder receives events for durable storage. Implemented by the history
@@ -307,6 +308,9 @@ func (m *Manager) Send(ctx context.Context, in domain.SendTurnInput) error {
 		if entry, err = m.lookup(in.ThreadID); err != nil {
 			return err
 		}
+	}
+	if note := m.notes.take(in.ThreadID); note != "" {
+		in.Text += "\n\n" + note
 	}
 	return entry.adapter.SendTurn(ctx, in)
 }

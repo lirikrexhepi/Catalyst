@@ -110,6 +110,10 @@ func (a *App) wireRemote() {
 			groups, _ := a.ListServers()
 			return groups
 		},
+		DevServers: remote.DevServerHooks{
+			Start:  a.remoteStartDevServer,
+			Status: a.remoteDevServerStatus,
+		},
 	})
 }
 
