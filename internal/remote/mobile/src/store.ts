@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { logConnection } from './connectionLog'
 import { api, getBase, getToken } from './api'
 import { reduceEvent, userBlock } from './feed/reducer'
 import { readLocal, readThread, writeLocal, writeThread } from './cache'
@@ -487,6 +488,7 @@ function connect() {
   }
   socket.onopen = () => {
     backoff = 1000
+    logConnection('Connected to the PC')
     set({ connection: 'live', pcDown: false })
     sendPresence()
     // Anything missed while disconnected comes back through fresh snapshots.
@@ -505,8 +507,9 @@ function connect() {
     if (msg.type === 'events' && msg.events) applyEvents(msg.events)
     else if (msg.type === 'event' && msg.event) applyEvents([msg.event])
   }
-  socket.onclose = () => {
+  socket.onclose = (event) => {
     socket = null
+    logConnection(`Lost the live connection to the PC (code ${event.code})`)
     set({ connection: 'offline', pcDown: true })
     retry()
   }
@@ -537,6 +540,7 @@ export function setPresence(threadId: string | null) {
 
 export function failure(e: unknown): string {
   const text = message(e)
+  logConnection(e instanceof Error && e.message !== text ? `${text} (${e.message})` : text)
   if (isUnreachable(text)) set({ pcDown: true })
   return text
 }
@@ -592,6 +596,7 @@ export const isUnreachable = (text: string | null | undefined) => text === UNREA
 export function message(e: unknown): string {
   const text = e instanceof Error ? e.message : String(e)
   if (UNREACHABLE.test(text)) return UNREACHABLE_TEXT
+  if (/unexpected token|not valid json/i.test(text)) return 'The PC answered with a page instead of data, it may run an older app version'
   if (!/^\d{3}$/.test(text)) return text
   const status = Number(text)
   if (status === 401 || status === 403) return 'This phone needs pairing again'

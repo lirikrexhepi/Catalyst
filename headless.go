@@ -68,6 +68,9 @@ func runHeadless(app *App) int {
 	})
 
 	app.startCore(ctx)
+	if waitPIDArg(os.Args) == 0 {
+		go app.turnMonitorsOffAfterWake()
+	}
 
 	info := app.remoteServer.Info()
 	if !info.Enabled {

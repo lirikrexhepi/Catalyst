@@ -45,6 +45,7 @@ type Hooks struct {
 	DeleteThread  func(threadID string) error
 	Servers       func() []servers.Group
 	DevServers    DevServerHooks
+	PC            PCHooks
 	// PowerOff shuts the PC down. Only set when the app runs headless.
 	PowerOff func() error
 	// Workspace backs the phone's project explorer, diffs and folder picker.

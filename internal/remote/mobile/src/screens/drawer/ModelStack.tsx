@@ -18,7 +18,7 @@ export function ModelStack({ drivers }: { drivers: string[] }) {
             key={driver}
             as="span"
             size={SIZE}
-            fill="#333333"
+            fill="var(--surface-3)"
             pressable={false}
             style={{ position: 'absolute', left: i * OFFSET, top: 0, zIndex: i + 1 }}
           >

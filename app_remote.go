@@ -114,6 +114,7 @@ func (a *App) wireRemote() {
 			Start:  a.remoteStartDevServer,
 			Status: a.remoteDevServerStatus,
 		},
+		PC: a.pcHooks(),
 	})
 }
 

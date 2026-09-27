@@ -30,3 +30,57 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
 .say, .md, .bubble-text, .status-card-text, .thought-body, .out, .diff, .code, .notice, .ask-card-title, .ask-card-detail, input, textarea, [contenteditable='true'] {
   -webkit-user-select: text; user-select: text; -webkit-touch-callout: default;
 }
+
+:root {
+  --ink: 255, 255, 255;
+  --veil: 17, 17, 17;
+  --fg: #ffffff;
+  --fg-2: #cfcfcf;
+  --fg-3: #828282;
+  --fg-4: #565656;
+  --surface: linear-gradient(160deg, #181818 0%, #1f1f1f 50%, #262626 100%);
+  --surface-1: #262626;
+  --surface-2: #2a2a2a;
+  --surface-3: #333333;
+  --bar: #191919;
+  --pill: rgba(65, 65, 65, 0.82);
+  --rim: #ffffff;
+  --danger: #ff5a52;
+  --effort-idle: linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0) 38%), #181818;
+  --effort-active: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 60%), #2c2c2c;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --ink: 0, 0, 0;
+  --veil: 242, 242, 244;
+  --fg: #111111;
+  --fg-2: #3a3a3c;
+  --fg-3: #6e6e73;
+  --fg-4: #a1a1a6;
+  --surface: linear-gradient(160deg, #ffffff 0%, #f8f8fa 50%, #f0f0f3 100%);
+  --surface-1: #ffffff;
+  --surface-2: #ececf0;
+  --surface-3: #e3e3e8;
+  --bar: #ececf0;
+  --pill: rgba(255, 255, 255, 0.86);
+  --rim: #a9a9b0;
+  --danger: #d92d20;
+  --effort-idle: linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0) 38%), #f3f3f6;
+  --effort-active: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 60%), #e3e3e8;
+  --chat-bg: #f2f2f4;
+  --glass-control: #e6e6ea;
+  --composer-fill: linear-gradient(to bottom left, #ffffff, #f3f3f6);
+  --placeholder: #8a8a8e;
+  --bg: #f2f2f4;
+  --panel: #ffffff;
+  --raise: #ececf0;
+  --line: rgba(0, 0, 0, 0.1);
+  --line-soft: rgba(0, 0, 0, 0.06);
+  --text: #111111;
+  --text-2: #3a3a3c;
+  --text-3: #6e6e73;
+  color-scheme: light;
+}
+
+.on-accent, .on-accent svg { color: #fff; }

@@ -33,7 +33,7 @@ export function StatusPill({ icon: Icon, children, action }: StatusPillProps) {
       <GlassPill
         ref={pill}
         height={38}
-        fill="rgba(65, 65, 65, 0.82)"
+        fill="var(--pill)"
         frost={14}
         pressable={false}
         className={action ? 'status-pill-body has-action' : 'status-pill-body'}

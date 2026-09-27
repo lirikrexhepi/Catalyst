@@ -44,7 +44,7 @@ export function NavCue({ cue }: { cue: Cue | null }) {
   const Icon = cue.direction === 'back' ? ChevronLeft : ChevronRight
   return (
     <div className="nav-cue" role="status" aria-live="polite">
-      <GlassPill ref={pill} height={34} fill="rgba(65, 65, 65, 0.82)" frost={14} pressable={false} className="nav-cue-pill" style={{ opacity: 0 }}>
+      <GlassPill ref={pill} height={34} fill="var(--pill)" frost={14} pressable={false} className="nav-cue-pill" style={{ opacity: 0 }}>
         <Icon size={16} strokeWidth={2} aria-hidden />
         <span>{title}</span>
       </GlassPill>

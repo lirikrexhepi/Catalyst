@@ -20,7 +20,7 @@ const INSET = 3
 
 type Thumb = 'x' | 'grip'
 
-export function GlassSwitch({ checked, onChange, label, width = 52, height = 32, onFill = 'var(--send)', offFill = '#2c2c2c', disabled }: GlassSwitchProps) {
+export function GlassSwitch({ checked, onChange, label, width = 52, height = 32, onFill = 'var(--send)', offFill = 'var(--surface-2)', disabled }: GlassSwitchProps) {
   const thumb = useRef<HTMLSpanElement | null>(null)
   const driver = useRef<SpringDriver<Thumb> | null>(null)
   const size = height - INSET * 2

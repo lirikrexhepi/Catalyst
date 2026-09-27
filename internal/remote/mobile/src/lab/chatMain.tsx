@@ -10,6 +10,9 @@ import '../styles/scrubber.css'
 import '../styles/drawer.css'
 import '../styles/sheet.css'
 import '../styles/ask.css'
+import '../styles/settings.css'
+import { initTheme } from '../theme'
+import { SettingsPage } from '../screens/settings/SettingsPage'
 import Chat from '../screens/Chat'
 import Drawer from '../screens/Drawer'
 import { PreviewScreen } from '../screens/Preview'
@@ -42,6 +45,7 @@ const ASK_BLOCKS = [
 ] as unknown as AgentStreamBlock[]
 
 trackVisualViewport()
+initTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -53,6 +57,7 @@ createRoot(document.getElementById('root')!).render(
       ) : null}
       <main className="main">
         <Chat threadId={location.hash === '#thread' ? 'lab-thread' : null} openDrawer={() => undefined} go={() => undefined} />
+        {location.hash === '#settings' ? <SettingsPage onClose={() => undefined} /> : null}
         {location.hash === '#offline' ? <StatusPill icon={WifiOff} action={{ label: 'Retry', onClick: () => undefined }}>{"Can't reach your PC"}</StatusPill> : null}
         {location.hash === '#ask' ? (
           <div className="chat-frame" style={{ position: 'absolute', inset: 0, padding: 16, overflow: 'auto', background: 'var(--chat-bg)' }}>

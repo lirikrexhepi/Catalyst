@@ -1,4 +1,4 @@
-import type { FileRef, ManagedDevServer, ModelChoice, PreviewInfo, Project, ProviderInfo, RuntimeEvent, ServerGroup, ThreadSummary } from './types'
+import type { FileRef, ManagedDevServer, ModelChoice, MonitorStatus, PcDiagnostics, PreviewInfo, Project, ProviderInfo, RuntimeEvent, ServerGroup, ThreadSummary } from './types'
 import type { Checkout, DiffFile, FileContent, FolderListing, Place, TreeEntry, TreeStatus } from './workspaceTypes'
 
 const q = (params: Record<string, string>) => new URLSearchParams(params).toString()
@@ -157,6 +157,11 @@ export const api = {
   startDevServer: (target: { threadId?: string; cwd?: string }) =>
     request<ManagedDevServer>('/api/devserver/start', { method: 'POST', body: JSON.stringify(target) }),
   devServer: (id: string) => request<ManagedDevServer>(`/api/devserver/status?${q({ id })}`),
+  monitors: () => request<MonitorStatus>('/api/pc/monitors'),
+  monitorsOff: () => request<MonitorStatus>('/api/pc/monitors/off', { method: 'POST' }),
+  monitorsAutoOff: (enabled: boolean) =>
+    request<MonitorStatus>('/api/pc/monitors/auto', { method: 'POST', body: JSON.stringify({ enabled }) }),
+  diagnostics: () => request<PcDiagnostics>('/api/pc/diagnostics'),
   previewStart: (port: number) =>
     request<PreviewInfo>('/api/preview/start', { method: 'POST', body: JSON.stringify({ port }) }),
   // Project explorer, diffs and the folder picker.

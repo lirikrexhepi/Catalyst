@@ -14,8 +14,8 @@ interface EffortGridProps {
 
 const BUTTON = PICKER.effortButton
 const FULL_WIDTH = BUTTON.width * 2 + PICKER.effortColGap
-const IDLE = 'linear-gradient(180deg, rgba(0,0,0,0.32), rgba(0,0,0,0) 38%), #181818'
-const ACTIVE = 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0) 60%), #2c2c2c'
+const IDLE = 'var(--effort-idle)'
+const ACTIVE = 'var(--effort-active)'
 
 interface CellProps {
   wide: boolean

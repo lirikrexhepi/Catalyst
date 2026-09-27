@@ -18,7 +18,7 @@ export interface RimLight {
 
 export const DEFAULT_RIM_LIGHT: RimLight = {
   angle: 303,
-  color: '#ffffff',
+  color: 'var(--rim)',
   intensity: 0.65,
   backIntensity: 0.64,
   base: 0,

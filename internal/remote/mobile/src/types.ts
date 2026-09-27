@@ -155,6 +155,25 @@ export interface PreviewInfo {
   startedAt?: number
 }
 
+export interface MonitorStatus {
+  supported: boolean
+  count: number
+  off: boolean
+  autoOff: boolean
+}
+
+export interface PcDiagnostics {
+  headless: boolean
+  port: number
+  publicUrl?: string
+  connecting: boolean
+  tunnelError?: string
+  clients: number
+  tailscale: boolean
+  cloudflared: boolean
+  log: string[]
+}
+
 export interface ManagedDevServer {
   id: string
   name: string

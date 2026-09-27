@@ -18,7 +18,7 @@ export function ProviderBar({ providers, active, onPick }: ProviderBarProps) {
       width={PICKER.barWidth}
       height={PICKER.bar}
       radius={PICKER.barRadius}
-      fill="#191919"
+      fill="var(--bar)"
       role="tablist"
       aria-label="Agent CLI"
       className="picker-bar provider-bar"

@@ -16,7 +16,7 @@ const RING_RIM = { light: { intensity: 0.22, backIntensity: 0.18 } }
 
 export function SelectedModelBar({ driver, providerName, modelName, usage, onBack }: SelectedModelBarProps) {
   return (
-    <GlassSquircle width={PICKER.barWidth} height={PICKER.bar} radius={PICKER.barRadius} fill="#191919" className="picker-bar selected-bar">
+    <GlassSquircle width={PICKER.barWidth} height={PICKER.bar} radius={PICKER.barRadius} fill="var(--bar)" className="picker-bar selected-bar">
       <ProviderIcon driver={driver} name={providerName} size={24} />
       <span className="selected-bar-name">{modelName}</span>
       <button className="selected-bar-back" onClick={onBack} aria-label="Back to models">

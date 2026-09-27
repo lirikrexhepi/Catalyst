@@ -13,6 +13,7 @@ const windowMutexName = `Local\OrchestratorDesktopWindow`
 
 var (
 	user32            = windows.NewLazySystemDLL("user32.dll")
+	kernel32          = windows.NewLazySystemDLL("kernel32.dll")
 	procFindWindow    = user32.NewProc("FindWindowW")
 	procShowWindow    = user32.NewProc("ShowWindow")
 	procSetForeground = user32.NewProc("SetForegroundWindow")

@@ -1,6 +1,6 @@
 export const PICKER = {
   radius: 30,
-  fill: 'linear-gradient(160deg, #181818 0%, #1f1f1f 50%, #262626 100%)',
+  fill: 'var(--surface)',
   listTop: 17,
   row: 49,
   listGap: 25,

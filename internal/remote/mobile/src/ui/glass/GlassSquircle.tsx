@@ -29,7 +29,7 @@ export interface GlassSquircleProps extends HTMLAttributes<HTMLElement> {
   href?: string
 }
 
-const DEFAULT_HIGHLIGHT = 'radial-gradient(closest-side, rgba(255,255,255,0.09), rgba(255,255,255,0.035) 55%, rgba(255,255,255,0))'
+const DEFAULT_HIGHLIGHT = 'radial-gradient(closest-side, rgba(var(--ink),0.09), rgba(var(--ink),0.035) 55%, rgba(var(--ink),0))'
 
 function frostStyle(frost: number | Frost | undefined): CSSProperties | null {
   if (frost === undefined) return null

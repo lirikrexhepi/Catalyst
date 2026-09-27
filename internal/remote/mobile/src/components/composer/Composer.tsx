@@ -138,15 +138,16 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
             onClick={onMic}
             aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
             aria-pressed={dictation.listening}
+            className="on-accent"
           >
             <Mic {...ICON} aria-hidden />
           </GlassCircle>
           {busy && !canSend ? (
-            <GlassCircle size={BUTTON} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding">
+            <GlassCircle size={BUTTON} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding" className="on-accent">
               <Square size={16} fill="currentColor" aria-hidden />
             </GlassCircle>
           ) : (
-            <GlassCircle size={BUTTON} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send">
+            <GlassCircle size={BUTTON} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send on-accent">
               <Send {...ICON} style={SEND_NUDGE} aria-hidden />
             </GlassCircle>
           )}

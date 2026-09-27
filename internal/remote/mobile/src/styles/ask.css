@@ -1,20 +1,22 @@
-.ask-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; color: #fff; }
-.ask-card-head { display: flex; align-items: center; gap: 6px; font: 500 13px/1 var(--font); color: #828282; }
+.ask-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; color: var(--fg); }
+.ask-card-head { display: flex; align-items: center; gap: 6px; font: 500 13px/1 var(--font); color: var(--fg-3); }
 .ask-card-title { font: 500 16px/1.4 var(--font); overflow-wrap: anywhere; }
 .ask-card-detail {
   margin: 0; max-height: 180px; overflow: auto; padding: 10px 12px; border-radius: 14px; background: rgba(0, 0, 0, 0.35);
-  font: 400 12.5px/1.45 var(--font-code); color: #cfcfcf; white-space: pre-wrap; overflow-wrap: anywhere;
+  font: 400 12.5px/1.45 var(--font-code); color: var(--fg-2); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .ask-group { display: flex; flex-direction: column; gap: 8px; }
-.ask-option { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 12px 16px; text-align: left; color: #fff; }
+.ask-option { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 12px 16px; text-align: left; color: var(--fg); }
 .ask-option-label { flex: 1; min-width: 0; font: 400 15px/1.35 var(--font); overflow-wrap: anywhere; }
 .ask-option-check { flex-shrink: 0; }
-.ask-input { width: 100%; background: transparent; border: 0; outline: none; color: #fff; font: 400 16px/1.35 var(--font); }
+.ask-input { width: 100%; background: transparent; border: 0; outline: none; color: var(--fg); font: 400 16px/1.35 var(--font); }
 .ask-input::placeholder { color: var(--placeholder); }
 .ask-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.ask-button { padding: 0 18px; font: 500 15px/1 var(--font); color: #fff; white-space: nowrap; }
-.ask-button[data-tone='danger'] { color: #ff5a52; }
+.ask-button { padding: 0 18px; font: 500 15px/1 var(--font); color: var(--fg); white-space: nowrap; }
+.ask-button[data-tone='danger'] { color: var(--danger); }
 .ask-button:disabled { opacity: 0.4; }
-.ask-card-error { font: 400 13px/1.35 var(--font); color: #ff5a52; }
-.ask-done { display: flex; align-items: center; gap: 8px; font: 400 14px/1.3 var(--font); color: #828282; }
+.ask-card-error { font: 400 13px/1.35 var(--font); color: var(--danger); }
+.ask-done { display: flex; align-items: center; gap: 8px; font: 400 14px/1.3 var(--font); color: var(--fg-3); }
 .ask-done span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ask-button[data-tone='primary'], .ask-option[aria-pressed='true'] { color: #fff; }

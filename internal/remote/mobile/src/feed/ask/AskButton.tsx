@@ -39,7 +39,7 @@ export function AskOption({ selected, onSelect, children, as = 'button' }: AskOp
     <GlassSquircle
       as={as}
       radius={16}
-      fill={selected ? '#00417F' : '#2a2a2a'}
+      fill={selected ? '#00417F' : 'var(--surface-2)'}
       className="ask-option"
       aria-pressed={as === 'button' ? selected : undefined}
       pressable={as === 'button'}

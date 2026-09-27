@@ -4,6 +4,7 @@ import { api } from '../api'
 import AddProjectSheet from './AddProjectSheet'
 import { useStore } from '../store'
 import SettingsSheet from './SettingsSheet'
+import { SettingsPage } from './settings/SettingsPage'
 import type { Project, ThreadSummary } from '../types'
 import { PROJECTS_CACHE_KEY, readLocal, writeLocal } from '../cache'
 import { GlassPill } from '../ui'
@@ -36,6 +37,7 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
   const loaded = useStore((s) => s.summariesLoaded)
   const connection = useStore((s) => s.connection)
   const [settings, setSettings] = useState(false)
+  const [allSettings, setAllSettings] = useState(false)
   const [projects, setProjects] = useState<Project[]>(() => readLocal<Project[]>(PROJECTS_CACHE_KEY, []))
   const [adding, setAdding] = useState(false)
   const [acting, setActing] = useState<ThreadSummary | null>(null)
@@ -119,7 +121,8 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
         </GlassPill>
         <BarButton icon={Settings} label="Settings" onClick={() => setSettings(true)} />
       </div>
-      {settings ? <SettingsSheet onClose={() => setSettings(false)} /> : null}
+      {settings ? <SettingsSheet onClose={() => setSettings(false)} onOpenAll={() => setAllSettings(true)} /> : null}
+      {allSettings ? <SettingsPage onClose={() => setAllSettings(false)} /> : null}
       {acting ? (
         <ChatRowActions thread={acting} current={current === acting.threadId} onLeave={() => go(null)} onClose={() => setActing(null)} />
       ) : null}

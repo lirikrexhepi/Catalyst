@@ -3,11 +3,11 @@
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px; transform: translateY(-50%);
   touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
-.scrub-tick { display: block; height: 1.5px; border-radius: 1px; background: rgba(255, 255, 255, 0.22); transition: background-color 200ms var(--ease-out); }
-.scrub-zone.active .scrub-tick { background: rgba(255, 255, 255, 0.5); }
+.scrub-tick { display: block; height: 1.5px; border-radius: 1px; background: rgba(var(--ink), 0.22); transition: background-color 200ms var(--ease-out); }
+.scrub-zone.active .scrub-tick { background: rgba(var(--ink), 0.5); }
 .scrub-veil {
   position: absolute; inset: 0; z-index: 2; pointer-events: none;
-  background: rgba(17, 17, 17, 0.6); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  background: rgba(var(--veil), 0.6); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
 }
 .scrub-list { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .scrub-item {
@@ -15,7 +15,7 @@
   visibility: hidden; transform-origin: 0% 50%; will-change: transform, opacity;
 }
 .scrub-label {
-  display: block; font: 500 18px/28px var(--font); color: #fff;
+  display: block; font: 500 18px/28px var(--font); color: var(--fg);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transform-origin: 0% 50%;
 }
 .scrub-item.armed .scrub-label { animation: scrub-pulse 900ms ease-in-out infinite; }

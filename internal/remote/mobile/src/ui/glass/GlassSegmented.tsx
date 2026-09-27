@@ -36,7 +36,7 @@ export function GlassSegmented<T extends string>({
   padding = 3,
   gap = 0,
   fill,
-  lensFill = 'rgba(255,255,255,0.16)',
+  lensFill = 'rgba(var(--ink), 0.16)',
   border = {},
   lensBorder = {},
   frost,
