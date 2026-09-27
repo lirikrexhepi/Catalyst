@@ -5,6 +5,7 @@ import { api, getBase, setBase, setToken } from '../../api'
 import { useStore } from '../../store'
 import { GlassSwitch } from '../../ui'
 import { setKeepAwake, useKeepAwake } from '../../keepAwake'
+import { clearRoute } from '../../platform/route'
 
 export function PcSection() {
   const connection = useStore((s) => s.connection)
@@ -35,7 +36,7 @@ export function PcSection() {
     if (!confirmDisconnect()) return
     setToken('')
     setBase('')
-    window.location.hash = ''
+    clearRoute()
     window.location.reload()
   }
 
