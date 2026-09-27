@@ -123,6 +123,22 @@ export namespace devserver {
 
 export namespace domain {
 	
+	export class Account {
+	    id: string;
+	    name: string;
+	    configDir?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Account(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.configDir = source["configDir"];
+	    }
+	}
 	export class ApprovalOption {
 	    id: string;
 	    name: string;
@@ -535,6 +551,7 @@ export namespace domain {
 	    models?: Model[];
 	    checkedAt: number;
 	    settings: ProviderSettings;
+	    accounts?: Account[];
 	
 	    static createFrom(source: any = {}) {
 	        return new ProviderSnapshot(source);
@@ -552,6 +569,7 @@ export namespace domain {
 	        this.models = this.convertValues(source["models"], Model);
 	        this.checkedAt = source["checkedAt"];
 	        this.settings = this.convertValues(source["settings"], ProviderSettings);
+	        this.accounts = this.convertValues(source["accounts"], Account);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -668,6 +686,7 @@ export namespace domain {
 	    turnId?: string;
 	    instanceId?: string;
 	    driver?: string;
+	    account?: string;
 	    seq: number;
 	    itemId?: string;
 	    at: number;
@@ -695,6 +714,7 @@ export namespace domain {
 	        this.turnId = source["turnId"];
 	        this.instanceId = source["instanceId"];
 	        this.driver = source["driver"];
+	        this.account = source["account"];
 	        this.seq = source["seq"];
 	        this.itemId = source["itemId"];
 	        this.at = source["at"];
@@ -770,6 +790,7 @@ export namespace domain {
 	    threadId: string;
 	    instanceId: string;
 	    driver: string;
+	    account?: string;
 	    providerSessionId?: string;
 	    cwd: string;
 	    model?: string;
@@ -784,6 +805,7 @@ export namespace domain {
 	        this.threadId = source["threadId"];
 	        this.instanceId = source["instanceId"];
 	        this.driver = source["driver"];
+	        this.account = source["account"];
 	        this.providerSessionId = source["providerSessionId"];
 	        this.cwd = source["cwd"];
 	        this.model = source["model"];
@@ -847,6 +869,7 @@ export namespace domain {
 	export class SessionStartInput {
 	    threadId: string;
 	    instanceId: string;
+	    account?: string;
 	    cwd: string;
 	    model?: string;
 	    permissionMode?: string;
@@ -862,6 +885,7 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.threadId = source["threadId"];
 	        this.instanceId = source["instanceId"];
+	        this.account = source["account"];
 	        this.cwd = source["cwd"];
 	        this.model = source["model"];
 	        this.permissionMode = source["permissionMode"];
@@ -896,6 +920,7 @@ export namespace domain {
 	    prompt: string;
 	    driver: string;
 	    drivers?: string[];
+	    account?: string;
 	    model?: string;
 	    models?: string[];
 	    options?: Record<string, any>;
@@ -919,6 +944,7 @@ export namespace domain {
 	        this.prompt = source["prompt"];
 	        this.driver = source["driver"];
 	        this.drivers = source["drivers"];
+	        this.account = source["account"];
 	        this.model = source["model"];
 	        this.models = source["models"];
 	        this.options = source["options"];
@@ -1258,6 +1284,40 @@ export namespace history {
 
 export namespace main {
 	
+	export class AccountAdded {
+	    account: domain.Account;
+	    copied?: string[];
+	    warning?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AccountAdded(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.account = this.convertValues(source["account"], domain.Account);
+	        this.copied = source["copied"];
+	        this.warning = source["warning"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class BackgroundSettings {
 	    startMode: string;
 	    keepRunningOnClose: boolean;
@@ -1290,6 +1350,7 @@ export namespace projects {
 	    usedAt?: number;
 	    order?: number;
 	    missing?: boolean;
+	    accounts?: Record<string, string>;
 	
 	    static createFrom(source: any = {}) {
 	        return new Project(source);
@@ -1305,6 +1366,28 @@ export namespace projects {
 	        this.usedAt = source["usedAt"];
 	        this.order = source["order"];
 	        this.missing = source["missing"];
+	        this.accounts = source["accounts"];
+	    }
+	}
+
+}
+
+export namespace provider {
+	
+	export class AccountStatus {
+	    signedIn: boolean;
+	    known: boolean;
+	    detail?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AccountStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.signedIn = source["signedIn"];
+	        this.known = source["known"];
+	        this.detail = source["detail"];
 	    }
 	}
 
@@ -1436,6 +1519,7 @@ export namespace session {
 	    threadId: string;
 	    title: string;
 	    driver: string;
+	    account?: string;
 	    model?: string;
 	    state: string;
 	    cwd: string;
@@ -1454,6 +1538,7 @@ export namespace session {
 	        this.threadId = source["threadId"];
 	        this.title = source["title"];
 	        this.driver = source["driver"];
+	        this.account = source["account"];
 	        this.model = source["model"];
 	        this.state = source["state"];
 	        this.cwd = source["cwd"];
@@ -1466,6 +1551,7 @@ export namespace session {
 	}
 	export class Config {
 	    driver: string;
+	    account?: string;
 	    model?: string;
 	    options?: Record<string, any>;
 	    cwd?: string;
@@ -1478,6 +1564,7 @@ export namespace session {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.driver = source["driver"];
+	        this.account = source["account"];
 	        this.model = source["model"];
 	        this.options = source["options"];
 	        this.cwd = source["cwd"];
@@ -1486,6 +1573,8 @@ export namespace session {
 	}
 	export class DriverUsage {
 	    driver: string;
+	    account?: string;
+	    accountName?: string;
 	    inputTokens: number;
 	    outputTokens: number;
 	    cacheReadTokens: number;
@@ -1505,6 +1594,8 @@ export namespace session {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.driver = source["driver"];
+	        this.account = source["account"];
+	        this.accountName = source["accountName"];
 	        this.inputTokens = source["inputTokens"];
 	        this.outputTokens = source["outputTokens"];
 	        this.cacheReadTokens = source["cacheReadTokens"];
@@ -1646,6 +1737,7 @@ export namespace session {
 	}
 	export class SpawnOptions {
 	    driver: string;
+	    account?: string;
 	    model?: string;
 	    options?: Record<string, any>;
 	    cwd: string;
@@ -1662,6 +1754,7 @@ export namespace session {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.driver = source["driver"];
+	        this.account = source["account"];
 	        this.model = source["model"];
 	        this.options = source["options"];
 	        this.cwd = source["cwd"];
@@ -1676,6 +1769,7 @@ export namespace session {
 	    title: string;
 	    prompt: string;
 	    driver?: string;
+	    account?: string;
 	    model?: string;
 	    options?: Record<string, any>;
 	    cwd?: string;
@@ -1690,6 +1784,7 @@ export namespace session {
 	        this.title = source["title"];
 	        this.prompt = source["prompt"];
 	        this.driver = source["driver"];
+	        this.account = source["account"];
 	        this.model = source["model"];
 	        this.options = source["options"];
 	        this.cwd = source["cwd"];

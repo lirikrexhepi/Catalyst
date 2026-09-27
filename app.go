@@ -60,6 +60,7 @@ type App struct {
 	usage        *session.UsageTracker
 	quota        *claude.QuotaSource
 	opencodeQuota *opencode.GoQuotaSource
+	accountQuota  *accountQuotas
 	scanner      *servers.Scanner
 	devservers   *devserver.Manager
 	control      *devserver.Control
@@ -89,6 +90,7 @@ func NewApp() *App {
 	// Applied before anything probes, so a preferred model saved in an earlier
 	// run is already in effect for the first CLI detection.
 	registry.UsePrefs(provider.NewPrefs(configRoot()))
+	registry.UseAccounts(provider.NewAccounts(configRoot()))
 	manager := session.NewManager(registry)
 	workspaces := session.NewWorkspaces()
 	coordinator := session.NewCoordinator(manager)
@@ -138,6 +140,9 @@ func NewApp() *App {
 	}
 
 	projectsStore := projects.New(configRoot())
+	manager.SetAccountResolver(func(kind domain.DriverKind, cwd string) string {
+		return projectsStore.AccountFor(cwd, string(kind))
+	})
 	remoteServer := remote.NewServer(4545, manager, coordinator, constructor, spawner, projectsStore, recorder, store)
 	remoteServer.SetStoragePath(filepath.Join(configRoot(), "remote_auth.json"))
 
@@ -151,6 +156,7 @@ func NewApp() *App {
 		usage:          session.NewUsageTracker(),
 		quota:          claude.NewQuotaSource(""),
 		opencodeQuota:  opencode.NewGoQuotaSource(),
+		accountQuota:   &accountQuotas{sources: make(map[string]*claude.QuotaSource)},
 		scanner:        servers.NewScanner(),
 		devservers:     devservers,
 		control:        control,

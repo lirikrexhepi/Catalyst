@@ -128,8 +128,9 @@ func (a *App) remoteSendAgent(ctx context.Context, threadID, text string, files 
 	}
 	if choice != nil && choice.Driver != "" {
 		task, ok := a.workspaces.TaskByThread(threadID)
-		if ok && domain.DriverKind(choice.Driver) != task.Driver {
-			_, err := a.SwitchTaskProviderWithOptions(threadID, choice.Driver, choice.Model, choice.Options, "", "", text, files)
+		accountChanged := ok && choice.Account != "" && domain.NormalizeAccount(choice.Account) != domain.NormalizeAccount(task.Account)
+		if ok && (domain.DriverKind(choice.Driver) != task.Driver || accountChanged) {
+			_, err := a.SwitchTaskAccountWithOptions(threadID, choice.Driver, choice.Account, choice.Model, choice.Options, "", "", text, files)
 			return err
 		}
 		if ok && (choice.Model != task.Model || !sameModelOptions(task.Options, choice.Options)) {
@@ -161,10 +162,10 @@ func (a *App) remoteNewAgent(ctx context.Context, req remote.NewAgentRequest) (s
 	result, err := a.SpawnTasks(
 		[]session.SpawnRequest{{
 			Title: title, Prompt: req.Prompt, Cwd: req.Cwd,
-			Driver: domain.DriverKind(req.Choice.Driver), Model: req.Choice.Model, Options: req.Choice.Options,
+			Driver: domain.DriverKind(req.Choice.Driver), Account: req.Choice.Account, Model: req.Choice.Model, Options: req.Choice.Options,
 		}},
 		session.SpawnOptions{
-			Driver: domain.DriverKind(req.Choice.Driver), Model: req.Choice.Model, Options: req.Choice.Options,
+			Driver: domain.DriverKind(req.Choice.Driver), Account: req.Choice.Account, Model: req.Choice.Model, Options: req.Choice.Options,
 			Cwd: req.Cwd, Title: title, Prompt: req.Prompt, Permission: permission,
 		},
 	)

@@ -162,6 +162,10 @@ func (a *App) SwitchTaskProvider(oldThreadID, driver, model string) (domain.Task
 }
 
 func (a *App) SwitchTaskProviderWithOptions(oldThreadID, driver, model string, options domain.ModelOptions, notice, icon, text string, files []domain.FileRef) (domain.Task, error) {
+	return a.SwitchTaskAccountWithOptions(oldThreadID, driver, "", model, options, notice, icon, text, files)
+}
+
+func (a *App) SwitchTaskAccountWithOptions(oldThreadID, driver, account, model string, options domain.ModelOptions, notice, icon, text string, files []domain.FileRef) (domain.Task, error) {
 	newDriver := domain.DriverKind(driver)
 	if newDriver == "" {
 		return domain.Task{}, fmt.Errorf("provider is required")
@@ -182,6 +186,17 @@ func (a *App) SwitchTaskProviderWithOptions(oldThreadID, driver, model string, o
 	if cwd, err = a.requireCwd(cwd); err != nil {
 		return domain.Task{}, err
 	}
+	projectCwd := cwd
+	if workspace != nil && workspace.Cwd != "" {
+		projectCwd = workspace.Cwd
+	}
+	if account == "" && newDriver == oldTask.Driver {
+		account = domain.NormalizeAccount(oldTask.Account)
+	}
+	if account, err = a.manager.ResolveAccount(newDriver, projectCwd, account); err != nil {
+		return domain.Task{}, err
+	}
+	oldAccount := domain.NormalizeAccount(oldTask.Account)
 
 	events := a.manager.History(oldThreadID)
 	if len(events) == 0 && a.historyStore != nil {
@@ -194,6 +209,7 @@ func (a *App) SwitchTaskProviderWithOptions(oldThreadID, driver, model string, o
 	_ = a.manager.Stop(a.ctx, oldThreadID)
 	if _, err := a.manager.Start(a.ctx, newDriver, domain.SessionStartInput{
 		ThreadID:   oldThreadID,
+		Account:    account,
 		Cwd:        cwd,
 		Model:      model,
 		Options:    options,
@@ -204,6 +220,7 @@ func (a *App) SwitchTaskProviderWithOptions(oldThreadID, driver, model string, o
 		return *oldTask, err
 	}
 	a.workspaces.SetTaskModel(oldThreadID, newDriver, model, options)
+	a.workspaces.SetTaskAccount(oldThreadID, account)
 	a.workspaces.SetState(oldThreadID, domain.TaskRunning)
 	updated, _ := a.workspaces.TaskByThread(oldThreadID)
 	if updated != nil {
@@ -211,7 +228,7 @@ func (a *App) SwitchTaskProviderWithOptions(oldThreadID, driver, model string, o
 	}
 	if notice == "" {
 		notice = fmt.Sprintf("Switched from %s: %s to %s: %s",
-			domain.DriverLabel(oldTask.Driver), oldTask.Model, domain.DriverLabel(newDriver), model)
+			a.accountLabel(oldTask.Driver, oldAccount), oldTask.Model, a.accountLabel(newDriver, account), model)
 	}
 	a.manager.RecordNotice(oldThreadID, notice, icon)
 
@@ -307,6 +324,7 @@ func (a *App) UpdateTaskModel(threadID, driver, model string, options domain.Mod
 	_ = a.manager.Stop(a.ctx, threadID)
 	if _, err := a.manager.Start(a.ctx, live.Driver, domain.SessionStartInput{
 		ThreadID:   threadID,
+		Account:    domain.NormalizeAccount(live.Account),
 		Cwd:        cwd,
 		Model:      model,
 		Options:    options,

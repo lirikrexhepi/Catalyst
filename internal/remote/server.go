@@ -659,8 +659,8 @@ func (s *Server) handleClientAction(msg ClientMessage) {
 			if msg.Model != "" {
 				cfg.Model = msg.Model
 			}
-			if msg.Driver != "" {
-				cfg.Driver = msg.Driver
+			if msg.Driver != "" && msg.Driver != cfg.Driver {
+				cfg.Driver, cfg.Account = msg.Driver, ""
 			}
 			s.orchestrator.Remember(cfg)
 			if _, err := s.coordinator.Send(ctx, cfg, msg.Text); err != nil {
