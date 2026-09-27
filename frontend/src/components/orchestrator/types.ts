@@ -30,9 +30,15 @@ export interface AIModel {
   options?: OptionDescriptor[];
 }
 
+export interface CLIAccount {
+  id: string;
+  name: string;
+}
+
 export interface CLIProvider {
   id: string;
   name: string;
+  accounts?: CLIAccount[];
   icon?: string;
   description?: string;
   availability?: string;

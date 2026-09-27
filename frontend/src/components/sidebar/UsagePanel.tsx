@@ -16,6 +16,13 @@ const DRIVER_NAMES: Record<string, string> = {
   opencode: 'OpenCode',
 };
 
+const usageKey = (entry: session.DriverUsage) => `${entry.driver}:${entry.account || 'default'}`;
+
+const usageName = (entry: session.DriverUsage) => {
+  const name = DRIVER_NAMES[entry.driver] ?? entry.driver;
+  return entry.accountName ? `${name} · ${entry.accountName}` : name;
+};
+
 // Past this the figures are old enough to mislead — the 5h window can move
 // several points in that time — so the label is flagged rather than shown as if
 // it were current.
@@ -126,7 +133,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const quotaDrivers = drivers.filter((driver) => (driver.limits?.length ?? 0) > 0);
   const quotaIssues = drivers
     .filter((driver) => !!driver.limitsError)
-    .map((driver) => ({ driver: driver.driver, message: driver.limitsError as string }));
+    .map((driver) => ({ key: usageKey(driver), name: usageName(driver), message: driver.limitsError as string }));
   // Session spend comes from the event stream and needs no subscription, so a
   // CLI without quota (OpenCode on third-party models, Codex, Antigravity)
   // still shows what it burned this run.
@@ -203,12 +210,12 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           </span>
           {spendDrivers.map((driver) => (
             <div
-              key={`spend-${driver.driver}`}
+              key={`spend-${usageKey(driver)}`}
               className="p-3 rounded-[12px] bg-white/[0.05] border border-white/[0.09] flex flex-col gap-1.5"
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[11px] font-medium font-['Geist'] text-white/70 tracking-tight">
-                  {DRIVER_NAMES[driver.driver] ?? driver.driver}
+                  {usageName(driver)}
                 </span>
                 {(driver.costUsd ?? 0) > 0 && (
                   <span className="text-[11px] font-semibold font-['Geist'] text-white/90 tabular-nums">
@@ -237,12 +244,12 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
         <div className="mx-4 mb-4 flex flex-col gap-3 shrink-0">
           {quotaDrivers.map((driver) => (
             <div
-              key={`quota-${driver.driver}`}
+              key={`quota-${usageKey(driver)}`}
               className="p-3 rounded-[12px] bg-white/[0.05] border border-white/[0.09] flex flex-col gap-2.5"
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
-                  {DRIVER_NAMES[driver.driver] ?? driver.driver} plan
+                  {usageName(driver)} plan
                 </span>
                 {!!driver.limitsFetchedAt && (
                   <span
@@ -256,19 +263,19 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
                 )}
               </div>
               {driver.limits?.map((limit) => (
-                <QuotaBar key={`${driver.driver}-${limit.window}`} limit={limit} />
+                <QuotaBar key={`${usageKey(driver)}-${limit.window}`} limit={limit} />
               ))}
             </div>
           ))}
 
           {/* Why a meter is missing, per CLI. Left blank it would read as a bug
               rather than a signed-out or offline provider. */}
-          {quotaIssues.map(({ driver, message }) => (
+          {quotaIssues.map(({ key, name, message }) => (
             <span
-              key={`quota-error-${driver}`}
+              key={`quota-error-${key}`}
               className="text-[10px] font-['Geist'] text-white/35 tracking-tight leading-relaxed px-0.5"
             >
-              {DRIVER_NAMES[driver] ?? driver}: {message}
+              {name}: {message}
             </span>
           ))}
         </div>

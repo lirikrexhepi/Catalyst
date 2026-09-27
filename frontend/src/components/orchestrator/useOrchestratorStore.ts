@@ -19,8 +19,15 @@ interface OrchestratorStore {
   autoStartAgents: boolean;
   autoApprovePermissions: boolean;
   interfaceSounds: boolean;
+  accountProject: string;
+  chosenAccounts: Record<string, string>;
+  projectAccounts: Record<string, string>;
 
   // Actions
+  setAccountProject: (projectPath: string, defaults?: Record<string, string>) => void;
+  selectAccount: (providerId: string, accountId: string) => void;
+  accountFor: (providerId: string, projectPath?: string) => string;
+  shownAccount: (providerId: string) => string;
   setAutoStartAgents: (enabled: boolean) => void;
   setAutoApprovePermissions: (enabled: boolean) => void;
   setInterfaceSounds: (enabled: boolean) => void;
@@ -53,6 +60,10 @@ interface OrchestratorStore {
 
 const initialSettings: Record<string, ModelSettings> = {};
 
+const normalizePath = (path: string) => path.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+
+const samePath = (a: string, b: string) => normalizePath(a) === normalizePath(b);
+
 export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
   providers: DEFAULT_PROVIDERS,
   models: DEFAULT_MODELS,
@@ -78,6 +89,34 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
     typeof window !== 'undefined'
       ? localStorage.getItem('orchestrator_interface_sounds') !== 'false'
       : true,
+  accountProject: '',
+  chosenAccounts: {},
+  projectAccounts: {},
+
+  setAccountProject: (projectPath, defaults = {}) => {
+    const same = samePath(get().accountProject, projectPath);
+    set({
+      accountProject: projectPath,
+      chosenAccounts: same ? get().chosenAccounts : {},
+      projectAccounts: { ...defaults },
+    });
+  },
+
+  selectAccount: (providerId, accountId) =>
+    set((state) => ({ chosenAccounts: { ...state.chosenAccounts, [providerId]: accountId } })),
+
+  accountFor: (providerId, projectPath) => {
+    const { accountProject, chosenAccounts } = get();
+    if (projectPath !== undefined && !samePath(accountProject, projectPath)) return '';
+    return chosenAccounts[providerId] || '';
+  },
+
+  shownAccount: (providerId) => {
+    const { chosenAccounts, projectAccounts, providers } = get();
+    const accounts = providers.find((p) => p.id === providerId)?.accounts ?? [];
+    const wanted = chosenAccounts[providerId] || projectAccounts[providerId] || 'default';
+    return accounts.some((account) => account.id === wanted) ? wanted : 'default';
+  },
 
   setAutoStartAgents: (autoStartAgents: boolean) => {
     if (typeof window !== 'undefined') {

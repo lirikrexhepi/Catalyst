@@ -92,6 +92,12 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   const effortPickerMount = useTransitionMount(isEffortPickerOpen, 200);
 
   const currentModel = getSelectedModel();
+  const accountName = useOrchestratorStore((state) => {
+    const provider = state.providers.find((p) => p.id === currentModel?.providerId);
+    if (!provider?.accounts || provider.accounts.length < 2) return '';
+    const shown = state.shownAccount(provider.id);
+    return provider.accounts.find((account) => account.id === shown)?.name ?? '';
+  });
   const currentProvider = getSelectedProvider();
   const iconSrc =
     providerIcon(currentModel?.providerId || currentProvider?.id || '', isLight) ||
@@ -229,7 +235,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               {/* Left: Model & Provider Selector Trigger (Embedded Pill matching target UI) */}
               <button
                 type="button"
-                title={currentModel?.name || 'Choose model'}
+                title={currentModel ? [currentModel.name, accountName].filter(Boolean).join(' · ') : 'Choose model'}
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleModelPicker();
@@ -253,6 +259,13 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 }`}>
                   {currentModel?.name || (isLoadingProviders ? 'Detecting CLIs…' : 'No CLI found')}
                 </span>
+                {accountName && (
+                  <span className={`text-[11px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[80px] truncate ${
+                    isLight ? 'text-black/45' : 'text-white/45'
+                  }`}>
+                    {accountName}
+                  </span>
+                )}
                 <span
                   className={`material-symbols-outlined text-[16px] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${
                     isModelPickerOpen
