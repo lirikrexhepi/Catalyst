@@ -1,6 +1,9 @@
 package drivers
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -135,5 +138,35 @@ func TestOpenCodeStatusParsing(t *testing.T) {
 	some := driver.ParseStatus(provider.CommandResult{Stdout: "●  Anthropic oauth\n|\n—  1 credentials\n"})
 	if !some.SignedIn || some.Detail != "1 provider" {
 		t.Fatalf("one credential = %+v", some)
+	}
+}
+
+func TestFreshClaudeAccountIsSignedOut(t *testing.T) {
+	if testing.Short() {
+		t.Skip("runs the installed claude CLI")
+	}
+	if _, ok := shell.LookPath("claude", shell.BaseEnvironment()); !ok {
+		t.Skip("claude CLI not installed")
+	}
+	registry := claudeRegistry(t)
+	account, err := registry.AccountStore().Add(domain.DriverClaude, "Personal")
+	if err != nil {
+		t.Fatal(err)
+	}
+	shell.SetAmbient(map[string]string{
+		"CLAUDE_CODE_OAUTH_TOKEN": "not-a-real-token",
+		"ANTHROPIC_API_KEY":       "not-a-real-key",
+	})
+	t.Cleanup(func() { shell.SetAmbient(nil) })
+
+	status, err := registry.AccountStatus(context.Background(), domain.DriverClaude, account.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status.SignedIn || !status.Known {
+		t.Fatalf("a brand new account must report signed out, got %+v", status)
+	}
+	if _, err := os.Stat(filepath.Join(account.ConfigDir, ".claude.json")); err != nil {
+		t.Fatalf("the CLI did not use the account's folder: %v", err)
 	}
 }
