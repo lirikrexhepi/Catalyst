@@ -514,13 +514,14 @@ export namespace domain {
 	        this.priority = source["priority"];
 	    }
 	}
-	export class ProviderSettings {
+ 	export class ProviderSettings {
 	    binaryPath?: string;
 	    launchArgs?: string;
 	    env?: Record<string, string>;
 	    serverUrl?: string;
 	    apiEndpoint?: string;
 	    model?: string;
+	    options?: Record<string, any>;
 	    printTimeout?: string;
 	    enabled: boolean;
 	
@@ -536,6 +537,7 @@ export namespace domain {
 	        this.serverUrl = source["serverUrl"];
 	        this.apiEndpoint = source["apiEndpoint"];
 	        this.model = source["model"];
+	        this.options = source["options"];
 	        this.printTimeout = source["printTimeout"];
 	        this.enabled = source["enabled"];
 	    }

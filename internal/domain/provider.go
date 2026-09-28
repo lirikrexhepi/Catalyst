@@ -55,6 +55,7 @@ type ProviderSettings struct {
 	ServerURL    string            `json:"serverUrl,omitempty"`
 	APIEndpoint  string            `json:"apiEndpoint,omitempty"`
 	Model        string            `json:"model,omitempty"`
+	Options      ModelOptions      `json:"options,omitempty"`
 	PrintTimeout string            `json:"printTimeout,omitempty"`
 	Enabled      bool              `json:"enabled"`
 	Unset        []string          `json:"-"`

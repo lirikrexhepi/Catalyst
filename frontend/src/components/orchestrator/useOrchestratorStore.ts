@@ -156,10 +156,25 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
       );
 
       const settings = { ...get().modelSettings };
+      const savedEffortByModel = new Map<string, string>();
+      for (const snapshot of ready) {
+        const savedModel = snapshot.settings?.model;
+        const savedEffort = (snapshot.settings as unknown as { options?: Record<string, unknown> })
+          ?.options?.['effort'];
+        if (typeof savedModel === 'string' && savedModel !== '' && typeof savedEffort === 'string' && savedEffort !== '') {
+          savedEffortByModel.set(savedModel, savedEffort);
+        }
+      }
       for (const model of models) {
         if (!settings[model.id]) {
+          const savedEffortId = savedEffortByModel.get(model.id);
+          const savedLabel = savedEffortId
+            ? model.options
+                ?.find((option) => option.id === 'effort')
+                ?.choices?.find((choice) => choice.id === savedEffortId)?.label
+            : undefined;
           settings[model.id] = {
-            effort: model.defaultEffort || model.effortLevels?.[0] || 'Medium',
+            effort: savedLabel || model.defaultEffort || model.effortLevels?.[0] || 'Medium',
             mode: model.defaultMode || 'normal',
           };
         }

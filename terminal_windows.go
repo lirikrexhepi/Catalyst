@@ -29,7 +29,7 @@ func openTerminal(command provider.AccountCommand) error {
 		CmdLine:       terminalCommandLine(comspec, command.Title, path, command.Args),
 		CreationFlags: createNewConsole,
 	}
-	cmd.Env = shell.Slice(command.Env)
+	cmd.Env = shell.Slice(shell.Merge(command.Env, command.Overrides))
 	if err := cmd.Start(); err != nil {
 		return err
 	}

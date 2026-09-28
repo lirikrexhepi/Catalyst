@@ -108,74 +108,94 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             )}
 
             <div className="flex flex-col gap-1.5">
-              {defaultModels.entries.map(({ provider, models, modelId, enabled }) => {
+              {defaultModels.entries.map(({ provider, models, modelId, enabled, effortId, effortChoices }) => {
                 const options = [
                   { value: '', label: 'CLI default' },
                   ...models.map((m) => ({ value: m.id, label: m.name })),
                 ];
+                const showEffort = enabled && modelId !== '' && effortChoices.length > 0;
 
                 return (
                   <div
                     key={provider.id}
-                    className={`grid grid-cols-[1fr_auto_145px] items-center gap-2.5 p-2 rounded-[10px] transition-colors ${
+                    className={`flex flex-col gap-1.5 p-2 rounded-[10px] transition-colors ${
                       enabled
                         ? isLight ? 'bg-black/[0.04]' : 'bg-white/[0.05]'
                         : isLight ? 'bg-black/[0.02] opacity-60' : 'bg-white/[0.02] opacity-60'
                     }`}
                   >
-                    <div className="flex items-center gap-2 min-w-0">
-                      {provider.icon ? (
-                        <img
-                          src={providerIcon(provider.id, isLight) || provider.icon}
-                          alt=""
-                          draggable={false}
-                          className="w-[18px] h-[18px] object-contain shrink-0 rounded-[3px]"
-                        />
-                      ) : (
-                        <span className={`material-symbols-rounded text-[18px] leading-none shrink-0 ${
-                          isLight ? 'text-black/50' : 'text-white/50'
-                        }`}>
-                          smart_toy
-                        </span>
-                      )}
+                    <div className="grid grid-cols-[1fr_auto_145px] items-center gap-2.5">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {provider.icon ? (
+                          <img
+                            src={providerIcon(provider.id, isLight) || provider.icon}
+                            alt=""
+                            draggable={false}
+                            className="w-[18px] h-[18px] object-contain shrink-0 rounded-[3px]"
+                          />
+                        ) : (
+                          <span className={`material-symbols-rounded text-[18px] leading-none shrink-0 ${
+                            isLight ? 'text-black/50' : 'text-white/50'
+                          }`}>
+                            smart_toy
+                          </span>
+                        )}
 
-                      <span className={`text-[12px] font-medium font-['Geist'] tracking-tight truncate ${
-                        isLight ? 'text-[#030303]' : 'text-white/90'
-                      }`}>
-                        {provider.name}
-                      </span>
+                        <span className={`text-[12px] font-medium font-['Geist'] tracking-tight truncate ${
+                          isLight ? 'text-[#030303]' : 'text-white/90'
+                        }`}>
+                          {provider.name}
+                        </span>
+                      </div>
+
+                      {/* Enable/Disable Permission Toggle */}
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={enabled}
+                        title={enabled ? `Disable ${provider.name}` : `Enable ${provider.name}`}
+                        onClick={() => void defaultModels.toggle(provider.id, !enabled)}
+                        className={`w-8 h-[18px] rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ${
+                          enabled
+                            ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
+                            : isLight ? 'bg-black/15' : 'bg-white/15'
+                        }`}
+                      >
+                        <div
+                          className={`w-3.5 h-3.5 rounded-full transition-transform duration-200 ease-out ${
+                            enabled
+                              ? isLight ? 'translate-x-3.5 bg-white shadow-sm' : 'translate-x-3.5 bg-black shadow-sm'
+                              : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
+                          }`}
+                        />
+                      </button>
+
+                      {/* Simplistic Clean Dropdown for Preferred Model */}
+                      <CleanDropdown
+                        value={modelId}
+                        options={options}
+                        disabled={!enabled || defaultModels.isSaving === provider.id || models.length === 0}
+                        onChange={(val) => void defaultModels.select(provider.id, val)}
+                        className="w-[145px]"
+                      />
                     </div>
 
-                    {/* Enable/Disable Permission Toggle */}
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={enabled}
-                      title={enabled ? `Disable ${provider.name}` : `Enable ${provider.name}`}
-                      onClick={() => void defaultModels.toggle(provider.id, !enabled)}
-                      className={`w-8 h-[18px] rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ${
-                        enabled
-                          ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
-                          : isLight ? 'bg-black/15' : 'bg-white/15'
-                      }`}
-                    >
-                      <div
-                        className={`w-3.5 h-3.5 rounded-full transition-transform duration-200 ease-out ${
-                          enabled
-                            ? isLight ? 'translate-x-3.5 bg-white shadow-sm' : 'translate-x-3.5 bg-black shadow-sm'
-                            : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
-                        }`}
-                      />
-                    </button>
-
-                    {/* Simplistic Clean Dropdown for Preferred Model */}
-                    <CleanDropdown
-                      value={modelId}
-                      options={options}
-                      disabled={!enabled || defaultModels.isSaving === provider.id || models.length === 0}
-                      onChange={(val) => void defaultModels.select(provider.id, val)}
-                      className="w-[145px]"
-                    />
+                    {showEffort && (
+                      <div className="flex items-center justify-between gap-2.5 pl-[26px]">
+                        <span className={`text-[11px] font-['Geist'] tracking-tight ${
+                          isLight ? 'text-black/50' : 'text-white/45'
+                        }`}>
+                          Effort
+                        </span>
+                        <CleanDropdown
+                          value={effortId}
+                          options={effortChoices}
+                          disabled={!enabled || defaultModels.isSaving === provider.id}
+                          onChange={(val) => void defaultModels.selectEffort(provider.id, val)}
+                          className="w-[145px]"
+                        />
+                      </div>
+                    )}
                   </div>
                 );
               })}

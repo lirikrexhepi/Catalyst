@@ -30,6 +30,15 @@ const statusKey = (driver: string, id: string) => `${driver}:${id}`;
 
 const message = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
 
+const emailFromDetail = (detail?: string) => {
+  if (!detail) return '';
+  for (const part of detail.split('·')) {
+    const trimmed = part.trim();
+    if (trimmed.includes('@')) return trimmed;
+  }
+  return '';
+};
+
 export const AccountsSection: React.FC<{ isLight: boolean }> = ({ isLight }) => {
   const [snapshots, setSnapshots] = useState<domain.ProviderSnapshot[]>([]);
   const [project, setProject] = useState<projects.Project | null>(null);
@@ -103,10 +112,8 @@ export const AccountsSection: React.FC<{ isLight: boolean }> = ({ isLight }) => 
     }
   };
 
-  const signIn = (driver: string, id: string) =>
-    run(async () => {
-      await SignInAccount(driver, id);
-      setNotice('Finish signing in in the window that opened. The status here updates on its own.');
+  const watchSignIn = useCallback(
+    (driver: string, id: string) => {
       const key = statusKey(driver, id);
       window.clearInterval(polls.current[key]);
       let tries = 0;
@@ -118,17 +125,33 @@ export const AccountsSection: React.FC<{ isLight: boolean }> = ({ isLight }) => 
           delete polls.current[key];
         }
       }, SIGN_IN_POLL_MS);
+    },
+    [check],
+  );
+
+  const signIn = (driver: string, id: string) =>
+    run(async () => {
+      await SignInAccount(driver, id);
+      setNotice('Sign-in window opened.');
+      watchSignIn(driver, id);
     });
 
   const add = (driver: string) =>
     run(async () => {
       const result = await AddAccount(driver, name, COPYABLE.has(driver) && copySettings);
+      const newId = result.account.id;
       setAdding(null);
       setName('');
-      const copied = result.copied?.length ? ` Copied ${result.copied.join(', ')}.` : '';
-      setNotice(`Added ${result.account.name}. Sign in to use it.${copied}`);
       if (result.warning) setError(result.warning);
       await refreshEverywhere();
+      try {
+        await SignInAccount(driver, newId);
+        setNotice(`Added ${result.account.name}. Sign-in window opened.`);
+        watchSignIn(driver, newId);
+      } catch (cause) {
+        setNotice(`Added ${result.account.name}.`);
+        setError(message(cause));
+      }
     });
 
   const rename = (driver: string, id: string) =>
@@ -142,7 +165,7 @@ export const AccountsSection: React.FC<{ isLight: boolean }> = ({ isLight }) => 
     run(async () => {
       await RemoveAccount(driver, id);
       setConfirmRemove(null);
-      setNotice('Removed. Its folder and sign-in stay on disk until you delete them yourself.');
+      setNotice('Removed.');
       await refreshEverywhere();
     });
 
@@ -194,6 +217,11 @@ export const AccountsSection: React.FC<{ isLight: boolean }> = ({ isLight }) => 
                     ? status.detail || 'Signed in'
                     : 'Not signed in'
                   : status?.detail || (snapshot.availability === 'ready' ? '' : 'CLI not found');
+              const email = emailFromDetail(status?.detail);
+              const title = email || account.name;
+              const sub = email
+                ? account.name.toLowerCase() === email.toLowerCase() ? 'Signed in' : account.name
+                : label;
               return (
                 <div key={account.id} className="flex items-center justify-between gap-2 pl-6">
                   {renaming === key ? (
@@ -211,16 +239,17 @@ export const AccountsSection: React.FC<{ isLight: boolean }> = ({ isLight }) => 
                   ) : (
                     <>
                       <div className="flex flex-col min-w-0">
-                        <span className={titleCls}>
-                          {account.name}
-                          {account.id === 'default' && <span className={detailCls}> · uses the CLI's usual sign-in</span>}
+                        <span className={titleCls} title={email ? status?.detail : undefined}>
+                          {title}
                         </span>
-                        <span className={detailCls} title={status?.detail}>
-                          {status?.known && (
-                            <span className={status.signedIn ? 'text-emerald-400/80' : 'text-amber-400/80'}>● </span>
-                          )}
-                          {label}
-                        </span>
+                        {sub !== '' && (
+                          <span className={detailCls} title={status?.detail}>
+                            {status?.known && !email && (
+                              <span className={status.signedIn ? 'text-emerald-400/80' : 'text-amber-400/80'}>● </span>
+                            )}
+                            {sub}
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2.5 shrink-0">
                         {confirmRemove === key ? (
@@ -269,9 +298,12 @@ export const AccountsSection: React.FC<{ isLight: boolean }> = ({ isLight }) => 
                   <button type="button" onClick={() => setAdding(null)} className={linkCls}>Cancel</button>
                 </div>
                 {COPYABLE.has(driver) && (
-                  <label className={`flex items-center gap-1.5 ${detailCls} cursor-pointer`}>
+                  <label
+                    className={`flex items-center gap-1.5 ${detailCls} cursor-pointer`}
+                    title="Copies CLAUDE.md, settings, skills, agents, commands and output styles. Never copies sign-in or history."
+                  >
                     <input type="checkbox" checked={copySettings} onChange={(event) => setCopySettings(event.target.checked)} />
-                    Copy my settings from {accounts[0]?.name || 'Default'} (CLAUDE.md, settings, skills, agents, commands, output styles). Never copies sign-in or history.
+                    Copy settings from {accounts[0]?.name || 'Default'}
                   </label>
                 )}
               </form>
