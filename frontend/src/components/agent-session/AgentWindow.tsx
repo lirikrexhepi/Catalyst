@@ -7,11 +7,12 @@ import { AgentGitView } from './AgentGitView';
 import { AgentServersView } from './AgentServersView';
 import { domain, servers } from '../../../wailsjs/go/models';
 import { GitState } from '../git';
-import { MessageSquare, Globe, GitBranch, ListTodo, Terminal, X, Square } from 'lucide-react';
+import { X, Square } from 'lucide-react';
 import { OrbitLoader } from './OrbitLoader';
 import { TextShimmer } from './TextShimmer';
 import { AgentStreamBlock, TodoToolBlockData } from './types';
 import { AgentTasklistView } from './AgentTasklistView';
+import { AgentViewSwitcher } from './AgentViewSwitcher';
 import { useSmoothScroll } from '../common/useSmoothScroll';
 import { ContextRing } from './ContextRing';
 import type { ContextUsage } from './contextUsage';
@@ -407,132 +408,14 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
                 </div>
               )}
 
-              {/* Mode Switcher: Chat / Web Preview / Git Changes (Always visible in both deck and grid modes) */}
-              <div className="flex items-center p-0.5 rounded-full bg-white/[0.08] backdrop-blur-md shrink-0 border border-white/[0.08] shadow-inner">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMode('chat');
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium font-['Geist'] transition-all cursor-pointer ${
-                    activeMode === 'chat'
-                      ? 'bg-white/[0.16] text-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] font-semibold border border-white/10'
-                      : 'text-white/45 hover:text-white/85 hover:bg-white/[0.04] border border-transparent'
-                  }`}
-                >
-                  <MessageSquare size={13} className="shrink-0" />
-                  <span>Chat</span>
-                </button>
-
-                <button
-                  type="button"
-                  title={
-                    totalTasksCount > 0
-                      ? `${completedTasksCount} of ${totalTasksCount} tasks completed`
-                      : 'Agent tasklist'
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMode('tasklist');
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium font-['Geist'] transition-all cursor-pointer ${
-                    activeMode === 'tasklist'
-                      ? 'bg-white/[0.16] text-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] font-semibold border border-white/10'
-                      : 'text-white/45 hover:text-white/85 hover:bg-white/[0.04] border border-transparent'
-                  }`}
-                >
-                  <ListTodo size={13} className="shrink-0" />
-                  <span>Tasklist</span>
-                  {totalTasksCount > 0 && (
-                    <span
-                      className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-semibold shrink-0 ${
-                        completedTasksCount === totalTasksCount
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                          : 'bg-white/15 text-white/90 border border-white/10'
-                      }`}
-                    >
-                      {completedTasksCount}/{totalTasksCount}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  title={
-                    primaryServer
-                      ? `Preview dev server (localhost:${primaryServer.port})`
-                      : 'Web preview'
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMode('browser');
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium font-['Geist'] transition-all cursor-pointer ${
-                    activeMode === 'browser'
-                      ? 'bg-white/[0.16] text-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] font-semibold border border-white/10'
-                      : 'text-white/45 hover:text-white/85 hover:bg-white/[0.04] border border-transparent'
-                  }`}
-                >
-                  <Globe size={13} className="shrink-0" />
-                  <span>Preview</span>
-                  {primaryServer && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse shrink-0" />
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  title={
-                    detectedServers.length > 0
-                      ? `${detectedServers.length} dev server${detectedServers.length === 1 ? '' : 's'}`
-                      : 'Dev servers'
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMode('servers');
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium font-['Geist'] transition-all cursor-pointer ${
-                    activeMode === 'servers'
-                      ? 'bg-white/[0.16] text-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] font-semibold border border-white/10'
-                      : 'text-white/45 hover:text-white/85 hover:bg-white/[0.04] border border-transparent'
-                  }`}
-                >
-                  <Terminal size={13} className="shrink-0" />
-                  <span>Servers</span>
-                  {detectedServers.length > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                      {detectedServers.length}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  title={
-                    changesCount > 0
-                      ? `${changesCount} uncommitted change${changesCount === 1 ? '' : 's'}`
-                      : 'Git changes'
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMode('changes');
-                  }}
-                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-medium font-['Geist'] transition-all cursor-pointer ${
-                    activeMode === 'changes'
-                      ? 'bg-white/[0.16] text-white shadow-[0_2px_8px_rgba(0,0,0,0.35)] font-semibold border border-white/10'
-                      : 'text-white/45 hover:text-white/85 hover:bg-white/[0.04] border border-transparent'
-                  }`}
-                >
-                  <GitBranch size={13} className="shrink-0" />
-                  <span>Changes</span>
-                  {changesCount > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
-                      {changesCount}
-                    </span>
-                  )}
-                </button>
-              </div>
+              <AgentViewSwitcher
+                mode={activeMode}
+                onChange={setMode}
+                tasks={{ done: completedTasksCount, total: totalTasksCount }}
+                servers={detectedServers.length}
+                changes={changesCount}
+                isLight={isLight}
+              />
 
               {/* Minimalist Borderless Close Button */}
               {onClose && (

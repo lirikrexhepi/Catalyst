@@ -105,7 +105,7 @@ export const DeckNavigationPill: React.FC<DeckNavigationPillProps> = ({
                 : 'bg-black/40 hover:bg-black/60 border-white/15 text-white/80 hover:text-white'
             }`}
           >
-            <Layers size={14} className="shrink-0" />
+            <Layers size={16} strokeWidth={1.75} className="shrink-0" />
           </button>
 
           {/* Ascend to Orchestrator */}
@@ -119,7 +119,7 @@ export const DeckNavigationPill: React.FC<DeckNavigationPillProps> = ({
                 : 'bg-black/40 hover:bg-black/60 border-white/15 text-white/80 hover:text-white'
             }`}
           >
-            <Sparkles size={14} className="shrink-0" />
+            <Sparkles size={16} strokeWidth={1.75} className="shrink-0" />
           </button>
         </div>
       ) : (
@@ -134,7 +134,7 @@ export const DeckNavigationPill: React.FC<DeckNavigationPillProps> = ({
               : 'bg-black/40 hover:bg-black/60 border-white/15 text-white/80 hover:text-white'
           }`}
         >
-          <LayoutGrid size={14} className={`shrink-0 ${isLight ? 'text-[#030303]/80' : 'text-white/80'}`} />
+          <LayoutGrid size={16} strokeWidth={1.75} className={`shrink-0 ${isLight ? 'text-[#030303]/80' : 'text-white/80'}`} />
         </button>
       )}
     </div>

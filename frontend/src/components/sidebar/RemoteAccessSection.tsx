@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check, Copy, Loader2, Smartphone } from 'lucide-react';
 import { useRemoteAccess } from './useRemoteAccess';
 import { useTheme } from '../../themes';
 
@@ -9,147 +10,77 @@ export const RemoteAccessSection: React.FC = () => {
 
   const isLive = Boolean(info?.enabled);
   const isConnecting = isLive && (info?.connecting || info?.downloading || !info?.bestUrl);
+  const muted = isLight ? 'text-black/45' : 'text-white/45';
+  const strong = isLight ? 'text-[#030303]' : 'text-white';
 
   return (
-    <div className="flex flex-col gap-2 pt-2 border-t border-white/[0.08]">
-      <div className="flex items-center justify-between px-0.5 pt-1">
+    <div className={`flex flex-col gap-2.5 pt-3 border-t ${isLight ? 'border-black/[0.06]' : 'border-white/[0.06]'}`}>
+      <div className="flex items-center justify-between px-0.5">
         <div className="flex items-center gap-2">
-          <span className={`material-symbols-rounded text-[18px] leading-none ${
-            isLive ? 'text-[#38bdf8]' : 'text-white/40'
-          }`}>
-            smartphone
-          </span>
-          <span className="text-[12px] font-semibold font-['Geist'] text-white tracking-tight">
-            Phone Remote Access
-          </span>
+          <Smartphone size={16} strokeWidth={1.75} className={isLive ? 'text-[#38bdf8]' : muted} />
+          <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${strong}`}>Phone access</span>
         </div>
         <button
           type="button"
           role="switch"
           aria-checked={isLive}
+          aria-label="Phone access"
           disabled={loading}
           onClick={() => void toggle(!isLive)}
           className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ${
-            isLive
-              ? isLight ? 'bg-[#007AFF]' : 'bg-[#38bdf8]'
-              : isLight ? 'bg-black/15' : 'bg-white/15'
+            isLive ? (isLight ? 'bg-[#007AFF]' : 'bg-[#38bdf8]') : isLight ? 'bg-black/15' : 'bg-white/15'
           } ${loading ? 'opacity-50' : ''}`}
         >
           <div
-            className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
-              isLive
-                ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
-                : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
+            className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out shadow-sm ${
+              isLive ? `translate-x-4 ${isLight ? 'bg-white' : 'bg-black'}` : `translate-x-0 ${isLight ? 'bg-white' : 'bg-white/60'}`
             }`}
           />
         </button>
       </div>
 
-      <div className="text-[11px] text-white/50 leading-relaxed">
-        Control parallel agents from university or cell data while your PC stays at home.
-      </div>
-
       {isLive && info && (
-        <div className={`mt-1.5 p-3 rounded-[12px] flex flex-col gap-3 ${
-          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04] border border-white/[0.08]'
-        }`}>
-          {info.error ? (
-            <div className="flex flex-col gap-2 p-3 rounded-[10px] bg-red-500/10 border border-red-500/20 text-red-300 text-[11px]">
-              <div className="flex items-center gap-1.5 font-semibold text-red-200">
-                <span className="material-symbols-rounded text-[16px] text-red-400">error</span>
-                Tunnel Connection Failed
-              </div>
-              <div className="text-[10px] text-white/70">{info.error}</div>
+        info.error ? (
+          <div className="flex items-center justify-between gap-3 px-0.5">
+            <span className="text-[11px] text-red-300 truncate" title={info.error}>Couldn't connect</span>
+            <button type="button" onClick={() => void toggle(true)} className={`text-[11px] font-medium cursor-pointer ${strong}`}>
+              Retry
+            </button>
+          </div>
+        ) : isConnecting ? (
+          <div className={`flex items-center gap-2 px-0.5 text-[11px] ${muted}`}>
+            <Loader2 size={14} strokeWidth={1.75} className="animate-spin" />
+            Connecting…
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            {info.qrCodeSvg ? (
+              <img src={info.qrCodeSvg} alt="Scan to pair your phone" className="w-[92px] h-[92px] p-1.5 bg-white rounded-[12px] shrink-0 object-contain" />
+            ) : (
+              <div className={`w-[92px] h-[92px] rounded-[12px] shrink-0 ${isLight ? 'bg-black/[0.05]' : 'bg-white/[0.06]'}`} />
+            )}
+            <div className="flex flex-col gap-2 min-w-0">
+              <span className={`flex items-center gap-1.5 text-[11px] ${muted}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                {info.activeClients > 0 ? `${info.activeClients} connected` : 'Scan with your phone'}
+              </span>
               <button
                 type="button"
-                onClick={() => void toggle(true)}
-                className="self-start mt-1 px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-white font-medium rounded text-[10px] cursor-pointer"
+                onClick={copyUrl}
+                title={info.bestUrl}
+                className={`self-start flex items-center gap-1.5 h-7 px-3 rounded-full text-[11px] font-medium cursor-pointer transition-colors ${
+                  isLight ? 'bg-black/[0.06] hover:bg-black/[0.1] text-[#030303]' : 'bg-white/[0.08] hover:bg-white/[0.14] text-white'
+                }`}
               >
-                Retry Tunnel
+                {copied ? <Check size={13} strokeWidth={2} /> : <Copy size={13} strokeWidth={1.75} />}
+                {copied ? 'Copied' : 'Copy link'}
+              </button>
+              <button type="button" onClick={() => void regenerate()} className={`self-start text-[10px] cursor-pointer hover:text-[#f87171] ${muted}`}>
+                New code
               </button>
             </div>
-          ) : isConnecting ? (
-            <div className="flex flex-col items-center justify-center py-5 px-3 gap-2 text-center">
-              <div className="w-5 h-5 border-2 border-[#38bdf8] border-t-transparent rounded-full animate-spin" />
-              <div className="text-[12px] font-medium text-white/90">
-                Establishing Secure Remote Tunnel...
-              </div>
-              <div className="text-[11px] text-white/50 max-w-[240px]">
-                Connecting via Tailscale Funnel so your phone can reach this PC from anywhere.
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* QR Code & PIN Display */}
-              <div className="flex items-center gap-3">
-                {info.qrCodeSvg ? (
-                  <div className="p-1.5 bg-white rounded-[10px] shadow-sm shrink-0">
-                    <img
-                      src={info.qrCodeSvg}
-                      alt="Pairing QR Code"
-                      className="w-[100px] h-[100px] object-contain block"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-[100px] h-[100px] bg-white/10 rounded-[10px] flex items-center justify-center text-[10px] text-white/50">
-                    Generating QR...
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1.5 min-w-0">
-                  <span className="text-[10px] font-semibold text-[#38bdf8] uppercase tracking-wider">
-                    Scan With Phone Camera
-                  </span>
-                  <div className="text-[11px] text-white/70">
-                    Accessible anywhere worldwide via secure HTTPS tunnel.
-                  </div>
-                  <div className="text-[10px] text-white/40 mt-1">
-                    Scan the code with your phone — no typing needed.
-                  </div>
-                </div>
-              </div>
-
-              {/* Connection URL Bar */}
-              <div className="flex items-center gap-2 bg-black/30 p-2 rounded-[8px] border border-white/[0.06]">
-                <input
-                  type="text"
-                  readOnly
-                  value={info.bestUrl}
-                  className="bg-transparent text-[11px] font-mono text-[#38bdf8] select-all outline-none flex-1 truncate"
-                />
-                <button
-                  type="button"
-                  onClick={copyUrl}
-                  className="px-2.5 py-1 text-[11px] font-semibold rounded-[6px] bg-[#38bdf8]/20 hover:bg-[#38bdf8]/30 text-[#38bdf8] cursor-pointer transition-colors shrink-0"
-                >
-                  {copied ? '✓ Copied' : 'Copy Link'}
-                </button>
-              </div>
-
-              {/* Status Indicators */}
-              <div className="flex items-center justify-between text-[10px] text-white/40 pt-1">
-                <span className="flex items-center gap-1.5 text-emerald-400">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
-                  Tailscale Funnel Active (Stable URL)
-                </span>
-                <span className="text-white/60 font-mono">
-                  {info.activeClients} connected
-                </span>
-              </div>
-
-              {/* Advanced action */}
-              <div className="flex items-center justify-end pt-1 border-t border-white/[0.06]">
-                <button
-                  type="button"
-                  onClick={() => void regenerate()}
-                  className="text-[10px] text-white/40 hover:text-[#f87171] cursor-pointer"
-                >
-                  Regenerate Pairing Token
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+          </div>
+        )
       )}
     </div>
   );
