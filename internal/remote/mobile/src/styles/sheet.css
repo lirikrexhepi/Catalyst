@@ -66,3 +66,5 @@ button.sheet-row:active { background-color: rgba(var(--ink), 0.05); }
 }
 .status-pill-action:active { opacity: 0.6; }
 .status-pill-action:disabled { opacity: 0.45; }
+.sheet-morph { align-self: center; margin: 4px 0 8px; }
+.row-morph { margin-right: -4px; }

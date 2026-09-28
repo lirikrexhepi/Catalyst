@@ -1,5 +1,10 @@
 package domain
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 type DriverKind string
 
 const (
@@ -150,6 +155,40 @@ type SessionStartInput struct {
 	// PlanOnly denies the session every tool. The orchestrator delegates rather
 	// than works, and without this it explores the repo instead of answering.
 	PlanOnly bool `json:"planOnly,omitempty"`
+	Skills   *SkillPolicy `json:"skills,omitempty"`
+}
+
+type SkillMode string
+
+const (
+	SkillsOnly SkillMode = "only"
+	SkillsNone SkillMode = "none"
+)
+
+type SkillRef struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+type SkillPolicy struct {
+	Mode   SkillMode  `json:"mode"`
+	Skills []SkillRef `json:"skills,omitempty"`
+	Denied []string   `json:"denied,omitempty"`
+}
+
+func (p *SkillPolicy) Instruction() string {
+	if p == nil || p.Mode != SkillsOnly || len(p.Skills) == 0 {
+		return ""
+	}
+	named := make([]string, 0, len(p.Skills))
+	for _, skill := range p.Skills {
+		if skill.Path == "" {
+			named = append(named, skill.Name)
+			continue
+		}
+		named = append(named, skill.Name+" ("+filepath.Join(skill.Path, "SKILL.md")+")")
+	}
+	return "Before you start, load each of these skills and follow them throughout the task, reading the SKILL.md at the given path if your skill tool does not list it: " + strings.Join(named, ", ") + "."
 }
 
 // ModelOptions carries the user's selections for a model's OptionDescriptors,

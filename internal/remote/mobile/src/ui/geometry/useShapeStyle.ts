@@ -1,12 +1,12 @@
 import { useMemo, type CSSProperties } from 'react'
 import { lruCache } from './memo'
-import { cornerList, isFullyRound, radiusKey, shapeKey, squirclePath, type CornerRadii, type Size, type SquircleShape } from './squircle'
+import { cornerList, isCircle, radiusKey, shapeKey, squirclePath, type CornerRadii, type Size, type SquircleShape } from './squircle'
 
 const clips = lruCache<CSSProperties>(512)
 
 function clipFor(shape: SquircleShape): CSSProperties {
   return clips(shapeKey(shape), () => {
-    if (isFullyRound(shape)) return { borderRadius: 9999 }
+    if (isCircle(shape)) return { borderRadius: 9999 }
     const clip = `path('${squirclePath(shape)}')`
     return { clipPath: clip, WebkitClipPath: clip }
   })

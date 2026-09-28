@@ -1,3 +1,4 @@
+import { GlassPill } from '../../ui'
 import type { AccountInfo } from '../../types'
 
 interface AccountRowProps {
@@ -13,15 +14,20 @@ export function AccountRow({ accounts, selected, onPick }: AccountRowProps) {
   return (
     <div className="account-row" role="radiogroup" aria-label="Account">
       {options.map((account) => (
-        <button
+        <GlassPill
           key={account.id || 'project-default'}
+          as="button"
+          height={34}
+          fill="var(--surface-2)"
+          border={false}
+          pressable={false}
           role="radio"
           aria-checked={account.id === selected}
           className="account-pill"
           onClick={() => onPick(account.id)}
         >
           {account.name}
-        </button>
+        </GlassPill>
       ))}
     </div>
   )

@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { Bot, Check, ChevronLeft, Loader2, Minus, Monitor, Play, Plus, Square, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
-import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary, SheetRow, useArmed } from '../components/sheet'
+import { MorphButtons } from '../ui/glass/MorphButtons'
+import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary, SheetRow } from '../components/sheet'
 import SiteCard from '../components/SiteCard'
 import { StatusCard } from '../components/status/StatusCard'
 import { api } from '../api'
@@ -258,9 +259,8 @@ export function PreviewScreen({
   const gone = useRef(onGone)
   gone.current = onGone
   const [stopping, setStopping] = useState(false)
-  const [stopArmed, confirmStop] = useArmed()
   const stop = () => {
-    if (!pid || stopping || !confirmStop()) return
+    if (!pid || stopping) return
     setStopping(true)
     api
       .devServerStop(pid, port)
@@ -345,11 +345,30 @@ export function PreviewScreen({
           <div className="preview-device" {...hold}>
             <GlassSegmented options={DEVICE_OPTIONS} value={mode} onChange={setMode} height={44} padding={0} gap={6} fill="var(--glass-control)" lensFill="rgba(var(--ink), 0.2)" />
           </div>
-          <div className="topbar-end">
-            <BarButton icon={stopArmed ? Check : Square} label={stopArmed ? 'Tap again to stop the dev server' : 'Stop dev server'} onClick={stop} disabled={!pid || stopping} />
-            <BarButton icon={RotateCw} label="Reload" onClick={() => setReloadKey((k) => k + 1)} disabled={!live} />
-            <BarButton icon={SquareArrowOutUpRight} label="Open in browser" onClick={() => preview?.url && window.open(preview.url, '_blank', 'noopener,noreferrer')} disabled={!live} />
-          </div>
+          <MorphButtons
+            className="topbar-end preview-actions"
+            anchor="end"
+            items={[
+              {
+                id: 'stop',
+                label: 'Stop dev server',
+                icon: <Square size={24} strokeWidth={ICON_STROKE} />,
+                disabled: !pid || stopping,
+                actions: [
+                  { id: 'stop', label: 'Stop server', tone: 'danger', onSelect: stop },
+                  { id: 'cancel', label: 'Cancel', dismiss: true },
+                ],
+              },
+              { id: 'reload', label: 'Reload', icon: <RotateCw size={24} strokeWidth={ICON_STROKE} />, disabled: !live, onClick: () => setReloadKey((k) => k + 1) },
+              {
+                id: 'open',
+                label: 'Open in browser',
+                icon: <SquareArrowOutUpRight size={24} strokeWidth={ICON_STROKE} />,
+                disabled: !live,
+                onClick: () => preview?.url && window.open(preview.url, '_blank', 'noopener,noreferrer'),
+              },
+            ]}
+          />
         </div>
         <div className="preview-site">
           {adjusting ? (

@@ -12,9 +12,11 @@ import { SmoothTextarea } from '../common/SmoothTextarea';
 import { AttachmentStrip } from '../common/AttachmentStrip';
 import { AttachmentsState, filesFromTransfer } from '../common/useAttachments';
 import { providerIcon } from './providerIcons';
+import { SkillTestPicker } from './SkillTestPicker';
 
 export interface OrchestratorInputProps {
   onSubmit?: (message: string, modelId: string) => void;
+  onSkillTest?: (message: string, modelId: string, skills: string[]) => void;
   attachments?: AttachmentsState;
   onInterrupt?: () => void;
   isBusy?: boolean;
@@ -45,6 +47,7 @@ const MAX_STRIP_HEIGHT = MAX_FIELD_HEIGHT - CONTROL_ROW_HEIGHT;
 
 export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   onSubmit,
+  onSkillTest,
   onInterrupt,
   isBusy = false,
   projects,
@@ -169,9 +172,13 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   const hasAttachments = (attachments?.items.length ?? 0) > 0;
   const canSubmit = messageText.trim().length > 0 || hasAttachments;
 
+  const [testSkills, setTestSkills] = useState<string[]>([]);
+  const skillTest = testSkills.length > 0 && Boolean(onSkillTest);
+
   const submitMessage = () => {
     if (!canSubmit) return;
-    onSubmit?.(messageText, selectedModelId);
+    if (skillTest) onSkillTest?.(messageText, selectedModelId, testSkills);
+    else onSubmit?.(messageText, selectedModelId);
     setMessageText('');
     if (textareaRef.current) {
       textareaRef.current.style.height = `${LINE_HEIGHT}px`;
@@ -385,6 +392,9 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
 
           {/* Right Action Buttons (Attach + Send / Stop) - Kept at bottom along with file attach button */}
           <div className={`flex items-center gap-1 shrink-0 ${isExpanded ? 'self-end' : 'self-center'}`}>
+            {onSkillTest && (
+              <SkillTestPicker cwd={projects?.active?.path ?? ''} selected={testSkills} onChange={setTestSkills} isLight={isLight} />
+            )}
             {/* Attach */}
             {attachments && (
               <button
@@ -434,7 +444,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
             {(!isBusy || canSubmit) && (
               <button
                 type="button"
-                title={isBusy ? 'Queue message' : 'Send'}
+                title={skillTest ? 'Run skill test' : isBusy ? 'Queue message' : 'Send'}
                 disabled={!canSubmit}
                 onClick={(e) => {
                   e.stopPropagation();

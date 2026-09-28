@@ -51,6 +51,7 @@ type thread struct {
 	model      string
 	options    domain.ModelOptions
 	permission domain.PermissionMode
+	skills     *domain.SkillPolicy
 	api        *httpClient
 	serverKey  string
 
@@ -187,6 +188,7 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 		model:        model,
 		options:      in.Options,
 		permission:   in.Permission,
+		skills:       in.Skills,
 		api:          api,
 		serverKey:    serverKey(cwd),
 		tools:        make(map[string]string),
@@ -272,6 +274,7 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 	model := t.model
 	t.mu.Unlock()
 	request := PromptRequest{Model: parseModelRef(model), Variant: variant, System: provider.RuntimeInstructions, Parts: parts}
+	applySkills(&request, t.skills)
 	if err := api.do(ctx, http.MethodPost, "/session/"+t.sessionID+"/prompt_async", request, nil); err != nil {
 		t.mu.Lock()
 		t.turnID = ""
@@ -488,4 +491,17 @@ func parseModelRef(raw string) *ModelRef {
 		return &ModelRef{ProviderID: parts[0], ModelID: parts[1]}
 	}
 	return &ModelRef{ProviderID: "opencode", ModelID: raw}
+}
+
+func applySkills(request *PromptRequest, policy *domain.SkillPolicy) {
+	if policy == nil {
+		return
+	}
+	if policy.Mode == domain.SkillsNone {
+		request.Tools = map[string]bool{"skill": false}
+		return
+	}
+	if instruction := policy.Instruction(); instruction != "" {
+		request.System = strings.TrimSpace(request.System + "\n\n" + instruction)
+	}
 }

@@ -174,6 +174,10 @@ export function ListSessionsMeta(arg1) {
   return window['go']['main']['App']['ListSessionsMeta'](arg1);
 }
 
+export function ListSkills(arg1) {
+  return window['go']['main']['App']['ListSkills'](arg1);
+}
+
 export function ListWorkspaces() {
   return window['go']['main']['App']['ListWorkspaces']();
 }
@@ -348,6 +352,10 @@ export function StartRemoteServer(arg1) {
 
 export function StartSession(arg1, arg2) {
   return window['go']['main']['App']['StartSession'](arg1, arg2);
+}
+
+export function StartSkillTest(arg1) {
+  return window['go']['main']['App']['StartSkillTest'](arg1);
 }
 
 export function StopManagedServer(arg1) {

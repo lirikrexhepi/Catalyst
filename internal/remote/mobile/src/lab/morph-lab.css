@@ -1,0 +1,52 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--fg); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+:root {
+  --font: 'Geist Variable', 'Geist', system-ui, sans-serif;
+  --bg: #111111;
+  --fg: #ffffff;
+  --fg-3: #828282;
+  --row: #1c1c1c;
+  --ma-fill: #414141;
+  --ma-hover: #4c4c4c;
+  --ma-danger: #ff5a52;
+  --ma-danger-hover: #5a302d;
+  --ma-rim: #ffffff;
+  --ma-rim-hi: 0.62;
+  --ma-rim-lo: 0.06;
+  --ma-shadow: 0;
+}
+
+:root[data-theme='light'] {
+  --bg: #f6f6f6;
+  --fg: #111111;
+  --fg-3: #6e6e73;
+  --row: #ffffff;
+  --ma-fill: #ffffff;
+  --ma-hover: #ececec;
+  --ma-danger: #e5202e;
+  --ma-danger-hover: #ffd6d3;
+  --ma-rim: #000000;
+  --ma-rim-hi: 0.1;
+  --ma-rim-lo: 0.05;
+  --ma-shadow: 0.05;
+}
+
+.mlab { min-height: 100%; display: flex; flex-direction: column; }
+.mlab-bar { display: flex; align-items: center; gap: 20px; padding: 20px 24px; font: 500 13px/1 var(--font); color: var(--fg-3); }
+.mlab-bar button[aria-pressed='true'] { color: var(--fg); }
+.mlab-cost { margin-left: auto; font: 400 12px/1 ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+.mlab-stage { flex: 1; min-height: 60vh; display: grid; place-items: center; }
+.mlab-list { width: min(420px, 100% - 32px); margin: 0 auto 64px; display: flex; flex-direction: column; gap: 8px; }
+.mlab-row {
+  position: relative; display: flex; align-items: center; height: 64px; padding: 0 64px 0 20px; border-radius: 22px;
+  background: var(--row); overflow: hidden; transition: opacity 260ms cubic-bezier(0.32, 0.72, 0, 1), height 320ms cubic-bezier(0.32, 0.72, 0, 1), margin 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+.mlab-row.gone { opacity: 0; height: 0; margin-top: -8px; }
+.mlab-row-text { flex: 1; min-width: 0; font: 400 15px/1.3 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mlab-row .ma { position: absolute; right: 10px; top: 10px; }
+
+.mlab-bar-demo { width: min(420px, 100% - 32px); margin: 0 auto 40px; display: flex; align-items: center; gap: 12px; }
+.mlab-pill, .mlab-seg { height: 44px; display: grid; place-items: center; padding: 0 16px; border-radius: 22px; background: var(--ma-fill); font: 500 14px/1 var(--font); color: var(--fg-3); }
+.mlab-bar-demo [data-group] { margin-left: auto; }
