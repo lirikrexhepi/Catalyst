@@ -12,7 +12,7 @@
 }
 .picker-list::-webkit-scrollbar { display: none; }
 .picker-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--fg-3); font-size: 14px; padding-top: 0; }
-.picker-retry { padding: 8px 18px; border-radius: 12px; background: var(--surface-2); color: var(--fg); font-size: 14px; }
+.picker-retry { padding: 8px 18px; color: var(--fg); font-size: 14px; }
 
 .model-row {
   display: flex; align-items: center; gap: 16px; width: 100%; height: 49px; padding: 0 26px;
@@ -31,8 +31,8 @@
 }
 .account-row::-webkit-scrollbar { display: none; }
 .account-pill {
-  flex-shrink: 0; height: 34px; padding: 0 14px; border-radius: 17px; white-space: nowrap;
-  font: 500 14px/1 var(--font); color: var(--fg); background: var(--surface-2); opacity: 0.5;
+  flex-shrink: 0; padding: 0 14px; white-space: nowrap;
+  font: 500 14px/1 var(--font); color: var(--fg); opacity: 0.5;
   touch-action: manipulation; transition: opacity 220ms var(--ease-out), transform 180ms var(--ease-out);
 }
 .account-pill[aria-checked='true'] { opacity: 1; }

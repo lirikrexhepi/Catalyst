@@ -1,4 +1,5 @@
 import { Check, RefreshCw } from 'lucide-react'
+import { GlassSquircle } from '../../ui'
 import type { ModelChoice, ProviderInfo } from '../../types'
 import { effortLabel, effortOption, selectedEffort } from './effort'
 import { ProviderIcon } from './ProviderIcon'
@@ -23,9 +24,9 @@ export function ModelList({ provider, value, status, onPick, onRetry }: ModelLis
         ) : (
           <>
             <span>No agent CLIs found on your PC</span>
-            <button className="picker-retry" onClick={onRetry}>
+            <GlassSquircle as="button" radius={12} fill="var(--surface-2)" border={false} className="picker-retry" onClick={onRetry}>
               Retry
-            </button>
+            </GlassSquircle>
           </>
         )}
       </div>

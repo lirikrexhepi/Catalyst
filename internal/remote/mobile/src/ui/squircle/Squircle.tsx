@@ -19,8 +19,8 @@ export const Squircle = forwardRef<HTMLDivElement, SquircleProps>(function Squir
   const own = useRef<HTMLDivElement | null>(null)
   const setRef = useMergedRef(own, ref)
   const fixed = width !== undefined && height !== undefined
-  const measured = useElementSize(own, !fixed)
-  const shape = useShapeStyle(fixed ? { width, height } : measured, radius, smoothing)
+  const measured = useElementSize(own)
+  const shape = useShapeStyle(measured ?? (fixed ? { width, height } : null), radius, smoothing)
   return (
     <div ref={setRef} style={{ width, height, background: fill, ...shape, ...style }} {...rest}>
       {children}

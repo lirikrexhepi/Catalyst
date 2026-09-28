@@ -54,8 +54,8 @@ export const GlassSquircle = forwardRef<HTMLElement, GlassSquircleProps>(functio
   const glow = useRef<HTMLSpanElement | null>(null)
   const setRef = useMergedRef(own, ref)
   const fixed = width !== undefined && height !== undefined
-  const measured = useElementSize(own, !fixed)
-  const size = fixed ? { width, height } : measured
+  const measured = useElementSize(own)
+  const size = measured ?? (fixed ? { width, height } : null)
   const shape = useShapeStyle(size, radius, smoothing)
   const press = pressOptions(pressable, as, disabled)
   usePressGel(own, glow, press)
