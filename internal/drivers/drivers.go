@@ -9,6 +9,7 @@ import (
 
 	"composer/internal/antigravity"
 	"composer/internal/claude"
+	"composer/internal/cliupdate"
 	"composer/internal/codex"
 	"composer/internal/domain"
 	"composer/internal/opencode"
@@ -43,11 +44,20 @@ func (d *claudeDriver) DefaultSettings() domain.ProviderSettings {
 }
 
 // Probe gates the static catalog on the installed CLI version, since the Claude
-// CLI cannot enumerate its own models.
+// CLI cannot enumerate its own models. It also carries the update advisory so
+// the UI can offer a newer release without its own version plumbing.
 func (d *claudeDriver) Probe(ctx context.Context, settings domain.ProviderSettings) domain.ProviderSnapshot {
 	snapshot := provider.ProbeVersion(ctx, binaryFor(settings, "claude"), settings)
 	if snapshot.Availability == domain.AvailabilityReady {
 		snapshot.Models = claude.Models(snapshot.Version)
+		if advisory := cliupdate.Check(ctx, cliupdate.ClaudePackage, snapshot.Version); advisory.Latest != "" {
+			snapshot.Update = &domain.ProviderUpdate{
+				Installed: advisory.Installed,
+				Latest:    advisory.Latest,
+				Available: advisory.Available,
+				CheckedAt: advisory.CheckedAt,
+			}
+		}
 	}
 	return snapshot
 }

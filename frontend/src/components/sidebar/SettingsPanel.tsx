@@ -8,6 +8,7 @@ import { isCustom } from './wallpapers';
 import { useTheme } from '../../themes';
 import { providerIcon } from '../orchestrator/providerIcons';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
+import { useClaudeUpdate } from '../orchestrator/useClaudeUpdate';
 import { RemoteAccessSection } from './RemoteAccessSection';
 import { BackgroundSection } from './BackgroundSection';
 import { AccountsSection } from './AccountsSection';
@@ -28,6 +29,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 }) => {
   const { currentTheme, themeId, availableThemes, setTheme } = useTheme();
   const isLight = currentTheme.id === 'light' || currentTheme.id === 'white';
+  const claudeUpdate = useClaudeUpdate();
   const fileRef = useRef<HTMLInputElement>(null);
   const autoStartAgents = useOrchestratorStore((s) => s.autoStartAgents);
   const setAutoStartAgents = useOrchestratorStore((s) => s.setAutoStartAgents);
@@ -194,6 +196,48 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                           onChange={(val) => void defaultModels.selectEffort(provider.id, val)}
                           className="w-[145px]"
                         />
+                      </div>
+                    )}
+
+                    {/* CLI release advisory, Claude only for now. */}
+                    {provider.id === 'claude' && claudeUpdate.status && (
+                      <div className="flex items-center justify-between gap-2.5 pl-[26px] min-h-[22px]">
+                        {claudeUpdate.status.available ? (
+                          <>
+                            <span className={`text-[11px] font-['Geist'] tracking-tight tabular-nums ${
+                              isLight ? 'text-black/60' : 'text-white/60'
+                            }`}>
+                              {claudeUpdate.status.installed} → {claudeUpdate.status.latest}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={claudeUpdate.updating}
+                              onClick={() => void claudeUpdate.startUpdate()}
+                              className={`h-[22px] px-2.5 rounded-full text-[11px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer shrink-0 ${
+                                claudeUpdate.updating
+                                  ? isLight ? 'text-black/35 cursor-default' : 'text-white/35 cursor-default'
+                                  : 'bg-[#007AFF] hover:bg-[#0A84FF] text-white'
+                              }`}
+                            >
+                              {claudeUpdate.updating ? 'Updating…' : 'Update'}
+                            </button>
+                          </>
+                        ) : (
+                          <span className={`text-[11px] font-['Geist'] tracking-tight ${
+                            isLight ? 'text-black/35' : 'text-white/30'
+                          }`}>
+                            Claude Code up to date
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {provider.id === 'claude' && (claudeUpdate.output || claudeUpdate.error) && (
+                      <div className={`pl-[26px] text-[11px] font-['Geist'] tracking-tight leading-snug ${
+                        claudeUpdate.error
+                          ? isLight ? 'text-red-600/90' : 'text-red-300/90'
+                          : isLight ? 'text-black/50' : 'text-white/50'
+                      }`}>
+                        {claudeUpdate.error ?? claudeUpdate.output}
                       </div>
                     )}
                   </div>

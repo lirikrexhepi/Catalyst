@@ -26,6 +26,8 @@ export function ChooseAttachments():Promise<Array<attachments.Attachment>>;
 
 export function ChooseProject():Promise<projects.Project>;
 
+export function ClaudeUpdateStatus():Promise<domain.ProviderUpdate>;
+
 export function CompactWorkspace(arg1:string,arg2:string):Promise<string>;
 
 export function ContextStatus(arg1:string):Promise<Record<string, any>>;
@@ -211,6 +213,8 @@ export function SwitchTaskProviderWithOptions(arg1:string,arg2:string,arg3:strin
 export function TaskHandoff(arg1:string):Promise<domain.TaskHandoff>;
 
 export function ThreadHistory(arg1:string):Promise<Array<domain.RuntimeEvent>>;
+
+export function UpdateClaudeCode():Promise<string>;
 
 export function UpdateProviderSettings(arg1:string,arg2:domain.ProviderSettings):Promise<void>;
 

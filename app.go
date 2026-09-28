@@ -49,6 +49,10 @@ const historyChangedChannel = "history:changed"
 // somewhere else, such as a folder added from the phone.
 const projectsChangedChannel = "projects:changed"
 
+// cliUpdateChannel tells the window a newer Claude Code release is published,
+// so it can offer the update. Nothing installs from this event alone.
+const cliUpdateChannel = "cli:update-available"
+
 type App struct {
 	ctx          context.Context
 	registry     *provider.Registry
@@ -200,6 +204,7 @@ func (a *App) startup(ctx context.Context) {
 func (a *App) startCore(ctx context.Context) {
 	a.enableManagedServers()
 	a.rehydrateFromHistory()
+	go a.watchClaudeUpdates(ctx)
 	if a.remoteServer != nil {
 		a.wireRemote()
 		_ = a.remoteServer.Start(ctx)

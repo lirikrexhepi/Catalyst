@@ -9,6 +9,7 @@ export * from './OrchestratorInput';
 export * from './CoordinatorPanel';
 export * from './useCoordinator';
 export * from './useSpawner';
+export * from './useClaudeUpdate';
 export * from './PlanPrompt';
 export * from './TaskModelPicker';
 export * from './providerIcons';

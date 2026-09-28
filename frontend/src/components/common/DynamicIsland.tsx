@@ -17,6 +17,9 @@ export interface DynamicIslandNotification {
   type?: 'success' | 'alert' | 'info';
   threadId?: string;
   timestamp: number;
+  /** Optional one-click action rendered beside the dismiss button. */
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export interface DynamicIslandProps {
@@ -690,16 +693,30 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onDismissNotification?.();
-              }}
-              className="w-4 h-4 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors ml-1 cursor-pointer"
-            >
-              <span className="material-symbols-rounded text-[13px] leading-none">close</span>
-            </button>
+            <div className="flex items-center shrink-0">
+              {notification.onAction && notification.actionLabel && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    notification.onAction?.();
+                  }}
+                  className="h-[22px] px-2.5 mr-1 rounded-full bg-[#007AFF] hover:bg-[#0A84FF] text-white text-[11px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer"
+                >
+                  {notification.actionLabel}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDismissNotification?.();
+                }}
+                className="w-4 h-4 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors ml-1 cursor-pointer"
+              >
+                <span className="material-symbols-rounded text-[13px] leading-none">close</span>
+              </button>
+            </div>
           </motion.div>
         )}
 

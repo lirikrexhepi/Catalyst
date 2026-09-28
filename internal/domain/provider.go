@@ -76,6 +76,18 @@ type ProviderSnapshot struct {
 	// provider on every refresh.
 	Settings ProviderSettings `json:"settings"`
 	Accounts []Account        `json:"accounts,omitempty"`
+	// Update names a newer published release of the backing CLI, when the
+	// last check found one. Absent while the check has not run or failed.
+	Update *ProviderUpdate `json:"update,omitempty"`
+}
+
+// ProviderUpdate is the version advisory for one CLI: what is installed,
+// what is published, and whether they differ.
+type ProviderUpdate struct {
+	Installed string `json:"installed"`
+	Latest    string `json:"latest"`
+	Available bool   `json:"available"`
+	CheckedAt int64  `json:"checkedAt"`
 }
 
 const DefaultAccountID = "default"

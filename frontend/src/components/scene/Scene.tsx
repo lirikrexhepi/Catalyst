@@ -5,6 +5,7 @@ import {
   useProjects,
   useSpawner,
   useCoordinator,
+  useClaudeUpdate,
   OrchestratorCard,
   useOrchestratorStore,
 } from '../orchestrator';
@@ -130,6 +131,27 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     },
     [],
   );
+
+  // CLI release watcher: one toast per published version, with a one-click
+  // update. Dismissing remembers the version so it does not nag again.
+  const claudeUpdate = useClaudeUpdate();
+  const notifiedUpdate = useRef<string>('');
+  useEffect(() => {
+    const status = claudeUpdate.status;
+    if (!status?.available || !status.latest) return;
+    if (status.latest === claudeUpdate.dismissed || notifiedUpdate.current === status.latest) return;
+    notifiedUpdate.current = status.latest;
+    triggerIslandNotification({
+      title: `Claude Code ${status.latest} available`,
+      subtitle: `${status.installed} installed`,
+      type: 'info',
+      actionLabel: 'Update',
+      onAction: () => {
+        claudeUpdate.dismiss();
+        void claudeUpdate.startUpdate();
+      },
+    });
+  }, [claudeUpdate, triggerIslandNotification]);
 
   const spawner = useSpawner({
     onBackgroundComplete: (task) => {
@@ -795,7 +817,10 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
           usageError={usage.error}
           activeTasks={spawner.allActiveTasks}
           notification={islandNotification}
-          onDismissNotification={() => setIslandNotification(null)}
+          onDismissNotification={() => {
+            if (islandNotification?.actionLabel) claudeUpdate.dismiss();
+            setIslandNotification(null);
+          }}
           historyEntries={historyState.entries}
           activeWorkspaceId={spawner.workspaceId}
           onOpenHistory={handleOpenHistory}

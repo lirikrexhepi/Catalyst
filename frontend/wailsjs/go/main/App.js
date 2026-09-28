@@ -26,6 +26,10 @@ export function ChooseProject() {
   return window['go']['main']['App']['ChooseProject']();
 }
 
+export function ClaudeUpdateStatus() {
+  return window['go']['main']['App']['ClaudeUpdateStatus']();
+}
+
 export function CompactWorkspace(arg1, arg2) {
   return window['go']['main']['App']['CompactWorkspace'](arg1, arg2);
 }
@@ -396,6 +400,10 @@ export function TaskHandoff(arg1) {
 
 export function ThreadHistory(arg1) {
   return window['go']['main']['App']['ThreadHistory'](arg1);
+}
+
+export function UpdateClaudeCode() {
+  return window['go']['main']['App']['UpdateClaudeCode']();
 }
 
 export function UpdateProviderSettings(arg1, arg2) {
