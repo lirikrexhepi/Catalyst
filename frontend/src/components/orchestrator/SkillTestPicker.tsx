@@ -77,9 +77,9 @@ export const SkillTestPicker: React.FC<SkillTestPickerProps> = ({ cwd, selected,
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className={`h-[38px] min-w-[38px] px-2 rounded-full flex items-center justify-center gap-1 shrink-0 transition-all duration-150 active:scale-95 cursor-pointer ${triggerTone}`}
+        className={`h-[30px] min-w-[30px] px-1.5 rounded-full flex items-center justify-center gap-1 shrink-0 transition-all duration-150 active:scale-95 cursor-pointer ${triggerTone}`}
       >
-        <FlaskConical size={18} strokeWidth={1.75} />
+        <FlaskConical size={16} strokeWidth={1.75} />
         {active && <span className="text-[12px] font-medium tabular-nums">{selected.length}</span>}
       </button>
 

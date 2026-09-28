@@ -10,6 +10,7 @@ import {
 } from '../orchestrator';
 import { AgentWindow } from '../agent-session';
 import { useAttachments } from '../common/useAttachments';
+import { requestPinToBottom } from '../common/usePinnedScroll';
 import { TitleBar } from '../common/TitleBar';
 import { DynamicIsland, DynamicIslandNotification } from '../common/DynamicIsland';
 import { useGit } from '../git';
@@ -618,6 +619,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         // Always send directly to coordinator — never intercept or auto-spawn
         setViewMode('orchestrator');
         void coordinator.send(clean, files);
+        requestPinToBottom();
         return;
       }
 
@@ -648,6 +650,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         if (threadId) {
           setViewMode('deck');
         }
+        requestPinToBottom();
         return;
       }
 
@@ -674,6 +677,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         } else {
           void spawner.sendWithModel(activeTask.threadId, clean, files, modelId);
         }
+        requestPinToBottom();
       }
     },
     [activeTasks, activeTask, composerFiles, spawner, coordinator, viewMode, isCreatingNewAgent, newAgentProject, projects.active],
@@ -694,6 +698,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         projects.active ? { name: projects.active.name, path: projects.active.path } : undefined,
       );
       if (threadId) setViewMode('grid');
+      requestPinToBottom();
     },
     [composerFiles, spawner, projects.active],
   );

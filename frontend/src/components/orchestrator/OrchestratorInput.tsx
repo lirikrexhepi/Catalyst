@@ -40,12 +40,11 @@ export interface OrchestratorInputProps {
 // textClassName is the only place it may change.
 const LINE_HEIGHT = 20;
 const MAX_FIELD_HEIGHT = 160;
-// The bottom toolbar row, matching h-[46px] in the markup. Named so the
+// The bottom toolbar row, matching h-[40px] in the markup. Named so the
 // height maths and the markup cannot drift apart.
-const TOOLBAR_HEIGHT = 46;
-// Chrome around the rows: top and bottom padding plus the hairline. Named for
-// the same reason.
-const CAPSULE_CHROME = 26;
+const TOOLBAR_HEIGHT = 40;
+// Chrome around the rows: the capsule's own padding. Named for the same reason.
+const CAPSULE_CHROME = 18;
 // Chips get their own row between the field and the toolbar rather than
 // growing the capsule without bound.
 const MAX_CHIPS_HEIGHT = 84;
@@ -229,14 +228,14 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   // The field keeps its full width on its own row; the toolbar lives beneath
   // it, so the capsule stacks text, chips and controls instead of squeezing
   // them side by side.
-  const textZoneHeight = isExpanded ? Math.min(textareaHeight + 24, 188) : 44;
-  const capsuleHeight = Math.max(textZoneHeight + attachmentHeight + TOOLBAR_HEIGHT + CAPSULE_CHROME, 116);
+  const textZoneHeight = isExpanded ? Math.min(textareaHeight + 24, 188) : 40;
+  const capsuleHeight = Math.max(textZoneHeight + attachmentHeight + TOOLBAR_HEIGHT + CAPSULE_CHROME, 98);
   const isSpawning = hasActiveAgent && viewMode === 'deck' && isCreatingNewAgent;
 
   const capsuleContent = (
     <div className="flex flex-col w-full h-full">
       {/* Message field: the full top row. */}
-      <div className="flex-1 min-w-0 flex items-start gap-2 px-[14px] pt-[10px] overflow-hidden">
+      <div className="flex-1 min-w-0 flex items-start gap-2 px-[14px] pt-[8px] overflow-hidden">
         {isSpawning && (
           <div
             className={`flex items-center gap-1 pl-2.5 pr-1 py-0.5 mt-[1px] rounded-full border text-[11px] font-medium tracking-tight shrink-0 select-none animate-in fade-in duration-150 ${
@@ -322,14 +321,10 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
         </div>
       )}
 
-      {/* Hairline splitting the field from its controls. */}
-      <div className={`h-px mx-[14px] my-[6px] shrink-0 ${
-        isLight ? 'bg-black/[0.08]' : 'bg-white/[0.10]'
-      }`} />
-
-      {/* Toolbar: pickers on the left, actions on the right. */}
-      <div className="flex items-center justify-between gap-1.5 px-[10px] pb-[4px] shrink-0" style={{ height: `${TOOLBAR_HEIGHT}px` }}>
-        <div className="flex items-center gap-1.5 min-w-0">
+      {/* Toolbar: pickers on the left, actions on the right. Borderless, like
+          text — the squircle itself is the shape, nothing inside needs a box. */}
+      <div className="flex items-center justify-between gap-1.5 px-[8px] pb-[2px] shrink-0" style={{ height: `${TOOLBAR_HEIGHT}px` }}>
+        <div className="flex items-center gap-1 min-w-0">
           {/* Model & Provider Selector Trigger */}
           <button
             type="button"
@@ -338,10 +333,10 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               e.stopPropagation();
               toggleModelPicker();
             }}
-            className={`h-[38px] flex items-center gap-2 px-3 rounded-[16px] border active:scale-95 transition-all duration-150 cursor-pointer shrink-0 group ${
+            className={`h-[32px] flex items-center gap-1.5 px-2 rounded-[10px] active:scale-95 transition-all duration-150 cursor-pointer shrink-0 group ${
               isLight
-                ? 'bg-black/[0.04] hover:bg-black/[0.08] border-black/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]'
-                : 'bg-white/[0.07] hover:bg-white/[0.12] border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                ? 'hover:bg-black/[0.05] text-[#030303]'
+                : 'hover:bg-white/[0.08] text-white/90'
             }`}
           >
             {iconSrc && (
@@ -352,9 +347,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 draggable={false}
               />
             )}
-            <span className={`text-[13px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[130px] truncate ${
-              isLight ? 'text-[#030303]' : 'text-white/95'
-            }`}>
+            <span className={`text-[13px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[130px] truncate`}>
               {currentModel?.name || (isLoadingProviders ? 'Detecting CLIs…' : 'No CLI found')}
             </span>
             {accountName && (
@@ -364,7 +357,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 {accountName}
               </span>
             )}
-            <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${ isModelPickerOpen ? (isLight ? 'rotate-180 text-[#030303]' : 'rotate-180 text-white') : (isLight ? 'text-black/45 group-hover:text-[#030303]' : 'text-white/45 group-hover:text-white/80') }`} />
+            <ChevronDown size={14} strokeWidth={1.75} className={`transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center opacity-60 ${ isModelPickerOpen ? 'rotate-180' : '' }`} />
           </button>
 
           {/* New Agent Quick Trigger Button - ONLY in Deck mode */}
@@ -377,18 +370,18 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 e.stopPropagation();
                 onNewAgent?.();
               }}
-              className={`h-[34px] w-[34px] flex items-center justify-center rounded-full border transition-all duration-150 active:scale-90 cursor-pointer shrink-0 group select-none shadow-sm ${
+              className={`h-[30px] w-[30px] flex items-center justify-center rounded-full transition-all duration-150 active:scale-90 cursor-pointer shrink-0 group select-none ${
                 isLight
-                  ? 'bg-black/[0.04] hover:bg-black/[0.09] border-black/[0.07] text-[#030303]/70 hover:text-[#030303]'
-                  : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/[0.08] text-white/70 hover:text-white'
+                  ? 'text-black/45 hover:text-[#030303] hover:bg-black/[0.05]'
+                  : 'text-white/45 hover:text-white hover:bg-white/[0.08]'
               }`}
             >
-              <Plus size={17} strokeWidth={1.75} className={`group-hover:rotate-90 transition-transform duration-200 ${ isLight ? 'text-[#030303]/80' : 'text-white/80' }`} />
+              <Plus size={15} strokeWidth={1.75} className="group-hover:rotate-90 transition-transform duration-200" />
             </button>
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
           {onSkillTest && (
             <SkillTestPicker cwd={projects?.active?.path ?? ''} selected={testSkills} onChange={setTestSkills} isLight={isLight} />
           )}
@@ -403,15 +396,15 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 e.stopPropagation();
                 void attachments.browse();
               }}
-              className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-150 shrink-0 group ${
+              className={`w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all duration-150 shrink-0 group ${
                 attachments.isBusy
                   ? (isLight ? 'text-black/25 cursor-default' : 'text-white/25 cursor-default')
                   : (isLight
-                      ? 'text-black/45 hover:text-[#030303] hover:bg-black/[0.06] active:scale-95 cursor-pointer'
-                      : 'text-white/40 hover:text-white hover:bg-white/[0.08] active:scale-95 cursor-pointer')
+                      ? 'text-black/45 hover:text-[#030303] hover:bg-black/[0.05] active:scale-95 cursor-pointer'
+                      : 'text-white/45 hover:text-white hover:bg-white/[0.08] active:scale-95 cursor-pointer')
               }`}
             >
-              {attachments.isBusy ? <Loader2 size={20} strokeWidth={1.75} className="animate-spin" /> : <Paperclip size={20} strokeWidth={1.75} />}
+              {attachments.isBusy ? <Loader2 size={16} strokeWidth={1.75} className="animate-spin" /> : <Paperclip size={16} strokeWidth={1.75} />}
             </button>
           )}
 
@@ -424,9 +417,9 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 e.stopPropagation();
                 onInterrupt?.();
               }}
-              className="w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 bg-rose-500/25 border border-rose-400/35 hover:bg-rose-500/40 text-rose-300 hover:text-white shadow-[0_2px_12px_rgba(244,63,94,0.3)] active:scale-95 cursor-pointer group"
+              className="w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 bg-rose-500/25 border border-rose-400/35 hover:bg-rose-500/40 text-rose-300 hover:text-white shadow-[0_2px_12px_rgba(244,63,94,0.3)] active:scale-95 cursor-pointer group"
             >
-              <Square size={19} strokeWidth={1.75} fill="currentColor" className="transition-transform duration-150 group-hover:scale-105" />
+              <Square size={15} strokeWidth={1.75} fill="currentColor" className="transition-transform duration-150 group-hover:scale-105" />
             </button>
           )}
 
@@ -440,15 +433,15 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 e.stopPropagation();
                 submitMessage();
               }}
-              className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 group ${
+              className={`w-[32px] h-[32px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 group ${
                 canSubmit
                   ? 'bg-[#007AFF] hover:bg-[#0A84FF] text-white shadow-[0_2px_12px_rgba(0,122,255,0.45)] active:scale-95 cursor-pointer'
                   : (isLight
-                      ? 'bg-black/[0.04] text-black/30 border border-black/[0.06] cursor-default'
-                      : 'bg-white/[0.06] text-white/30 border border-white/[0.05] cursor-default')
+                      ? 'text-black/25 cursor-default'
+                      : 'text-white/25 cursor-default')
               }`}
             >
-              <ArrowUp size={20} strokeWidth={1.75} className="transition-transform duration-150 group-hover:scale-105" />
+              <ArrowUp size={17} strokeWidth={2} className="transition-transform duration-150 group-hover:scale-105" />
             </button>
           )}
         </div>
@@ -469,7 +462,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
       {/* Main Orchestrator Squircle Bar - Expands strictly downward with stationary top elements */}
       {useOpticalRefraction ? (
         <RefractiveGlass
-          borderRadius={26}
+          borderRadius={22}
           borderWidth={0.07}
           distortionScale={-180}
           redOffset={0}
@@ -498,7 +491,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
         <LiquidGlass
           variant="panel"
           surface="squircle"
-          radius={26}
+          radius={22}
           bezelWidth={16}
           glassThickness={28}
           refractionScale={0.5}

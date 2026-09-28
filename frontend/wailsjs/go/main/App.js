@@ -186,12 +186,12 @@ export function LoadHistory(arg1) {
   return window['go']['main']['App']['LoadHistory'](arg1);
 }
 
-export function MutateAgentTask(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['MutateAgentTask'](arg1, arg2, arg3, arg4);
-}
-
 export function MoveProject(arg1, arg2) {
   return window['go']['main']['App']['MoveProject'](arg1, arg2);
+}
+
+export function MutateAgentTask(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['MutateAgentTask'](arg1, arg2, arg3, arg4);
 }
 
 export function NewChat() {

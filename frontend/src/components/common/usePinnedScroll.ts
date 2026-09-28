@@ -7,6 +7,19 @@ interface PinnedScrollOptions {
   scroll?: (el: HTMLElement, top: number) => void;
 }
 
+type PinListener = () => void;
+
+const pinListeners = new Set<PinListener>();
+
+/**
+ * Sends every pinned feed to the bottom. Sending a message is an explicit
+ * intent to be there: the sender calls this right after dispatching, so the
+ * follow effect below lands on a pinned feed once the bubble renders.
+ */
+export function requestPinToBottom() {
+  pinListeners.forEach((pin) => pin());
+}
+
 /**
  * Keeps a streaming feed glued to the bottom while the user is down there,
  * and leaves them alone once they scroll up to read.
@@ -44,8 +57,15 @@ export function usePinnedScroll(
   useEffect(() => {
     const el = targetRef.current;
     if (!el) return;
-    const distance = () => el.scrollHeight - el.scrollTop - el.clientHeight;
-    // Wheel, touch, scrollbar drags and keys arrive here; programmatic jumps
+    const pin = () => {
+      pinned.current = true;
+      const top = el.scrollHeight;
+      const fn = scrollRef.current;
+      if (fn) fn(el, top);
+      else el.scrollTop = top;
+    };
+    pinListeners.add(pin);
+    const distance = () => el.scrollHeight - el.scrollTop - el.clientHeight;    // Wheel, touch, scrollbar drags and keys arrive here; programmatic jumps
     // only ever fire scroll, so they can never trip this.
     const onGesture = () => {
       if (distance() > near) pinned.current = false;
@@ -68,6 +88,7 @@ export function usePinnedScroll(
     el.addEventListener('scroll', onScroll, { passive: true });
     ro.observe(content);
     return () => {
+      pinListeners.delete(pin);
       el.removeEventListener('wheel', onGesture);
       el.removeEventListener('touchmove', onGesture);
       el.removeEventListener('mousedown', onGesture);
