@@ -14,6 +14,7 @@ import { AgentStreamBlock, TodoToolBlockData } from './types';
 import { AgentTasklistView } from './AgentTasklistView';
 import { AgentViewSwitcher } from './AgentViewSwitcher';
 import { useSmoothScroll } from '../common/useSmoothScroll';
+import { usePinnedScroll } from '../common/usePinnedScroll';
 import { ContextRing } from './ContextRing';
 import type { ContextUsage } from './contextUsage';
 
@@ -245,24 +246,15 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
     (block) => block.type === 'thinking' && block.isThinking,
   );
 
-  const pinnedToBottom = useRef(true);
-
-  const handleFeedScroll = () => {
-    const el = feedScrollRef.current;
-    if (!el) return;
-    pinnedToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-  };
-
-  // Auto-scroll feed on new content only if pinned to bottom
-  useEffect(() => {
-    if (feedScrollRef.current && pinnedToBottom.current) {
+  usePinnedScroll(feedScrollRef, [streamBlocks, isWorking], {
+    scroll: (el, top) => {
       if (smoothScroll.lenis.current) {
-        smoothScroll.lenis.current.scrollTo(feedScrollRef.current.scrollHeight, { immediate: true });
+        smoothScroll.lenis.current.scrollTo(top, { immediate: true });
       } else {
-        feedScrollRef.current.scrollTop = feedScrollRef.current.scrollHeight;
+        el.scrollTop = top;
       }
-    }
-  }, [streamBlocks, isWorking, smoothScroll]);
+    },
+  });
 
   const isGrid = mode === 'grid';
 
@@ -439,7 +431,6 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
             {/* 1. Chat Feed View */}
             <div
               ref={feedScrollRef}
-              onScroll={handleFeedScroll}
               className={`absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-2.5 pr-2 ${
                 isGrid ? 'pointer-events-none select-none' : ''
               }`}

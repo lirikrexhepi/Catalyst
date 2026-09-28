@@ -40,14 +40,15 @@ export interface OrchestratorInputProps {
 // textClassName is the only place it may change.
 const LINE_HEIGHT = 20;
 const MAX_FIELD_HEIGHT = 160;
-// The capsule's own vertical padding, matching pt/pb in its className. Named so
-// the height maths and the markup cannot drift apart.
-const CAPSULE_PADDING_Y = 9;
-// The control row the chips sit beneath, matching the h-[38px] triggers.
-const CONTROL_ROW_HEIGHT = 38;
-// Chips scroll past this rather than growing the capsule, so the column never
-// outgrows the message field beside it. Derived so the two stay in step.
-const MAX_STRIP_HEIGHT = MAX_FIELD_HEIGHT - CONTROL_ROW_HEIGHT;
+// The bottom toolbar row, matching h-[46px] in the markup. Named so the
+// height maths and the markup cannot drift apart.
+const TOOLBAR_HEIGHT = 46;
+// Chrome around the rows: top and bottom padding plus the hairline. Named for
+// the same reason.
+const CAPSULE_CHROME = 26;
+// Chips get their own row between the field and the toolbar rather than
+// growing the capsule without bound.
+const MAX_CHIPS_HEIGHT = 84;
 
 export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   onSubmit,
@@ -91,7 +92,6 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const controlsRef = useRef<HTMLDivElement>(null);
   const attachmentsRef = useRef<HTMLDivElement>(null);
   const [textareaHeight, setTextareaHeight] = useState(LINE_HEIGHT);
   const [attachmentHeight, setAttachmentHeight] = useState(0);
@@ -133,15 +133,12 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     setTextareaHeight(targetHeight);
   }, [messageText]);
 
-  // The left column's real height, read from the DOM: chips wrap unpredictably,
-  // so how many rows they occupy is not something a file count can predict.
-  //
-  // Measuring the whole column rather than the strip alone is deliberate. The
-  // controls and the chips share one column, so adding the strip's height to
-  // the collapsed capsule height would count the column's own padding twice —
-  // which is what made the capsule one row taller than its contents.
+  // The chips row's real height, read from the DOM: chips wrap
+  // unpredictably, so how many rows they occupy is not something a file count
+  // can predict. Observed rather than measured once: the height settles after
+  // thumbnails load, not only when the file list changes.
   useLayoutEffect(() => {
-    const el = controlsRef.current;
+    const el = attachmentsRef.current;
     if (!el) {
       setAttachmentHeight(0);
       return;
@@ -150,9 +147,6 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     const measure = () => setAttachmentHeight(el.offsetHeight);
     measure();
 
-    // Observed rather than measured once: the column's height depends on how
-    // the chips wrap, which changes with the capsule's width and settles after
-    // thumbnails load, not only when the file list changes.
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
@@ -232,245 +226,234 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   // Expanded means the field has wrapped past its first line.
   const isExpanded = textareaHeight > LINE_HEIGHT + 4;
   const isScrollable = textareaHeight >= MAX_FIELD_HEIGHT;
-  // Base height is strictly 48px; expands downward smoothly up to 192px
-  const textHeight = isExpanded ? Math.min(textareaHeight + 28, 192) : 48;
-  // Chips stack under the model and project controls, in space that is empty
-  // anyway, so the message field keeps its full height. The capsule grows only
-  // when that column runs taller than the field beside it.
-  const controlsHeight = attachmentHeight > 0 ? attachmentHeight + CAPSULE_PADDING_Y * 2 : 0;
-  const capsuleHeight = Math.max(textHeight, controlsHeight, 56);
+  // The field keeps its full width on its own row; the toolbar lives beneath
+  // it, so the capsule stacks text, chips and controls instead of squeezing
+  // them side by side.
+  const textZoneHeight = isExpanded ? Math.min(textareaHeight + 24, 188) : 44;
+  const capsuleHeight = Math.max(textZoneHeight + attachmentHeight + TOOLBAR_HEIGHT + CAPSULE_CHROME, 116);
   const isSpawning = hasActiveAgent && viewMode === 'deck' && isCreatingNewAgent;
 
   const capsuleContent = (
-    <div className="flex w-full h-full gap-1.5 items-start">
-          {/* The controls and any staged files share one column, so the chips
-              fill space that is empty anyway instead of stealing a row from the
-              message field. */}
-          <div ref={controlsRef} className="flex flex-col gap-1 shrink-0 min-w-0">
-            <div className="flex items-center gap-1.5">
-              {/* Left: Model & Provider Selector Trigger (Embedded Pill matching target UI) */}
-              <button
-                type="button"
-                title={currentModel ? [currentModel.name, accountName].filter(Boolean).join(' · ') : 'Choose model'}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleModelPicker();
-                }}
-                className={`h-[38px] flex items-center gap-2 px-3 rounded-[16px] border active:scale-95 transition-all duration-150 cursor-pointer shrink-0 group ${
-                  isLight
-                    ? 'bg-black/[0.04] hover:bg-black/[0.08] border-black/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]'
-                    : 'bg-white/[0.07] hover:bg-white/[0.12] border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
-                }`}
-              >
-                {iconSrc && (
-                  <img
-                    src={iconSrc}
-                    alt=""
-                    className="w-[18px] h-[18px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
-                    draggable={false}
-                  />
-                )}
-                <span className={`text-[13px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[130px] truncate ${
-                  isLight ? 'text-[#030303]' : 'text-white/95'
-                }`}>
-                  {currentModel?.name || (isLoadingProviders ? 'Detecting CLIs…' : 'No CLI found')}
-                </span>
-                {accountName && (
-                  <span className={`text-[11px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[80px] truncate ${
-                    isLight ? 'text-black/45' : 'text-white/45'
-                  }`}>
-                    {accountName}
-                  </span>
-                )}
-                <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${ isModelPickerOpen ? (isLight ? 'rotate-180 text-[#030303]' : 'rotate-180 text-white') : (isLight ? 'text-black/45 group-hover:text-[#030303]' : 'text-white/45 group-hover:text-white/80') }`} />
-              </button>
-
-              {/* New Agent Quick Trigger Button - ONLY in Deck mode */}
-              {hasActiveAgent && viewMode === 'deck' && (
-                <button
-                  type="button"
-                  title="New agent (Ctrl + N)"
-                  aria-label="New agent"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onNewAgent?.();
-                  }}
-                  className={`h-[34px] w-[34px] flex items-center justify-center rounded-full border transition-all duration-150 active:scale-90 cursor-pointer shrink-0 group select-none shadow-sm ${
-                    isLight
-                      ? 'bg-black/[0.04] hover:bg-black/[0.09] border-black/[0.07] text-[#030303]/70 hover:text-[#030303]'
-                      : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/[0.08] text-white/70 hover:text-white'
-                  }`}
-                >
-                  <Plus size={17} strokeWidth={1.75} className={`group-hover:rotate-90 transition-transform duration-200 ${ isLight ? 'text-[#030303]/80' : 'text-white/80' }`} />
-                </button>
-              )}
-            </div>
-
-          {/* Staged files, stacked under the controls in the gap beside the
-              message field rather than in a row of their own. */}
-          {attachments && hasAttachments && (
-            <div
-              ref={attachmentsRef}
-              className="overflow-y-auto overflow-x-hidden custom-scrollbar"
-              style={{ maxHeight: `${MAX_STRIP_HEIGHT}px` }}
-            >
-              <AttachmentStrip
-                items={attachments.items}
-                onRemove={attachments.remove}
-                compact
-                className="pl-0.5 pb-0.5 pr-1"
-              />
-            </div>
-          )}
-          </div>
-
-          <div className={`h-[22px] w-[1px] mx-2 shrink-0 self-start mt-[8px] ${
-            isLight ? 'bg-black/[0.10]' : 'bg-white/[0.10]'
-          }`} />
-
-          {/* Center: Multi-line textarea. While collapsed the single line is
-              centered against the 38px control row; once it grows it pins to
-              the top so expansion runs downward. */}
+    <div className="flex flex-col w-full h-full">
+      {/* Message field: the full top row. */}
+      <div className="flex-1 min-w-0 flex items-start gap-2 px-[14px] pt-[10px] overflow-hidden">
+        {isSpawning && (
           <div
-            className={`flex-1 min-w-0 pr-1 flex items-center overflow-hidden ${
-              isExpanded ? 'items-start pt-[8px]' : 'items-center h-[38px]'
+            className={`flex items-center gap-1 pl-2.5 pr-1 py-0.5 mt-[1px] rounded-full border text-[11px] font-medium tracking-tight shrink-0 select-none animate-in fade-in duration-150 ${
+              isLight
+                ? 'bg-black/[0.06] border-black/15 text-black'
+                : 'bg-white/[0.10] border-white/20 text-white'
             }`}
           >
-            {isSpawning && (
-              <div
-                className={`flex items-center gap-1 pl-2.5 pr-1 py-0.5 mr-2 rounded-full border text-[11px] font-medium tracking-tight shrink-0 select-none animate-in fade-in duration-150 ${
-                  isLight
-                    ? 'bg-black/[0.06] border-black/15 text-black'
-                    : 'bg-white/[0.10] border-white/20 text-white'
-                }`}
-              >
-                <Plus size={12} strokeWidth={2} />
-                <span>New Agent</span>
-                <span className={isLight ? 'text-black/30' : 'text-white/30'}>·</span>
-                <button
-                  type="button"
-                  title="Spawn folder, this agent only"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setAgentProjectOpen((open) => !open);
-                  }}
-                  className={`flex items-center gap-0.5 max-w-[110px] rounded-full px-1.5 py-px -my-px cursor-pointer transition-colors ${
-                    isLight ? 'hover:bg-black/[0.08] text-black/70' : 'hover:bg-white/[0.12] text-white/70'
-                  }`}
-                >
-                  <span className="truncate leading-none py-[3px]">
-                    {newAgentProject?.name ?? projects?.active?.name ?? '…'}
-                  </span>
-                  <ChevronDown size={11} strokeWidth={2} className="shrink-0 opacity-70" />
-                </button>
-                <button
-                  type="button"
-                  title="Cancel new agent"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setAgentProjectOpen(false);
-                    onCancelNewAgent?.();
-                  }}
-                  className="ml-0.5 opacity-60 hover:opacity-100 cursor-pointer flex items-center"
-                >
-                  <X size={11} strokeWidth={2} />
-                </button>
-              </div>
-            )}
-            <SmoothTextarea
-              ref={textareaRef}
-              rows={1}
-              value={messageText}
-              onValueChange={setMessageText}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                isSpawning
-                  ? 'Task for new agent…'
-                  : viewMode === 'grid' || viewMode === 'orchestrator'
-                    ? 'Ask orchestrator…'
-                    : !hasActiveAgent
-                      ? 'Ask me anything…'
-                      : 'Ask a follow up…'
-              }
-              caretColor={isLight ? '#030303' : 'rgba(255, 255, 255, 0.95)'}
-              textClassName={`w-full text-[13.5px] font-normal font-['Geist'] tracking-tight leading-[20px] block ${
-                isLight ? 'text-[#030303]' : 'text-white/90'
-              }`}
-              className={isScrollable ? 'overflow-y-auto' : 'overflow-hidden'}
-              placeholderClassName={isLight ? 'text-black/40 truncate' : 'text-white/40 truncate'}
-              style={{
-                minHeight: `${LINE_HEIGHT}px`,
-                maxHeight: `${MAX_FIELD_HEIGHT}px`,
+            <Plus size={12} strokeWidth={2} />
+            <span>New Agent</span>
+            <span className={isLight ? 'text-black/30' : 'text-white/30'}>·</span>
+            <button
+              type="button"
+              title="Spawn folder, this agent only"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAgentProjectOpen((open) => !open);
               }}
-            />
+              className={`flex items-center gap-0.5 max-w-[110px] rounded-full px-1.5 py-px -my-px cursor-pointer transition-colors ${
+                isLight ? 'hover:bg-black/[0.08] text-black/70' : 'hover:bg-white/[0.12] text-white/70'
+              }`}
+            >
+              <span className="truncate leading-none py-[3px]">
+                {newAgentProject?.name ?? projects?.active?.name ?? '…'}
+              </span>
+              <ChevronDown size={11} strokeWidth={2} className="shrink-0 opacity-70" />
+            </button>
+            <button
+              type="button"
+              title="Cancel new agent"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAgentProjectOpen(false);
+                onCancelNewAgent?.();
+              }}
+              className="ml-0.5 opacity-60 hover:opacity-100 cursor-pointer flex items-center"
+            >
+              <X size={11} strokeWidth={2} />
+            </button>
           </div>
+        )}
+        <SmoothTextarea
+          ref={textareaRef}
+          rows={1}
+          value={messageText}
+          onValueChange={setMessageText}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            isSpawning
+              ? 'Task for new agent…'
+              : viewMode === 'grid' || viewMode === 'orchestrator'
+                ? 'Ask orchestrator…'
+                : !hasActiveAgent
+                  ? 'Ask me anything…'
+                  : 'Ask a follow up…'
+          }
+          caretColor={isLight ? '#030303' : 'rgba(255, 255, 255, 0.95)'}
+          textClassName={`w-full text-[13.5px] font-normal font-['Geist'] tracking-tight leading-[20px] block ${
+            isLight ? 'text-[#030303]' : 'text-white/90'
+          }`}
+          className={`flex-1 min-w-0 ${isScrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
+          placeholderClassName={isLight ? 'text-black/40 truncate' : 'text-white/40 truncate'}
+          style={{
+            minHeight: `${LINE_HEIGHT}px`,
+            maxHeight: `${MAX_FIELD_HEIGHT}px`,
+          }}
+        />
+      </div>
 
-          {/* Right Action Buttons (Attach + Send / Stop) - Kept at bottom along with file attach button */}
-          <div className={`flex items-center gap-1 shrink-0 ${isExpanded ? 'self-end' : 'self-center'}`}>
-            {onSkillTest && (
-              <SkillTestPicker cwd={projects?.active?.path ?? ''} selected={testSkills} onChange={setTestSkills} isLight={isLight} />
-            )}
-            {/* Attach */}
-            {attachments && (
-              <button
-                type="button"
-                title="Attach files"
-                aria-label="Attach files"
-                disabled={attachments.isBusy}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void attachments.browse();
-                }}
-                className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-150 shrink-0 group ${
-                  attachments.isBusy
-                    ? (isLight ? 'text-black/25 cursor-default' : 'text-white/25 cursor-default')
-                    : (isLight
-                        ? 'text-black/45 hover:text-[#030303] hover:bg-black/[0.06] active:scale-95 cursor-pointer'
-                        : 'text-white/40 hover:text-white hover:bg-white/[0.08] active:scale-95 cursor-pointer')
-                }`}
-              >
-                {attachments.isBusy ? <Loader2 size={20} strokeWidth={1.75} className="animate-spin" /> : <Paperclip size={20} strokeWidth={1.75} />}
-              </button>
-            )}
-
-            {/* Stop button while a turn runs */}
-            {isBusy && (
-              <button
-                type="button"
-                title="Stop agent"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onInterrupt?.();
-                }}
-                className="w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 bg-rose-500/25 border border-rose-400/35 hover:bg-rose-500/40 text-rose-300 hover:text-white shadow-[0_2px_12px_rgba(244,63,94,0.3)] active:scale-95 cursor-pointer group"
-              >
-                <Square size={19} strokeWidth={1.75} fill="currentColor" className="transition-transform duration-150 group-hover:scale-105" />
-              </button>
-            )}
-
-            {/* Send / Queue button */}
-            {(!isBusy || canSubmit) && (
-              <button
-                type="button"
-                title={skillTest ? 'Run skill test' : isBusy ? 'Queue message' : 'Send'}
-                disabled={!canSubmit}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  submitMessage();
-                }}
-                className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 group ${
-                  canSubmit
-                    ? 'bg-[#007AFF] hover:bg-[#0A84FF] text-white shadow-[0_2px_12px_rgba(0,122,255,0.45)] active:scale-95 cursor-pointer'
-                    : (isLight
-                        ? 'bg-black/[0.04] text-black/30 border border-black/[0.06] cursor-default'
-                        : 'bg-white/[0.06] text-white/30 border border-white/[0.05] cursor-default')
-                }`}
-              >
-                <ArrowUp size={20} strokeWidth={1.75} className="transition-transform duration-150 group-hover:scale-105" />
-              </button>
-            )}
-          </div>
+      {/* Staged files ride between the field and the toolbar. */}
+      {attachments && hasAttachments && (
+        <div
+          ref={attachmentsRef}
+          className="overflow-y-auto overflow-x-hidden custom-scrollbar mx-[14px]"
+          style={{ maxHeight: `${MAX_CHIPS_HEIGHT}px` }}
+        >
+          <AttachmentStrip
+            items={attachments.items}
+            onRemove={attachments.remove}
+            compact
+            className="py-1"
+          />
         </div>
+      )}
+
+      {/* Hairline splitting the field from its controls. */}
+      <div className={`h-px mx-[14px] my-[6px] shrink-0 ${
+        isLight ? 'bg-black/[0.08]' : 'bg-white/[0.10]'
+      }`} />
+
+      {/* Toolbar: pickers on the left, actions on the right. */}
+      <div className="flex items-center justify-between gap-1.5 px-[10px] pb-[4px] shrink-0" style={{ height: `${TOOLBAR_HEIGHT}px` }}>
+        <div className="flex items-center gap-1.5 min-w-0">
+          {/* Model & Provider Selector Trigger */}
+          <button
+            type="button"
+            title={currentModel ? [currentModel.name, accountName].filter(Boolean).join(' · ') : 'Choose model'}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleModelPicker();
+            }}
+            className={`h-[38px] flex items-center gap-2 px-3 rounded-[16px] border active:scale-95 transition-all duration-150 cursor-pointer shrink-0 group ${
+              isLight
+                ? 'bg-black/[0.04] hover:bg-black/[0.08] border-black/[0.07] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]'
+                : 'bg-white/[0.07] hover:bg-white/[0.12] border-white/[0.08] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+            }`}
+          >
+            {iconSrc && (
+              <img
+                src={iconSrc}
+                alt=""
+                className="w-[18px] h-[18px] object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
+                draggable={false}
+              />
+            )}
+            <span className={`text-[13px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[130px] truncate ${
+              isLight ? 'text-[#030303]' : 'text-white/95'
+            }`}>
+              {currentModel?.name || (isLoadingProviders ? 'Detecting CLIs…' : 'No CLI found')}
+            </span>
+            {accountName && (
+              <span className={`text-[11px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[80px] truncate ${
+                isLight ? 'text-black/45' : 'text-white/45'
+              }`}>
+                {accountName}
+              </span>
+            )}
+            <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${ isModelPickerOpen ? (isLight ? 'rotate-180 text-[#030303]' : 'rotate-180 text-white') : (isLight ? 'text-black/45 group-hover:text-[#030303]' : 'text-white/45 group-hover:text-white/80') }`} />
+          </button>
+
+          {/* New Agent Quick Trigger Button - ONLY in Deck mode */}
+          {hasActiveAgent && viewMode === 'deck' && (
+            <button
+              type="button"
+              title="New agent (Ctrl + N)"
+              aria-label="New agent"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNewAgent?.();
+              }}
+              className={`h-[34px] w-[34px] flex items-center justify-center rounded-full border transition-all duration-150 active:scale-90 cursor-pointer shrink-0 group select-none shadow-sm ${
+                isLight
+                  ? 'bg-black/[0.04] hover:bg-black/[0.09] border-black/[0.07] text-[#030303]/70 hover:text-[#030303]'
+                  : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/[0.08] text-white/70 hover:text-white'
+              }`}
+            >
+              <Plus size={17} strokeWidth={1.75} className={`group-hover:rotate-90 transition-transform duration-200 ${ isLight ? 'text-[#030303]/80' : 'text-white/80' }`} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 shrink-0">
+          {onSkillTest && (
+            <SkillTestPicker cwd={projects?.active?.path ?? ''} selected={testSkills} onChange={setTestSkills} isLight={isLight} />
+          )}
+          {/* Attach */}
+          {attachments && (
+            <button
+              type="button"
+              title="Attach files"
+              aria-label="Attach files"
+              disabled={attachments.isBusy}
+              onClick={(e) => {
+                e.stopPropagation();
+                void attachments.browse();
+              }}
+              className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-150 shrink-0 group ${
+                attachments.isBusy
+                  ? (isLight ? 'text-black/25 cursor-default' : 'text-white/25 cursor-default')
+                  : (isLight
+                      ? 'text-black/45 hover:text-[#030303] hover:bg-black/[0.06] active:scale-95 cursor-pointer'
+                      : 'text-white/40 hover:text-white hover:bg-white/[0.08] active:scale-95 cursor-pointer')
+              }`}
+            >
+              {attachments.isBusy ? <Loader2 size={20} strokeWidth={1.75} className="animate-spin" /> : <Paperclip size={20} strokeWidth={1.75} />}
+            </button>
+          )}
+
+          {/* Stop button while a turn runs */}
+          {isBusy && (
+            <button
+              type="button"
+              title="Stop agent"
+              onClick={(e) => {
+                e.stopPropagation();
+                onInterrupt?.();
+              }}
+              className="w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 bg-rose-500/25 border border-rose-400/35 hover:bg-rose-500/40 text-rose-300 hover:text-white shadow-[0_2px_12px_rgba(244,63,94,0.3)] active:scale-95 cursor-pointer group"
+            >
+              <Square size={19} strokeWidth={1.75} fill="currentColor" className="transition-transform duration-150 group-hover:scale-105" />
+            </button>
+          )}
+
+          {/* Send / Queue button */}
+          {(!isBusy || canSubmit) && (
+            <button
+              type="button"
+              title={skillTest ? 'Run skill test' : isBusy ? 'Queue message' : 'Send'}
+              disabled={!canSubmit}
+              onClick={(e) => {
+                e.stopPropagation();
+                submitMessage();
+              }}
+              className={`w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 group ${
+                canSubmit
+                  ? 'bg-[#007AFF] hover:bg-[#0A84FF] text-white shadow-[0_2px_12px_rgba(0,122,255,0.45)] active:scale-95 cursor-pointer'
+                  : (isLight
+                      ? 'bg-black/[0.04] text-black/30 border border-black/[0.06] cursor-default'
+                      : 'bg-white/[0.06] text-white/30 border border-white/[0.05] cursor-default')
+              }`}
+            >
+              <ArrowUp size={20} strokeWidth={1.75} className="transition-transform duration-150 group-hover:scale-105" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 
   return (

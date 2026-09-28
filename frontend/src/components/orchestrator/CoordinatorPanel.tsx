@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { ScrollArea } from '../common/ScrollArea';
+import { usePinnedScroll } from '../common/usePinnedScroll';
 import { AgentSessionFeed, AgentStreamBlock } from '../agent-session';
 import { OrbitLoader } from '../agent-session/OrbitLoader';
 import { TextShimmer } from '../agent-session/TextShimmer';
@@ -31,21 +32,9 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
   className = '',
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const pinnedToBottom = useRef(true);
-
   // Follow the stream only while the user is already at the bottom, so reading
   // back through history is not yanked away by incoming tokens.
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || !pinnedToBottom.current) return;
-    el.scrollTop = el.scrollHeight;
-  }, [blocks]);
-
-  const handleScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    pinnedToBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-  };
+  usePinnedScroll(scrollRef, [blocks, isBusy]);
 
   if (blocks.length === 0 && !error) return null;
 
@@ -114,7 +103,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
         }}
       >
       <div className="overflow-hidden">
-      <ScrollArea ref={scrollRef} maxHeight={maxHeight} onScroll={handleScroll} className="px-4 pb-4">
+      <ScrollArea ref={scrollRef} maxHeight={maxHeight} className="px-4 pb-4">
         <AgentSessionFeed blocks={blocks} />
 
         {/* The feed already renders its own spinner while a thinking block is
