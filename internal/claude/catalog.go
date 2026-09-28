@@ -38,6 +38,11 @@ var claudeCatalog = []catalogEntry{
 		fastMode: true, contextWide: true,
 	},
 	{
+		id: "claude-sonnet-5-5", displayName: "Claude Sonnet 5.5", minVersion: "2.1.284",
+		efforts: []string{"low", "medium", "high", "xhigh", "max"}, defEffort: "medium",
+		contextWide: true,
+	},
+	{
 		id: "claude-sonnet-5", displayName: "Claude Sonnet 5", minVersion: "2.1.197",
 		efforts: []string{"low", "medium", "high", "xhigh", "max"}, defEffort: "high",
 		contextWide: true,
