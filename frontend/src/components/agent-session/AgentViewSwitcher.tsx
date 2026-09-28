@@ -1,5 +1,5 @@
 import React from 'react';
-import { GitBranch, Globe, ListTodo, MessageSquare, Terminal } from 'lucide-react';
+import { LayoutGrid } from 'lucide-react';
 import { MorphButtons } from '../../liquid-morph/glass/MorphButtons';
 import type { AgentCardMode } from './AgentWindow';
 
@@ -11,22 +11,6 @@ interface AgentViewSwitcherProps {
   changes: number;
   isLight: boolean;
 }
-
-const ICONS: Record<AgentCardMode, React.ReactNode> = {
-  chat: <MessageSquare size={15} strokeWidth={1.75} />,
-  tasklist: <ListTodo size={15} strokeWidth={1.75} />,
-  browser: <Globe size={15} strokeWidth={1.75} />,
-  servers: <Terminal size={15} strokeWidth={1.75} />,
-  changes: <GitBranch size={15} strokeWidth={1.75} />,
-};
-
-const TITLES: Record<AgentCardMode, string> = {
-  chat: 'Chat',
-  tasklist: 'Tasks',
-  browser: 'Preview',
-  servers: 'Servers',
-  changes: 'Changes',
-};
 
 const DARK = {
   '--ma-fill': '#2a2a2a',
@@ -58,9 +42,8 @@ export const AgentViewSwitcher: React.FC<AgentViewSwitcherProps> = ({ mode, onCh
     available.push({ id: 'servers', label: servers > 1 ? `Servers ${servers}` : 'Servers' });
   }
   if (changes > 0) available.push({ id: 'changes', label: `Changes ${changes}` });
-
-  const destinations = available.filter((view) => view.id !== mode);
-  if (destinations.length === 0) return null;
+  // A lone view needs no switcher at all.
+  if (available.length <= 1) return null;
 
   return (
     <div style={isLight ? LIGHT : DARK} onClick={(e) => e.stopPropagation()} className="shrink-0 pointer-events-auto">
@@ -71,9 +54,13 @@ export const AgentViewSwitcher: React.FC<AgentViewSwitcherProps> = ({ mode, onCh
         items={[
           {
             id: 'views',
-            label: `${TITLES[mode]}, switch view`,
-            icon: ICONS[mode],
-            actions: destinations.map((view) => ({ id: view.id, label: view.label, onSelect: () => onChange(view.id) })),
+            label: 'Views',
+            icon: <LayoutGrid size={15} strokeWidth={1.75} />,
+            actions: available.map((view) =>
+              view.id === mode
+                ? { id: view.id, label: `✓ ${view.label}`, dismiss: true, onSelect: () => {} }
+                : { id: view.id, label: view.label, onSelect: () => onChange(view.id) },
+            ),
           },
         ]}
       />

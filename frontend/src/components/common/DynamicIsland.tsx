@@ -445,6 +445,11 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   // Mode: 'idle' (compact), 'projects' (expanded project picker), 'project-chats' (project's past chats), 'usage' (expanded usage card)
   const [mode, setMode] = useState<'idle' | 'projects' | 'project-chats' | 'usage'>('idle');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  // Project list arrangement: native drag from the row handle, dropped into a
+  // gap position. The confirm id arms the inline remove confirmation.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropGap, setDropGap] = useState<number | null>(null);
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const islandRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -823,93 +828,192 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 </div>
               ) : (
                 <div className="flex flex-col gap-0.5">
-                  {projects?.projects.map((project: Project) => {
+                  {projects?.projects.map((project: Project, index: number) => {
                     const isActive = project.id === projects.active?.id;
                     const projectChats = extractChatHistoryItems(historyEntries || [], project.path);
+                    const confirming = confirmRemoveId === project.id;
+
+                    // Gap position from the pointer: upper half drops before
+                    // this row, lower half after it.
+                    const gapFromEvent = (e: React.DragEvent) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      return e.clientY > rect.top + rect.height / 2 ? index + 1 : index;
+                    };
+                    const commitDrop = (gap: number) => {
+                      const ids = (projects?.projects ?? []).map((p) => p.id);
+                      const from = ids.indexOf(dragId ?? '');
+                      if (from < 0) return;
+                      const to = from < gap ? gap - 1 : gap;
+                      if (to !== from) void projects?.move(dragId as string, to);
+                    };
+                    const endDrag = () => {
+                      setDragId(null);
+                      setDropGap(null);
+                    };
 
                     return (
-                      <div
-                        key={project.id}
-                        className={`group flex items-stretch justify-between rounded-[10px] transition-colors overflow-hidden ${
-                          isActive
-                            ? isLight
-                              ? 'bg-black/[0.08]'
-                              : 'bg-white/[0.12]'
-                            : isLight
-                            ? 'hover:bg-black/[0.04]'
-                            : 'hover:bg-white/[0.06]'
-                        }`}
-                      >
-                        {/* Left Region: Select project */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            void projects.select(project.id);
-                            setMode('idle');
+                      <React.Fragment key={project.id}>
+                        {dragId && dropGap === index && (
+                          <div className="h-[2px] mx-3 rounded-full bg-[#007AFF]" aria-hidden />
+                        )}
+                        <div
+                          onDragOver={(e) => {
+                            if (!dragId) return;
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            setDropGap(gapFromEvent(e));
                           }}
-                          className="flex-1 min-w-0 flex items-center gap-2 px-2.5 py-1.5 text-left cursor-pointer transition-colors"
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            commitDrop(gapFromEvent(e));
+                            endDrag();
+                          }}
+                          className={`group flex items-stretch justify-between rounded-[10px] transition-colors overflow-hidden ${
+                            dragId === project.id ? 'opacity-40' : ''
+                          } ${
+                            isActive
+                              ? isLight
+                                ? 'bg-black/[0.08]'
+                                : 'bg-white/[0.12]'
+                              : isLight
+                              ? 'hover:bg-black/[0.04]'
+                              : 'hover:bg-white/[0.06]'
+                          }`}
                         >
-                          <span className="material-symbols-rounded text-[15px] text-white/60 leading-none shrink-0">
-                            folder
-                          </span>
-                          <div className="flex flex-col min-w-0">
-                            <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
-                              {project.name}
-                            </span>
-                            <span
-                              className="text-[10px] font-mono text-[#8E8E93] truncate leading-[13px]"
-                              title={project.path}
-                            >
-                              {shortenPath(project.path)}
-                            </span>
-                          </div>
-                        </button>
-
-                        {/* Right Region: Remove button on hover + Full height & wide button to open chats */}
-                        <div className="flex items-stretch self-stretch shrink-0">
-                          {projects.projects.length > 1 && (
-                            <button
-                              type="button"
-                              title="Remove"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void projects.remove(project.id);
-                              }}
-                              className={`w-6 self-stretch ${
-                                isLight
-                                  ? 'hover:bg-black/10 text-black/40 hover:text-black'
-                                  : 'hover:bg-white/10 text-white/40 hover:text-white'
-                              } opacity-0 group-hover:opacity-100 focus:opacity-100 flex items-center justify-center transition-all cursor-pointer`}
-                            >
-                              <span className="material-symbols-rounded text-[13px] leading-none">close</span>
-                            </button>
-                          )}
-
-                          <button
-                            type="button"
-                            title={`View ${projectChats.length} chat${projectChats.length === 1 ? '' : 's'} for ${project.name}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedProject(project);
-                              setMode('project-chats');
+                          {/* Drag handle: the only grab point, so selecting and
+                              confirming never start a drag by accident. */}
+                          <span
+                            draggable
+                            title="Drag to reorder"
+                            aria-label={`Reorder ${project.name}`}
+                            onDragStart={(e) => {
+                              e.dataTransfer.effectAllowed = 'move';
+                              e.dataTransfer.setData('text/plain', project.id);
+                              setDragId(project.id);
+                              setConfirmRemoveId(null);
                             }}
-                            className={`flex items-center justify-center gap-1.5 px-3.5 self-stretch ${
-                              isLight
-                                ? 'hover:bg-black/10 text-black/60 hover:text-black active:bg-black/15'
-                                : 'hover:bg-white/12 text-white/60 hover:text-white active:bg-white/18'
-                            } transition-all cursor-pointer`}
+                            onDragEnd={endDrag}
+                            className={`flex items-center pl-1.5 pr-0.5 cursor-grab active:cursor-grabbing shrink-0 ${
+                              isLight ? 'text-black/30 hover:text-black/60' : 'text-white/25 hover:text-white/60'
+                            } transition-colors`}
                           >
-                            <span className="text-[11px] font-mono tabular-nums text-white/70 font-medium">
-                              {projectChats.length}
+                            <span className="material-symbols-rounded text-[15px] leading-none">
+                              drag_indicator
                             </span>
-                            <span className="material-symbols-rounded text-[15px] leading-none text-white/50 group-hover:text-white/80 transition-colors">
-                              chevron_right
-                            </span>
-                          </button>
+                          </span>
+
+                          {confirming ? (
+                            <motion.div
+                              key="confirm"
+                              initial={{ opacity: 0, x: 6 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.15 }}
+                              className="flex-1 min-w-0 flex items-center gap-2 pl-1 pr-2 py-1.5"
+                            >
+                              <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
+                                Remove {project.name}?
+                              </span>
+                              <span className="flex-1" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setConfirmRemoveId(null);
+                                  void projects.remove(project.id);
+                                }}
+                                className="h-[24px] px-3 rounded-full bg-rose-500/85 hover:bg-rose-500 text-white text-[11.5px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer shrink-0"
+                              >
+                                Remove
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmRemoveId(null)}
+                                className={`h-[24px] px-3 rounded-full text-[11.5px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer shrink-0 ${
+                                  isLight
+                                    ? 'bg-black/[0.06] hover:bg-black/[0.1] text-black/80'
+                                    : 'bg-white/[0.08] hover:bg-white/[0.14] text-white/80'
+                                }`}
+                              >
+                                Keep
+                              </button>
+                            </motion.div>
+                          ) : (
+                            <>
+                              {/* Left Region: Select project */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void projects.select(project.id);
+                                  setMode('idle');
+                                }}
+                                className="flex-1 min-w-0 flex items-center gap-2 pl-1 pr-1 py-1.5 text-left cursor-pointer transition-colors"
+                              >
+                                <span className="material-symbols-rounded text-[15px] text-white/60 leading-none shrink-0">
+                                  folder
+                                </span>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
+                                    {project.name}
+                                  </span>
+                                  <span
+                                    className="text-[10px] font-mono text-[#8E8E93] truncate leading-[13px]"
+                                    title={project.path}
+                                  >
+                                    {shortenPath(project.path)}
+                                  </span>
+                                </div>
+                              </button>
+
+                              {/* Right Region: Remove (arms confirmation) + open chats */}
+                              <div className="flex items-stretch self-stretch shrink-0">
+                                {projects.projects.length > 1 && (
+                                  <button
+                                    type="button"
+                                    title="Remove"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setConfirmRemoveId(project.id);
+                                    }}
+                                    className={`w-6 self-stretch ${
+                                      isLight
+                                        ? 'hover:bg-black/10 text-black/40 hover:text-black'
+                                        : 'hover:bg-white/10 text-white/40 hover:text-white'
+                                    } opacity-0 group-hover:opacity-100 focus:opacity-100 flex items-center justify-center transition-all cursor-pointer`}
+                                  >
+                                    <span className="material-symbols-rounded text-[13px] leading-none">close</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  title={`View ${projectChats.length} chat${projectChats.length === 1 ? '' : 's'} for ${project.name}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedProject(project);
+                                    setMode('project-chats');
+                                  }}
+                                  className={`flex items-center justify-center gap-1.5 px-3.5 self-stretch ${
+                                    isLight
+                                      ? 'hover:bg-black/10 text-black/60 hover:text-black active:bg-black/15'
+                                      : 'hover:bg-white/12 text-white/60 hover:text-white active:bg-white/18'
+                                  } transition-all cursor-pointer`}
+                                >
+                                  <span className="text-[11px] font-mono tabular-nums text-white/70 font-medium">
+                                    {projectChats.length}
+                                  </span>
+                                  <span className="material-symbols-rounded text-[15px] leading-none text-white/50 group-hover:text-white/80 transition-colors">
+                                    chevron_right
+                                  </span>
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </div>
+                      </React.Fragment>
                     );
                   })}
+                  {dragId && dropGap === (projects?.projects.length ?? 0) && (
+                    <div className="h-[2px] mx-3 rounded-full bg-[#007AFF]" aria-hidden />
+                  )}
                 </div>
               )}
             </ScrollArea>

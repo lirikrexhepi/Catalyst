@@ -27,6 +27,9 @@ export interface OrchestratorInputProps {
   onNewAgent?: () => void;
   isCreatingNewAgent?: boolean;
   onCancelNewAgent?: () => void;
+  /** Folder override for the armed new-agent spawn only; null is the active project. */
+  newAgentProject?: { id: string; name: string; path: string } | null;
+  onNewAgentProjectChange?: (project: { id: string; name: string; path: string } | null) => void;
   viewMode?: 'deck' | 'grid' | 'orchestrator';
   onToggleViewMode?: () => void;
   className?: string;
@@ -58,6 +61,8 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   onNewAgent,
   isCreatingNewAgent = false,
   onCancelNewAgent,
+  newAgentProject = null,
+  onNewAgentProjectChange,
   viewMode = 'deck',
   onToggleViewMode,
   className = '',
@@ -94,6 +99,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   // Transition mount coordination for guaranteed entrance AND exit
   const modelPickerMount = useTransitionMount(isModelPickerOpen, 200);
   const effortPickerMount = useTransitionMount(isEffortPickerOpen, 200);
+  const [isAgentProjectOpen, setAgentProjectOpen] = useState(false);
 
   const currentModel = getSelectedModel();
   const accountName = useOrchestratorStore((state) => {
@@ -157,16 +163,17 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     const handleOutsideClick = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         closeAllPickers();
+        setAgentProjectOpen(false);
       }
     };
 
-    if (isModelPickerOpen || isEffortPickerOpen) {
+    if (isModelPickerOpen || isEffortPickerOpen || isAgentProjectOpen) {
       document.addEventListener('mousedown', handleOutsideClick);
     }
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
-  }, [isModelPickerOpen, isEffortPickerOpen, closeAllPickers]);
+  }, [isModelPickerOpen, isEffortPickerOpen, isAgentProjectOpen, closeAllPickers]);
 
   // An attachment on its own is a complete message, so a turn is sendable when
   // there is either text or a staged file.
@@ -212,6 +219,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     }
     if (e.key === 'Escape') {
       closeAllPickers();
+      setAgentProjectOpen(false);
       onCancelNewAgent?.();
       // Esc stops the running turn, as in Claude Code.
       if (isBusy) {
@@ -330,7 +338,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
           >
             {isSpawning && (
               <div
-                className={`flex items-center gap-1 px-2.5 py-0.5 mr-2 rounded-full border text-[11px] font-medium tracking-tight shrink-0 select-none animate-in fade-in duration-150 ${
+                className={`flex items-center gap-1 pl-2.5 pr-1 py-0.5 mr-2 rounded-full border text-[11px] font-medium tracking-tight shrink-0 select-none animate-in fade-in duration-150 ${
                   isLight
                     ? 'bg-black/[0.06] border-black/15 text-black'
                     : 'bg-white/[0.10] border-white/20 text-white'
@@ -338,11 +346,29 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               >
                 <Plus size={12} strokeWidth={2} />
                 <span>New Agent</span>
+                <span className={isLight ? 'text-black/30' : 'text-white/30'}>·</span>
+                <button
+                  type="button"
+                  title="Spawn folder, this agent only"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setAgentProjectOpen((open) => !open);
+                  }}
+                  className={`flex items-center gap-0.5 max-w-[110px] rounded-full px-1.5 py-px -my-px cursor-pointer transition-colors ${
+                    isLight ? 'hover:bg-black/[0.08] text-black/70' : 'hover:bg-white/[0.12] text-white/70'
+                  }`}
+                >
+                  <span className="truncate leading-none py-[3px]">
+                    {newAgentProject?.name ?? projects?.active?.name ?? '…'}
+                  </span>
+                  <ChevronDown size={11} strokeWidth={2} className="shrink-0 opacity-70" />
+                </button>
                 <button
                   type="button"
                   title="Cancel new agent"
                   onClick={(e) => {
                     e.stopPropagation();
+                    setAgentProjectOpen(false);
                     onCancelNewAgent?.();
                   }}
                   className="ml-0.5 opacity-60 hover:opacity-100 cursor-pointer flex items-center"
@@ -561,6 +587,76 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
               className="origin-bottom-left pointer-events-auto"
             >
               <EffortPicker />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Spawn folder for the armed new agent only. Picking here never
+            switches the top-level project. */}
+        <AnimatePresence>
+          {isAgentProjectOpen && isSpawning && (
+            <motion.div
+              key="new-agent-project"
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 4, transition: { duration: 0.12, ease: 'easeIn' } }}
+              transition={{
+                type: 'spring',
+                stiffness: 440,
+                damping: 30,
+                mass: 0.8,
+              }}
+              style={{ transformOrigin: 'bottom left' }}
+              className="origin-bottom-left pointer-events-auto"
+            >
+              <div
+                className={`w-[210px] rounded-[16px] border p-1.5 backdrop-blur-xl ${
+                  isLight
+                    ? 'bg-white/[0.96] border-black/[0.08] shadow-[0_16px_40px_rgba(0,0,0,0.14)]'
+                    : 'bg-[#161617]/[0.96] border-white/[0.10] shadow-[0_16px_40px_rgba(0,0,0,0.6)]'
+                }`}
+              >
+                {(projects?.projects ?? []).length === 0 && (
+                  <div className={`px-2.5 py-2 text-[12px] font-['Geist'] ${isLight ? 'text-black/50' : 'text-white/50'}`}>
+                    No projects yet
+                  </div>
+                )}
+                {(projects?.projects ?? []).map((project) => {
+                  const selected = (newAgentProject?.id ?? projects?.active?.id) === project.id;
+                  return (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNewAgentProjectChange?.(
+                          project.id === projects?.active?.id
+                            ? null
+                            : { id: project.id, name: project.name, path: project.path },
+                        );
+                        setAgentProjectOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] text-left cursor-pointer transition-colors ${
+                        isLight
+                          ? 'hover:bg-black/[0.05] text-black/85'
+                          : 'hover:bg-white/[0.07] text-white/85'
+                      }`}
+                    >
+                      <span className="material-symbols-rounded text-[15px] leading-none shrink-0 opacity-60">
+                        folder
+                      </span>
+                      <span className="flex-1 min-w-0 text-[12.5px] font-medium font-['Geist'] tracking-tight truncate">
+                        {project.name}
+                      </span>
+                      {selected && (
+                        <span className={`material-symbols-rounded text-[15px] leading-none shrink-0 ${isLight ? 'text-black/70' : 'text-white/70'}`}>
+                          check
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

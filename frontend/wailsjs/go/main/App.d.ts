@@ -108,6 +108,8 @@ export function LoadHistory(arg1:string):Promise<history.Session>;
 
 export function MutateAgentTask(arg1:string,arg2:string,arg3:string,arg4:string):Promise<Array<domain.PlanEntry>>;
 
+export function MoveProject(arg1:string,arg2:number):Promise<void>;
+
 export function NewChat():Promise<void>;
 
 export function OrchestratorAgents():Promise<Array<session.AgentView>>;

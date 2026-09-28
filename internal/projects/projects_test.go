@@ -100,7 +100,7 @@ func TestDeletedDirectoryIsReportedMissing(t *testing.T) {
 	}
 }
 
-func TestActivateOrdersMostRecentlyUsedFirst(t *testing.T) {
+func TestActivateKeepsManualOrder(t *testing.T) {
 	store := New(t.TempDir())
 	first, _ := store.Add(t.TempDir(), false)
 	second, _ := store.Add(t.TempDir(), false)
@@ -110,14 +110,52 @@ func TestActivateOrdersMostRecentlyUsedFirst(t *testing.T) {
 	}
 
 	list := store.List()
-	if list[0].ID != first.ID {
-		t.Fatalf("expected the just-used project first, got %q", list[0].ID)
+	if len(list) != 2 || list[0].ID != second.ID || list[1].ID != first.ID {
+		t.Fatalf("Activate must not reorder the list: %+v", list)
 	}
 	if store.ActivePath() != first.Path {
 		t.Fatalf("Activate did not change the active project")
 	}
-	if len(list) != 2 || list[1].ID != second.ID {
-		t.Fatalf("unexpected list: %+v", list)
+}
+
+func TestMoveReordersProjects(t *testing.T) {
+	store := New(t.TempDir())
+	first, _ := store.Add(t.TempDir(), false)
+	second, _ := store.Add(t.TempDir(), false)
+	third, _ := store.Add(t.TempDir(), false)
+
+	if err := store.Move(first.ID, 0); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+	list := store.List()
+	if len(list) != 3 || list[0].ID != first.ID || list[1].ID != third.ID || list[2].ID != second.ID {
+		t.Fatalf("unexpected order after move: %+v", list)
+	}
+
+	if err := store.Move("missing", 0); err != ErrNotFound {
+		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+
+	if err := store.Move(second.ID, 99); err != nil {
+		t.Fatalf("Move clamps out-of-range indexes: %v", err)
+	}
+	if list := store.List(); list[len(list)-1].ID != second.ID {
+		t.Fatalf("expected second last after clamped move: %+v", list)
+	}
+}
+
+func TestMoveSurvivesRestart(t *testing.T) {
+	dir := t.TempDir()
+	store := New(dir)
+	first, _ := store.Add(t.TempDir(), false)
+	second, _ := store.Add(t.TempDir(), false)
+
+	if err := store.Move(first.ID, 0); err != nil {
+		t.Fatalf("Move: %v", err)
+	}
+	list := New(dir).List()
+	if len(list) != 2 || list[0].ID != first.ID || list[1].ID != second.ID {
+		t.Fatalf("manual order was not persisted: %+v", list)
 	}
 }
 

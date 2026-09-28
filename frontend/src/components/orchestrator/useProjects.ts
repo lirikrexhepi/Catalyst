@@ -4,6 +4,7 @@ import {
   AddProject,
   ChooseProject,
   ListProjects,
+  MoveProject,
   RemoveProject,
   SelectProject,
 } from '../../../wailsjs/go/main/App';
@@ -22,6 +23,7 @@ export interface ProjectsState {
   add: (path: string) => Promise<boolean>;
   select: (id: string) => Promise<boolean>;
   remove: (id: string) => Promise<void>;
+  move: (id: string, toIndex: number) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
@@ -125,5 +127,17 @@ export function useProjects(onSwitched?: () => void | Promise<void>): ProjectsSt
     [refresh],
   );
 
-  return { projects: list, active, error, isChoosing, choose, add, select, remove, refresh };
+  const move = useCallback(
+    async (id: string, toIndex: number) => {
+      try {
+        await MoveProject(id, toIndex);
+        await refresh();
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+    },
+    [refresh],
+  );
+
+  return { projects: list, active, error, isChoosing, choose, add, select, remove, move, refresh };
 }

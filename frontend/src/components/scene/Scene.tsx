@@ -168,10 +168,17 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   const [viewMode, setViewMode] = useState<'deck' | 'grid' | 'orchestrator'>('deck');
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   const [isCreatingNewAgent, setIsCreatingNewAgent] = useState(false);
+  // Synchronous twin of the flag above. State commits after the current
+  // handler, so an instant "+" spawn sets this for handleSubmit to read.
+  const explicitNewRef = useRef(false);
+  // Folder override for the armed new-agent spawn only. Null means the active
+  // project, so picking another folder here never switches the top-level one.
+  const [newAgentProject, setNewAgentProject] = useState<{ id: string; name: string; path: string } | null>(null);
 
   useEffect(() => {
     if (viewMode !== 'deck') {
       setIsCreatingNewAgent(false);
+      setNewAgentProject(null);
     }
   }, [viewMode]);
 
@@ -616,18 +623,28 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
 
       // Deck mode:
       // If user explicitly clicked "+" (isCreatingNewAgent), typed "@new ...", or there are 0 active tasks:
-      const isExplicitNew = isCreatingNewAgent || clean.startsWith('@new ') || clean.startsWith('@new');
+      const isExplicitNew =
+        explicitNewRef.current || isCreatingNewAgent || clean.startsWith('@new ') || clean.startsWith('@new');
+      explicitNewRef.current = false;
       if (isExplicitNew || activeTasks.length === 0) {
         setIsCreatingNewAgent(false);
         const promptText = clean.replace(/^@new\s*/i, '').trim();
-        if (!promptText && files.length === 0) return;
+        if (!promptText && files.length === 0) {
+          setNewAgentProject(null);
+          return;
+        }
 
         const threadId = await spawner.spawnAgent(
           promptText,
           undefined,
           modelId,
-          projects.active ? { name: projects.active.name, path: projects.active.path } : undefined,
+          newAgentProject
+            ? { name: newAgentProject.name, path: newAgentProject.path }
+            : projects.active
+              ? { name: projects.active.name, path: projects.active.path }
+              : undefined,
         );
+        setNewAgentProject(null);
         if (threadId) {
           setViewMode('deck');
         }
@@ -659,7 +676,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         }
       }
     },
-    [activeTasks, activeTask, composerFiles, spawner, coordinator, viewMode, isCreatingNewAgent],
+    [activeTasks, activeTask, composerFiles, spawner, coordinator, viewMode, isCreatingNewAgent, newAgentProject, projects.active],
   );
 
   const handleSkillTest = useCallback(
@@ -1152,14 +1169,32 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
             viewMode={viewMode}
             onToggleViewMode={() => setViewMode((prev) => (prev === 'deck' ? 'grid' : 'deck'))}
             isCreatingNewAgent={isCreatingNewAgent}
-            onCancelNewAgent={() => setIsCreatingNewAgent(false)}
+            onCancelNewAgent={() => {
+              setIsCreatingNewAgent(false);
+              setNewAgentProject(null);
+            }}
             onNewAgent={() => {
+              // Text already typed spawns instantly in the active project —
+              // no tag step. An empty box arms the new-agent mode instead.
+              const store = useOrchestratorStore.getState();
+              const typed = store.messageText.trim();
+              if (typed) {
+                explicitNewRef.current = true;
+                setIsCreatingNewAgent(true);
+                setNewAgentProject(null);
+                store.setMessageText('');
+                void handleSubmit(typed, store.selectedModelId);
+                return;
+              }
+              setNewAgentProject(null);
               setIsCreatingNewAgent(true);
               const textarea = document.querySelector('textarea');
               if (textarea) {
                 textarea.focus();
               }
             }}
+            newAgentProject={newAgentProject}
+            onNewAgentProjectChange={setNewAgentProject}
             projects={projects}
             attachments={composerFiles}
           />

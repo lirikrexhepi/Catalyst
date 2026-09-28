@@ -106,7 +106,8 @@ func (s *Store) backfillOrder() {
 	}
 }
 
-// List reports every project, most recently used first.
+// List reports every project: newly added first, then the user's own
+// arrangement. Selecting a project never reorders the list.
 //
 // Existence is re-checked on every list rather than trusted from the file: a
 // directory can be moved or deleted between runs, and silently spawning an
@@ -239,8 +240,9 @@ func (s *Store) Remove(id string) error {
 	return s.persist()
 }
 
-// Activate selects a project and stamps its last-used time, which is what
-// orders the picker.
+// Activate selects a project and stamps its last-used time. It deliberately
+// leaves the picker order alone: the order is the user's own arrangement,
+// with newly added projects arriving at the top.
 func (s *Store) Activate(id string) (Project, error) {
 	s.mu.Lock()
 	var selected Project
@@ -249,9 +251,7 @@ func (s *Store) Activate(id string) (Project, error) {
 		if s.saved.Projects[i].ID != id {
 			continue
 		}
-		s.saved.Seq++
 		s.saved.Projects[i].UsedAt = time.Now().UnixMilli()
-		s.saved.Projects[i].Order = s.saved.Seq
 		selected = s.saved.Projects[i]
 		found = true
 		break
@@ -269,6 +269,49 @@ func (s *Store) Activate(id string) (Project, error) {
 	}
 	selected.Missing = !isDir(selected.Path)
 	return selected, nil
+}
+
+// Move places a project at an explicit position, which List then keeps.
+// Out-of-range indexes clamp to the ends; the active selection is untouched,
+// so rearranging never switches the project agents start in.
+func (s *Store) Move(id string, toIndex int) error {
+	s.mu.Lock()
+	// Arrange in the order List reports, so the index matches the position
+	// the user sees and drags to.
+	ordered := make([]Project, len(s.saved.Projects))
+	copy(ordered, s.saved.Projects)
+	sort.SliceStable(ordered, func(a, b int) bool { return ordered[a].Order > ordered[b].Order })
+
+	from := -1
+	for i, project := range ordered {
+		if project.ID == id {
+			from = i
+			break
+		}
+	}
+	if from < 0 {
+		s.mu.Unlock()
+		return ErrNotFound
+	}
+
+	moved := ordered[from]
+	ordered = append(ordered[:from], ordered[from+1:]...)
+	if toIndex < 0 {
+		toIndex = 0
+	}
+	if toIndex > len(ordered) {
+		toIndex = len(ordered)
+	}
+	ordered = append(ordered[:toIndex], append([]Project{moved}, ordered[toIndex:]...)...)
+	// Resequence below the selection counter so projects added later still
+	// arrive at the top, ahead of any manual arrangement.
+	for i := range ordered {
+		ordered[i].Order = int64(len(ordered) - i)
+	}
+	s.saved.Projects = ordered
+	s.mu.Unlock()
+
+	return s.persist()
 }
 
 func (s *Store) SetAccount(id, driver, account string) (Project, error) {

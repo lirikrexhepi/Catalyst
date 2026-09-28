@@ -24,7 +24,7 @@ func (a *App) IsGitRepo(dir string) bool {
 	return ok
 }
 
-// ListProjects reports every saved project, most recently used first.
+// ListProjects reports every saved project, newest added first.
 func (a *App) ListProjects() []projects.Project {
 	return a.projects.List()
 }
@@ -75,6 +75,11 @@ func (a *App) SelectProject(id string) (*projects.Project, error) {
 		return nil, err
 	}
 	return &project, nil
+}
+
+// MoveProject places a saved project at an explicit picker position.
+func (a *App) MoveProject(id string, toIndex int) error {
+	return a.projects.Move(id, toIndex)
 }
 
 // RemoveProject forgets a project. The directory itself is never touched.
