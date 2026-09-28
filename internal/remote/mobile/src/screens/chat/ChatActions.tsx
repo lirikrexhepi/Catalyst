@@ -1,5 +1,7 @@
 import { Power, RotateCcw, Square } from 'lucide-react'
-import { Sheet, SheetTile, SheetTiles } from '../../components/sheet'
+import { Sheet } from '../../components/sheet'
+import { ICON_STROKE } from '../../components/chrome/BarButton'
+import { MorphButtons } from '../../ui/glass/MorphButtons'
 
 interface ChatActionsProps {
   title: string
@@ -16,14 +18,35 @@ export function ChatActions({ title, busy, coordinator, live, onStop, onStartOve
   return (
     <Sheet title={title} onClose={onClose}>
       {(dismiss) => (
-        <SheetTiles>
-          <SheetTile icon={Square} label="Stop" disabled={!busy} onClick={() => dismiss(onStop)} />
-          {coordinator ? (
-            <SheetTile icon={RotateCcw} label="Start over" onClick={() => dismiss(onStartOver)} />
-          ) : (
-            <SheetTile icon={Power} label="End agent" tone="danger" disabled={!live} onClick={() => dismiss(onEndAgent)} />
-          )}
-        </SheetTiles>
+        <MorphButtons
+          className="sheet-morph"
+          size={52}
+          spacing={16}
+          items={[
+            { id: 'stop', label: 'Stop responding', icon: <Square size={24} strokeWidth={ICON_STROKE} />, disabled: !busy, onClick: () => dismiss(onStop) },
+            coordinator
+              ? {
+                  id: 'restart',
+                  label: 'Start over',
+                  icon: <RotateCcw size={24} strokeWidth={ICON_STROKE} />,
+                  actions: [
+                    { id: 'restart', label: 'Start over', onSelect: () => dismiss(onStartOver) },
+                    { id: 'cancel', label: 'Cancel', dismiss: true },
+                  ],
+                }
+              : {
+                  id: 'end',
+                  label: 'End agent',
+                  icon: <Power size={24} strokeWidth={ICON_STROKE} />,
+                  tone: 'danger',
+                  disabled: !live,
+                  actions: [
+                    { id: 'end', label: 'End agent', tone: 'danger', onSelect: () => dismiss(onEndAgent) },
+                    { id: 'cancel', label: 'Cancel', dismiss: true },
+                  ],
+                },
+          ]}
+        />
       )}
     </Sheet>
   )

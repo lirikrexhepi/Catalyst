@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Coffee, Power, Unplug } from 'lucide-react'
-import { SheetList, SheetNote, SheetRow, useArmed } from '../../components/sheet'
+import { SheetList, SheetNote, SheetRow } from '../../components/sheet'
+import { ICON_STROKE } from '../../components/chrome/BarButton'
+import { MorphButtons } from '../../ui/glass/MorphButtons'
 import { api, getBase, setBase, setToken } from '../../api'
 import { useStore } from '../../store'
 import { GlassSwitch } from '../../ui'
@@ -12,8 +14,6 @@ export function PcSection() {
   const base = (getBase() || window.location.origin).replace(/^https?:\/\//, '')
   const [canPowerOff, setCanPowerOff] = useState(false)
   const [power, setPower] = useState<'idle' | 'sending' | 'done' | string>('idle')
-  const [shutdownArmed, confirmShutdown] = useArmed()
-  const [disconnectArmed, confirmDisconnect] = useArmed()
   const keepAwake = useKeepAwake()
 
   useEffect(() => {
@@ -24,7 +24,6 @@ export function PcSection() {
   }, [])
 
   const shutdown = () => {
-    if (!confirmShutdown()) return
     setPower('sending')
     api
       .shutdownPC()
@@ -33,14 +32,13 @@ export function PcSection() {
   }
 
   const disconnect = () => {
-    if (!confirmDisconnect()) return
     setToken('')
     setBase('')
     clearRoute()
     window.location.reload()
   }
 
-  const powerLabel = power === 'sending' ? 'Shutting down' : power === 'done' ? 'PC is off' : shutdownArmed ? 'Confirm shutdown' : 'Shut down PC'
+  const powerLabel = power === 'sending' ? 'Shutting down' : power === 'done' ? 'PC is off' : 'Shut down PC'
   const powerError = power !== 'idle' && power !== 'sending' && power !== 'done' ? power : null
   const status = connection === 'live' ? 'Connected' : connection === 'connecting' ? 'Connecting' : 'Offline'
 
@@ -55,9 +53,58 @@ export function PcSection() {
       </SheetList>
       <SheetList>
         {canPowerOff ? (
-          <SheetRow icon={Power} label={powerLabel} tone="danger" disabled={power === 'sending' || power === 'done'} onClick={shutdown} />
+          <SheetRow
+            icon={Power}
+            label={powerLabel}
+            tone="danger"
+            trailing={
+              <MorphButtons
+                className="row-morph"
+                size={36}
+                anchor="end"
+                inset={18}
+                items={[
+                  {
+                    id: 'shutdown',
+                    label: 'Shut down PC',
+                    icon: <Power size={20} strokeWidth={ICON_STROKE} />,
+                    tone: 'danger',
+                    disabled: power === 'sending' || power === 'done',
+                    actions: [
+                      { id: 'shutdown', label: 'Shut down', tone: 'danger', onSelect: shutdown },
+                      { id: 'cancel', label: 'Cancel', dismiss: true },
+                    ],
+                  },
+                ]}
+              />
+            }
+          />
         ) : null}
-        <SheetRow icon={Unplug} label={disconnectArmed ? 'Confirm disconnect' : 'Disconnect this phone'} tone="danger" onClick={disconnect} />
+        <SheetRow
+          icon={Unplug}
+          label="Disconnect this phone"
+          tone="danger"
+          trailing={
+            <MorphButtons
+              className="row-morph"
+              size={36}
+              anchor="end"
+              inset={18}
+              items={[
+                {
+                  id: 'disconnect',
+                  label: 'Disconnect this phone',
+                  icon: <Unplug size={20} strokeWidth={ICON_STROKE} />,
+                  tone: 'danger',
+                  actions: [
+                    { id: 'disconnect', label: 'Disconnect', tone: 'danger', onSelect: disconnect },
+                    { id: 'cancel', label: 'Cancel', dismiss: true },
+                  ],
+                },
+              ]}
+            />
+          }
+        />
       </SheetList>
       <SheetNote tone={powerError ? 'error' : undefined}>{powerError ?? `${status} · ${base}`}</SheetNote>
     </>

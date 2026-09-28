@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { EyeOff, Trash2 } from 'lucide-react'
-import { Sheet, SheetNote, SheetTile, SheetTiles, useArmed, type Dismiss } from '../../components/sheet'
+import { Sheet, SheetNote, type Dismiss } from '../../components/sheet'
+import { ICON_STROKE } from '../../components/chrome/BarButton'
+import { MorphButtons } from '../../ui/glass/MorphButtons'
 import { api } from '../../api'
 import { hideChat } from '../../hiddenChats'
 import { message, refreshSummaries } from '../../store'
@@ -14,12 +16,11 @@ interface ChatRowActionsProps {
 }
 
 export function ChatRowActions({ thread, current, onLeave, onClose }: ChatRowActionsProps) {
-  const [armed, confirm] = useArmed()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const remove = async (dismiss: Dismiss) => {
-    if (busy || !confirm()) return
+    if (busy) return
     setBusy(true)
     setError(null)
     try {
@@ -39,16 +40,26 @@ export function ChatRowActions({ thread, current, onLeave, onClose }: ChatRowAct
     <Sheet title={thread.title || 'Chat'} onClose={onClose}>
       {(dismiss) => (
         <>
-          <SheetTiles>
-            <SheetTile icon={EyeOff} label="Hide" disabled={busy} onClick={() => dismiss(() => hideChat(thread.threadId))} />
-            <SheetTile
-              icon={Trash2}
-              label={busy ? 'Deleting' : armed ? 'Confirm' : 'Delete'}
-              tone="danger"
-              armed={armed || busy}
-              onClick={() => void remove(dismiss)}
-            />
-          </SheetTiles>
+          <MorphButtons
+            className="sheet-morph"
+            size={52}
+            spacing={16}
+            items={[
+              { id: 'hide', label: 'Hide chat', icon: <EyeOff size={24} strokeWidth={ICON_STROKE} />, disabled: busy, onClick: () => dismiss(() => hideChat(thread.threadId)) },
+              {
+                id: 'delete',
+                label: 'Delete chat',
+                icon: <Trash2 size={24} strokeWidth={ICON_STROKE} />,
+                tone: 'danger',
+                disabled: busy,
+                actions: [
+                  { id: 'delete', label: 'Delete', tone: 'danger', onSelect: () => void remove(dismiss) },
+                  { id: 'cancel', label: 'Cancel', dismiss: true },
+                ],
+              },
+            ]}
+          />
+          {busy ? <SheetNote>Deleting</SheetNote> : null}
           {error ? <SheetNote tone="error">{error}</SheetNote> : null}
         </>
       )}
