@@ -23,17 +23,22 @@ type catalogEntry struct {
 
 var claudeCatalog = []catalogEntry{
 	{
-		id: "claude-opus-5-5", displayName: "Claude Opus 5.5", minVersion: "2.1.219",
-		efforts: []string{"low", "medium", "high", "xhigh", "max"}, defEffort: "high",
+		id: "claude-opus-5-5", displayName: "Claude Opus 5.5", minVersion: "2.1.280",
+		efforts: []string{"low", "medium", "high", "xhigh", "max"}, defEffort: "medium",
 		fastMode: true, contextWide: true,
 	},
 	{
-		id: "claude-fable-5-1", displayName: "Claude Fable 5.1", minVersion: "2.1.219",
+		id: "claude-fable-5-1", displayName: "Claude Fable 5.1", minVersion: "2.1.257",
 		efforts: []string{"low", "medium", "high", "xhigh", "max"}, defEffort: "high",
 		contextWide: true,
 	},
 	{
-		id: "claude-sonnet-5", displayName: "Claude Sonnet 5",
+		id: "claude-opus-5", displayName: "Claude Opus 5", minVersion: "2.1.219",
+		efforts: []string{"low", "medium", "high", "xhigh", "max"}, defEffort: "high",
+		fastMode: true, contextWide: true,
+	},
+	{
+		id: "claude-sonnet-5", displayName: "Claude Sonnet 5", minVersion: "2.1.197",
 		efforts: []string{"low", "medium", "high", "xhigh", "max"}, defEffort: "high",
 		contextWide: true,
 	},
@@ -96,6 +101,24 @@ func Models(version string) []domain.Model {
 		model := entry.toModel()
 		model.Default = entry.id == "claude-opus-5-5"
 		out = append(out, model)
+	}
+	for _, fallback := range []string{"claude-opus-5-5", "claude-opus-5"} {
+		hasDefault := false
+		for _, m := range out {
+			if m.Default {
+				hasDefault = true
+				break
+			}
+		}
+		if hasDefault {
+			break
+		}
+		for i := range out {
+			if out[i].ID == fallback {
+				out[i].Default = true
+				break
+			}
+		}
 	}
 	return out
 }

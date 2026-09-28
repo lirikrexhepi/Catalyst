@@ -431,7 +431,7 @@ func (s *Server) handleThreadInterrupt(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleNewAgent(w http.ResponseWriter, r *http.Request) {
 	var req NewAgentRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.Prompt) == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || (strings.TrimSpace(req.Prompt) == "" && len(req.Files) == 0) {
 		writeError(w, http.StatusBadRequest, errors.New("prompt is required"))
 		return
 	}

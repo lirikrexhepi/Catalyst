@@ -12,8 +12,14 @@ export function AttachmentStrip({ files, onRemove }: AttachmentStripProps) {
     <div className="attachments">
       {files.map((f, i) => (
         <div className="thumb" key={f.ref.path}>
-          <img src={f.preview} alt="Attached photo" />
-          <button onClick={() => onRemove(i)} aria-label="Remove photo">
+          {f.preview ? (
+            <img src={f.preview} alt="Attached photo" />
+          ) : (
+            <span className="thumb-name" title={f.ref.path}>
+              {(f.ref.path.split('/').pop() || 'file').slice(0, 18)}
+            </span>
+          )}
+          <button onClick={() => onRemove(i)} aria-label="Remove attachment">
             <X size={12} aria-hidden />
           </button>
         </div>

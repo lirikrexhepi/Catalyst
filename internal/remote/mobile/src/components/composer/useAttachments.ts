@@ -37,7 +37,8 @@ export function useAttachments(field: RefObject<HTMLTextAreaElement>) {
       for (const file of Array.from(list).slice(0, MAX_FILES)) {
         const { data, mime } = await shrinkImage(file)
         const ref = await api.upload(file.name || 'photo.jpg', mime, data)
-        setFiles((all) => [...all, { ref, preview: data }])
+        const preview = mime.startsWith('image/') ? data : ''
+        setFiles((all) => [...all, { ref, preview }])
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed')

@@ -85,7 +85,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
   const checking = !providersLoaded || providersLoading
   const label = providers.length === 0 ? (checking ? 'Checking CLIs…' : 'No agent CLIs') : choiceModelName(choice, providers)
 
-  const create = async (prompt: string): Promise<boolean> => {
+  const create = async (prompt: string, files: import('../../types').FileRef[] = []): Promise<boolean> => {
     if (!choice?.driver) {
       setError(checking ? 'Detecting agent CLIs on your PC, please wait a moment...' : 'No agent CLI is available on your PC. Check Settings on the desktop.')
       return false
@@ -96,7 +96,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
     }
     setError(null)
     try {
-      const { threadId } = await api.newAgent({ prompt, cwd, choice, autoApprove })
+      const { threadId } = await api.newAgent({ prompt, cwd, choice, autoApprove, files })
       remember({ cwd, choice, autoApprove })
       void refreshSummaries()
       go(threadId)

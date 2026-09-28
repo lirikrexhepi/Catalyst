@@ -142,7 +142,7 @@ export const api = {
   endAgent: (threadId: string) =>
     request('/api/agent/stop', { method: 'POST', body: JSON.stringify({ threadId }) }),
   newConversation: () => request('/api/coordinator/new', { method: 'POST', body: '{}' }),
-  newAgent: (body: { prompt: string; cwd: string; choice: ModelChoice; autoApprove: boolean }) =>
+  newAgent: (body: { prompt: string; cwd: string; choice: ModelChoice; autoApprove: boolean; files?: FileRef[] }) =>
     request<{ threadId: string }>('/api/agent/new', { method: 'POST', body: JSON.stringify(body) }),
   approve: (threadId: string, requestId: string, decision: string) =>
     request('/api/approve', { method: 'POST', body: JSON.stringify({ threadId, requestId, decision }) }),

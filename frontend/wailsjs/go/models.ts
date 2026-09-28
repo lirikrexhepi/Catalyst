@@ -514,7 +514,7 @@ export namespace domain {
 	        this.priority = source["priority"];
 	    }
 	}
- 	export class ProviderSettings {
+	export class ProviderSettings {
 	    binaryPath?: string;
 	    launchArgs?: string;
 	    env?: Record<string, string>;

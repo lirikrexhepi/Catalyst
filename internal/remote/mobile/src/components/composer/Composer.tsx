@@ -7,11 +7,12 @@ import { AttachmentStrip } from './AttachmentStrip'
 import { QueuedList } from './QueuedList'
 import { useAttachments } from './useAttachments'
 import { useDictation } from './useDictation'
+import type { FileRef } from '../../types'
 
 interface ComposerProps {
   threadId?: string
   placeholder: string
-  onCreate?: (text: string) => Promise<boolean>
+  onCreate?: (text: string, files: FileRef[]) => Promise<boolean>
 }
 
 const MAX_INPUT_HEIGHT = 132
@@ -51,11 +52,15 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   const submit = () => {
     if (!canSend) return
     if (!threadId) {
-      if (!onCreate || !text.trim()) return
+      if (!onCreate || (!text.trim() && attachments.files.length === 0)) return
       setCreating(true)
-      void onCreate(text.trim()).then((ok) => {
+      const files = attachments.files.map((f) => f.ref)
+      void onCreate(text.trim(), files).then((ok) => {
         setCreating(false)
-        if (ok) setText('')
+        if (ok) {
+          setText('')
+          attachments.clear()
+        }
       })
       return
     }
@@ -138,14 +143,14 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
           }}
         />
         <div className="composer-actions">
-          <button className="composer-attach" onClick={attachments.open} disabled={attachments.uploading || !threadId} aria-label="Attach a photo">
+          <button className="composer-attach" onClick={attachments.open} disabled={attachments.uploading} aria-label="Attach a file">
             <Paperclip {...ICON} className={attachments.uploading ? 'spin' : undefined} aria-hidden />
           </button>
           <input
             ref={attachments.input}
             className="composer-file"
             type="file"
-            accept="image/*"
+            accept="image/*,.heic,.heif,application/pdf,.pdf,text/plain,.txt,.md,.log"
             multiple
             tabIndex={-1}
             aria-hidden

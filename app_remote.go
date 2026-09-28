@@ -156,6 +156,9 @@ func (a *App) remoteNewAgent(ctx context.Context, req remote.NewAgentRequest) (s
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		title = strings.TrimSpace(req.Prompt)
+		if title == "" && len(req.Files) > 0 {
+			title = "Photo"
+		}
 		if len([]rune(title)) > 40 {
 			title = string([]rune(title)[:40]) + "…"
 		}
@@ -164,6 +167,7 @@ func (a *App) remoteNewAgent(ctx context.Context, req remote.NewAgentRequest) (s
 		[]session.SpawnRequest{{
 			Title: title, Prompt: req.Prompt, Cwd: req.Cwd,
 			Driver: domain.DriverKind(req.Choice.Driver), Account: req.Choice.Account, Model: req.Choice.Model, Options: req.Choice.Options,
+			Files: req.Files,
 		}},
 		session.SpawnOptions{
 			Driver: domain.DriverKind(req.Choice.Driver), Account: req.Choice.Account, Model: req.Choice.Model, Options: req.Choice.Options,
