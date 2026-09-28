@@ -13,6 +13,7 @@ import { AttachmentStrip } from '../common/AttachmentStrip';
 import { AttachmentsState, filesFromTransfer } from '../common/useAttachments';
 import { providerIcon } from './providerIcons';
 import { SkillTestPicker } from './SkillTestPicker';
+import { ArrowUp, ChevronDown, Loader2, Paperclip, Plus, Square, X } from 'lucide-react';
 
 export interface OrchestratorInputProps {
   onSubmit?: (message: string, modelId: string) => void;
@@ -273,15 +274,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                     {accountName}
                   </span>
                 )}
-                <span
-                  className={`material-symbols-outlined text-[16px] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${
-                    isModelPickerOpen
-                      ? (isLight ? 'rotate-180 text-[#030303]' : 'rotate-180 text-white')
-                      : (isLight ? 'text-black/45 group-hover:text-[#030303]' : 'text-white/45 group-hover:text-white/80')
-                  }`}
-                >
-                  expand_more
-                </span>
+                <ChevronDown size={16} strokeWidth={1.75} className={`transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] flex items-center ${ isModelPickerOpen ? (isLight ? 'rotate-180 text-[#030303]' : 'rotate-180 text-white') : (isLight ? 'text-black/45 group-hover:text-[#030303]' : 'text-white/45 group-hover:text-white/80') }`} />
               </button>
 
               {/* New Agent Quick Trigger Button - ONLY in Deck mode */}
@@ -300,11 +293,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                       : 'bg-white/[0.06] hover:bg-white/[0.14] border-white/[0.08] text-white/70 hover:text-white'
                   }`}
                 >
-                  <span className={`material-symbols-outlined text-[17px] leading-none group-hover:rotate-90 transition-transform duration-200 ${
-                    isLight ? 'text-[#030303]/80' : 'text-white/80'
-                  }`}>
-                    add
-                  </span>
+                  <Plus size={17} strokeWidth={1.75} className={`group-hover:rotate-90 transition-transform duration-200 ${ isLight ? 'text-[#030303]/80' : 'text-white/80' }`} />
                 </button>
               )}
             </div>
@@ -347,7 +336,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                     : 'bg-white/[0.10] border-white/20 text-white'
                 }`}
               >
-                <span className="material-symbols-outlined text-[12px] leading-none">add</span>
+                <Plus size={12} strokeWidth={2} />
                 <span>New Agent</span>
                 <button
                   type="button"
@@ -358,7 +347,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                   }}
                   className="ml-0.5 opacity-60 hover:opacity-100 cursor-pointer flex items-center"
                 >
-                  <span className="material-symbols-outlined text-[11px] leading-none">close</span>
+                  <X size={11} strokeWidth={2} />
                 </button>
               </div>
             )}
@@ -414,9 +403,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                         : 'text-white/40 hover:text-white hover:bg-white/[0.08] active:scale-95 cursor-pointer')
                 }`}
               >
-                <span className="material-symbols-rounded text-[20px] leading-none">
-                  {attachments.isBusy ? 'hourglass_top' : 'attach_file'}
-                </span>
+                {attachments.isBusy ? <Loader2 size={20} strokeWidth={1.75} className="animate-spin" /> : <Paperclip size={20} strokeWidth={1.75} />}
               </button>
             )}
 
@@ -431,12 +418,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 }}
                 className="w-[38px] h-[38px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 bg-rose-500/25 border border-rose-400/35 hover:bg-rose-500/40 text-rose-300 hover:text-white shadow-[0_2px_12px_rgba(244,63,94,0.3)] active:scale-95 cursor-pointer group"
               >
-                <span
-                  className="material-symbols-outlined text-[19px] leading-none transition-transform duration-150 group-hover:scale-105"
-                  style={{ fontVariationSettings: "'FILL' 1" }}
-                >
-                  stop
-                </span>
+                <Square size={19} strokeWidth={1.75} fill="currentColor" className="transition-transform duration-150 group-hover:scale-105" />
               </button>
             )}
 
@@ -458,9 +440,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                         : 'bg-white/[0.06] text-white/30 border border-white/[0.05] cursor-default')
                 }`}
               >
-                <span className="material-symbols-outlined text-[20px] leading-none transition-transform duration-150 group-hover:scale-105">
-                  arrow_upward
-                </span>
+                <ArrowUp size={20} strokeWidth={1.75} className="transition-transform duration-150 group-hover:scale-105" />
               </button>
             )}
           </div>
