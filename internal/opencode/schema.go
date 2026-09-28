@@ -35,8 +35,9 @@ type PromptRequest struct {
 	Agent     string    `json:"agent,omitempty"`
 	// Variant selects a model variant (reasoning effort such as "high").
 	Variant string `json:"variant,omitempty"`
-	System  string `json:"system,omitempty"`
-	Parts   []any  `json:"parts"`
+	System  string          `json:"system,omitempty"`
+	Tools   map[string]bool `json:"tools,omitempty"`
+	Parts   []any           `json:"parts"`
 }
 
 type PermissionReply struct {

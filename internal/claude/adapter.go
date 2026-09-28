@@ -137,10 +137,16 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 	if in.Resume != "" {
 		args = append(args, "--resume", in.Resume)
 	}
+	if in.Skills != nil && in.Skills.Mode == domain.SkillsNone {
+		args = append(args, "--disable-slash-commands")
+	}
+	if prompt := skillPrompt(in.Skills); prompt != "" {
+		args = append(args, "--append-system-prompt", prompt)
+	}
 
 	// `thinking` and `fastMode` are Claude Code settings rather than flags, so
 	// they ride along as a --settings JSON blob.
-	if settings := sessionSettings(in.Options); settings != "" {
+	if settings := sessionSettings(in.Options, in.Skills); settings != "" {
 		args = append(args, "--settings", settings)
 	}
 	if thinkingSummaries(in.Options) {
@@ -149,8 +155,19 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 	return append(args, shell.TokenizeArgs(a.settings.LaunchArgs)...)
 }
 
-func sessionSettings(options domain.ModelOptions) string {
+func skillPrompt(policy *domain.SkillPolicy) string {
+	return policy.Instruction()
+}
+
+func sessionSettings(options domain.ModelOptions, policy *domain.SkillPolicy) string {
 	fields := map[string]any{}
+	if policy != nil && policy.Mode == domain.SkillsOnly && len(policy.Denied) > 0 {
+		deny := make([]string, 0, len(policy.Denied))
+		for _, name := range policy.Denied {
+			deny = append(deny, "Skill("+name+")")
+		}
+		fields["permissions"] = map[string]any{"deny": deny}
+	}
 	if _, ok := options[domain.OptionThinking]; ok {
 		fields["alwaysThinkingEnabled"] = options.Bool(domain.OptionThinking)
 	}

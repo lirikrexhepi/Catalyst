@@ -43,6 +43,7 @@ type session struct {
 	model      string
 	options    domain.ModelOptions
 	permission domain.PermissionMode
+	skills     *domain.SkillPolicy
 
 	mu             sync.Mutex
 	conversationID string
@@ -102,6 +103,7 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 		model:          model,
 		options:        in.Options,
 		permission:     in.Permission,
+		skills:         in.Skills,
 		conversationID: in.Resume,
 		tools:          make(map[int]string),
 		baselines:      make(map[string]string),
@@ -128,7 +130,16 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 }
 
 func (a *Adapter) buildArgs(s *session, prompt string) []string {
+	s.mu.Lock()
+	first := s.conversationID == ""
+	s.mu.Unlock()
+	if instruction := s.skills.Instruction(); instruction != "" && first {
+		prompt = instruction + "\n\n" + prompt
+	}
 	args := []string{"--print", prompt, "--output-format", "stream-json"}
+	if s.skills != nil && s.skills.Mode == domain.SkillsNone {
+		args = append(args, "--disable-slash-commands")
+	}
 	if s.model != "" {
 		model, effort := SplitModelSelection(s.model, s.options)
 		args = append(args, "--model", model)

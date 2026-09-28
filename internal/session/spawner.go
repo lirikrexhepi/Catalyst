@@ -28,7 +28,9 @@ type SpawnRequest struct {
 	Cwd string `json:"cwd,omitempty"`
 	// Preamble is context sent to the agent ahead of the prompt (project
 	// memory) but not recorded as part of the user's message.
-	Preamble string `json:"preamble,omitempty"`
+	Preamble string              `json:"preamble,omitempty"`
+	Skills   *domain.SkillPolicy `json:"skills,omitempty"`
+	Files    []domain.FileRef    `json:"files,omitempty"`
 }
 
 // SpawnOptions carries the choices the user makes once per plan.
@@ -232,13 +234,14 @@ func (s *Spawner) spawnOne(
 		Model:      model,
 		Options:    options,
 		Permission: permission,
+		Skills:     request.Skills,
 	}); err != nil {
 		s.workspaces.SetState(threadID, domain.TaskFailed)
 		return nil, err
 	}
 
 	turnID := threadID + "-turn-1"
-	s.manager.RecordUserMessage(threadID, turnID, request.Prompt)
+	s.manager.RecordUserMessage(threadID, turnID, request.Prompt, request.Files...)
 
 	body := request.Prompt
 	if request.Preamble != "" {
@@ -248,6 +251,7 @@ func (s *Spawner) spawnOne(
 		ThreadID: threadID,
 		TurnID:   turnID,
 		Text:     body,
+		Files:    request.Files,
 	}); err != nil {
 		s.workspaces.SetState(threadID, domain.TaskFailed)
 		return nil, err

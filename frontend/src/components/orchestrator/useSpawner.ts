@@ -12,11 +12,12 @@ import {
   SendTurn,
   SpawnFromImported,
   SpawnTasks,
+  StartSkillTest,
   StopSession,
   SwitchTaskProviderWithOptions,
   UpdateTaskModel,
 } from '../../../wailsjs/go/main/App';
-import { domain, history, session } from '../../../wailsjs/go/models';
+import { domain, history, main, session } from '../../../wailsjs/go/models';
 import { AgentStreamBlock } from '../agent-session';
 import { reduceEvent, RuntimeEvent, userBlock } from '../agent-session/eventReducer';
 import { ContextUsage, latestContext, nextContext } from '../agent-session/contextUsage';
@@ -85,6 +86,13 @@ export interface Spawner {
   spawnAgent: (
     prompt: string,
     title?: string,
+    modelId?: string,
+    project?: { name: string; path: string },
+  ) => Promise<string | undefined>;
+  spawnSkillTest: (
+    prompt: string,
+    files: domain.FileRef[],
+    skills: string[],
     modelId?: string,
     project?: { name: string; path: string },
   ) => Promise<string | undefined>;
@@ -413,7 +421,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
             spawnTasks.map((task) => {
               const originalIndex = planTasks.indexOf(task);
               const chosen = store.models.find((m) => m.id === modelIds[originalIndex]) ?? fallback;
-              return {
+              return session.SpawnRequest.createFrom({
                 title: task.title,
                 prompt: task.prompt,
                 cwd: task.cwd || projCwd,
@@ -421,7 +429,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
                 account: store.accountFor(chosen.providerId, projCwd),
                 model: chosen.id,
                 options: toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
-              };
+              });
             }),
             {
               driver: fallback.providerId,
@@ -887,7 +895,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
         }
         const result = await SpawnTasks(
           [
-            {
+            session.SpawnRequest.createFrom({
               title: taskTitle,
               prompt: trimmed,
               cwd: projCwd,
@@ -895,7 +903,7 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
               account: store.accountFor(chosen.providerId, projCwd),
               model: chosen.id,
               options: toModelOptions(chosen, store.getCurrentModelSettings(chosen.id)),
-            },
+            }),
           ],
           {
             driver: chosen.providerId,
@@ -935,6 +943,74 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
         );
         setTasks((previous) => [...previous, ...created]);
 
+        return result.tasks[0]?.threadId;
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : String(cause));
+      }
+    },
+    [withEarlyEvents],
+  );
+
+  const spawnSkillTest = useCallback(
+    async (
+      prompt: string,
+      files: domain.FileRef[],
+      skills: string[],
+      modelId?: string,
+      project?: { name: string; path: string },
+    ) => {
+      const trimmed = prompt.trim();
+      if (!trimmed && files.length === 0) return;
+      const store = useOrchestratorStore.getState();
+      const chosen = store.models.find((m) => m.id === modelId) ?? store.getSelectedModel();
+      if (!chosen) {
+        setError('No agent CLI available');
+        return;
+      }
+      if (!['claude', 'opencode', 'antigravity'].includes(chosen.providerId)) {
+        setError('Skill tests run on Claude, OpenCode or Antigravity');
+        return;
+      }
+      setError(null);
+      try {
+        const currentProj = project || (await ActiveProject().catch(() => null));
+        const projCwd = currentProj?.path || '';
+        if (!projCwd) {
+          setError('Choose a project folder before starting a skill test');
+          return;
+        }
+        const options = toModelOptions(chosen, store.getCurrentModelSettings(chosen.id));
+        const result = await StartSkillTest(main.SkillTestInput.createFrom({
+          driver: chosen.providerId,
+          prompt: trimmed,
+          files,
+          skills,
+          cwd: projCwd,
+          account: store.accountFor(chosen.providerId, projCwd),
+          model: chosen.id,
+          options,
+          permissionMode: store.autoApprovePermissions ? 'bypassPermissions' : 'default',
+        }));
+        if (result.workspace?.id) {
+          currentWorkspaceId.current = null;
+          setWorkspaceId(result.workspace.id);
+        }
+        const created = result.tasks.map((task) => {
+          lastSentOptions.current[task.threadId] = JSON.stringify(options);
+          return withEarlyEvents({
+            threadId: task.threadId,
+            title: task.title,
+            branch: task.worktree?.branch,
+            model: task.model,
+            driver: task.driver,
+            blocks: [userBlock(trimmed, `orch-prompt-${task.threadId}`, files, task.createdAt || Date.now())],
+            isBusy: true,
+            projectName: currentProj?.name,
+            projectPath: currentProj?.path,
+          });
+        });
+        setTasks((previous) => [...previous, ...created]);
+        if (result.errors?.length) setError(result.errors.join(' · '));
         return result.tasks[0]?.threadId;
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
@@ -1173,13 +1249,14 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
       close,
       terminate,
       spawnAgent,
+      spawnSkillTest,
       openHistorySession,
       clear,
     }),
     [
       plan, tasks, backgroundTasks, allActiveTasks, error, workspaceId, canUseWorktree, launchedKeys,
       inspect, confirm, confirmTasks, adoptSpawned, dismiss, send, sendWithModel, interrupt, close,
-      terminate, spawnAgent, openHistorySession, clear,
+      terminate, spawnAgent, spawnSkillTest, openHistorySession, clear,
     ],
   );
 }

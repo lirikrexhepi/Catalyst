@@ -662,6 +662,25 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     [activeTasks, activeTask, composerFiles, spawner, coordinator, viewMode, isCreatingNewAgent],
   );
 
+  const handleSkillTest = useCallback(
+    async (text: string, modelId: string, skills: string[]) => {
+      const clean = text.trim();
+      const files = composerFiles.toRefs();
+      if (!clean && files.length === 0) return;
+      if (files.length > 0) composerFiles.release();
+      setIsCreatingNewAgent(false);
+      const threadId = await spawner.spawnSkillTest(
+        clean,
+        files,
+        skills,
+        modelId,
+        projects.active ? { name: projects.active.name, path: projects.active.path } : undefined,
+      );
+      if (threadId) setViewMode('grid');
+    },
+    [composerFiles, spawner, projects.active],
+  );
+
   const handleSendNow = useCallback(
     (id: string) => {
       if (!activeTask) return;
@@ -1125,6 +1144,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         <div ref={inputWrapperRef} className="pointer-events-auto w-full flex justify-center">
           <OrchestratorInput
             onSubmit={handleSubmit}
+            onSkillTest={handleSkillTest}
             onInterrupt={handleInterrupt}
             isBusy={isCurrentBusy}
             targetTitle={activeTask?.title}

@@ -866,6 +866,54 @@ export namespace domain {
 		    return a;
 		}
 	}
+	export class SkillRef {
+	    name: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillRef(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	    }
+	}
+	export class SkillPolicy {
+	    mode: string;
+	    skills?: SkillRef[];
+	    denied?: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillPolicy(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mode = source["mode"];
+	        this.skills = this.convertValues(source["skills"], SkillRef);
+	        this.denied = source["denied"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class SessionStartInput {
 	    threadId: string;
 	    instanceId: string;
@@ -876,6 +924,7 @@ export namespace domain {
 	    resume?: string;
 	    options?: Record<string, any>;
 	    planOnly?: boolean;
+	    skills?: SkillPolicy;
 	
 	    static createFrom(source: any = {}) {
 	        return new SessionStartInput(source);
@@ -892,8 +941,29 @@ export namespace domain {
 	        this.resume = source["resume"];
 	        this.options = source["options"];
 	        this.planOnly = source["planOnly"];
+	        this.skills = this.convertValues(source["skills"], SkillPolicy);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
+	
+	
 	export class Worktree {
 	    path: string;
 	    branch: string;
@@ -1336,6 +1406,52 @@ export namespace main {
 	        this.exePath = source["exePath"];
 	    }
 	}
+	export class SkillTestInput {
+	    driver: string;
+	    prompt: string;
+	    files?: domain.FileRef[];
+	    skills: string[];
+	    cwd: string;
+	    account?: string;
+	    model?: string;
+	    options?: Record<string, any>;
+	    permissionMode?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SkillTestInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.driver = source["driver"];
+	        this.prompt = source["prompt"];
+	        this.files = this.convertValues(source["files"], domain.FileRef);
+	        this.skills = source["skills"];
+	        this.cwd = source["cwd"];
+	        this.account = source["account"];
+	        this.model = source["model"];
+	        this.options = source["options"];
+	        this.permissionMode = source["permissionMode"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 
@@ -1774,6 +1890,8 @@ export namespace session {
 	    options?: Record<string, any>;
 	    cwd?: string;
 	    preamble?: string;
+	    skills?: domain.SkillPolicy;
+	    files?: domain.FileRef[];
 	
 	    static createFrom(source: any = {}) {
 	        return new SpawnRequest(source);
@@ -1789,7 +1907,27 @@ export namespace session {
 	        this.options = source["options"];
 	        this.cwd = source["cwd"];
 	        this.preamble = source["preamble"];
+	        this.skills = this.convertValues(source["skills"], domain.SkillPolicy);
+	        this.files = this.convertValues(source["files"], domain.FileRef);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class SpawnResult {
 	    workspace: domain.Workspace;
@@ -1859,6 +1997,29 @@ export namespace session {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace skills {
+	
+	export class Info {
+	    name: string;
+	    description: string;
+	    source: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.source = source["source"];
+	        this.path = source["path"];
+	    }
 	}
 
 }
