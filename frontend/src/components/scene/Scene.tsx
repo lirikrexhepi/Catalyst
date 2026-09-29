@@ -15,7 +15,7 @@ import { requestPinToBottom } from '../common/usePinnedScroll';
 import { TitleBar } from '../common/TitleBar';
 import { DynamicIsland, DynamicIslandNotification } from '../common/DynamicIsland';
 import { useGit } from '../git';
-import { ImportClaudeDialog, useClaudeImport, useHistory } from '../history';
+import { useClaudeImport, useHistory } from '../history';
 import {
   SettingsPanel,
   Sidebar,
@@ -279,7 +279,6 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
 
   const historyState = useHistory(true);
   const claudeImport = useClaudeImport();
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const endSessionRef = useRef<(() => Promise<void>) | null>(null);
   endSessionRef.current = historyState.newChat;
@@ -826,7 +825,21 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
           onOpenHistory={handleOpenHistory}
           onDeleteHistory={historyState.remove}
           onRefreshHistory={historyState.refresh}
-          onImportClaude={() => setImportDialogOpen(true)}
+          onImportClaudeSession={(filePath) => {
+            void (async () => {
+              const workspaceId = await claudeImport.importOne(filePath);
+              if (!workspaceId) return;
+              await historyState.refresh();
+              await handleOpenHistory(workspaceId);
+            })();
+          }}
+          onRefreshClaude={() => {
+            void claudeImport.list();
+          }}
+          claudeSessions={claudeImport.sessions}
+          claudeLoading={claudeImport.isLoading}
+          claudeImporting={claudeImport.isImporting}
+          claudeError={claudeImport.error}
           onNewChat={async () => {
             await historyState.newChat();
             spawner.clear();
@@ -1343,28 +1356,6 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
       </AnimatePresence>
 
 
-
-      {importDialogOpen && (
-        <ImportClaudeDialog
-          sessions={claudeImport.sessions}
-          isLoading={claudeImport.isLoading}
-          isImporting={claudeImport.isImporting}
-          error={claudeImport.error}
-          onRefresh={() => {
-            void claudeImport.list();
-          }}
-          onImport={(filePath) => {
-            void (async () => {
-              const workspaceId = await claudeImport.importOne(filePath);
-              if (!workspaceId) return;
-              await historyState.refresh();
-              setImportDialogOpen(false);
-              await handleOpenHistory(workspaceId);
-            })();
-          }}
-          onClose={() => setImportDialogOpen(false)}
-        />
-      )}
 
       {/* Background Canvas Layer */}
       <div className="absolute inset-0 pointer-events-none z-10">

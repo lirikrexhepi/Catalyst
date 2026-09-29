@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ProjectsState, Project } from '../orchestrator/useProjects';
 import { DynamicIslandWaveform } from './DynamicIslandWaveform';
 import { ScrollArea } from './ScrollArea';
-import { history, session } from '../../../wailsjs/go/models';
+import { history, session, claudeimport } from '../../../wailsjs/go/models';
 import claudeLogo from '../../assets/logo/claude-icon-logo.png';
 import antigravityLogo from '../../assets/logo/antigravity-icon-logo.png';
 import { useTheme } from '../../themes';
@@ -47,8 +47,14 @@ export interface DynamicIslandProps {
   onTerminateAgent?: (threadId: string) => void;
   onRefreshHistory?: () => void;
   onNewChat?: () => void;
-  /** Opens the Claude Code import picker. Hidden when not provided. */
-  onImportClaude?: () => void;
+  /** Native Claude Code sessions for the inline list. */
+  claudeSessions?: claudeimport.ExternalSession[];
+  claudeLoading?: boolean;
+  claudeImporting?: boolean;
+  claudeError?: string | null;
+  onRefreshClaude?: () => void;
+  /** Imports the session invisibly and opens it. */
+  onImportClaudeSession?: (filePath: string) => void;
   className?: string;
 }
 
@@ -443,11 +449,16 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   onDeleteHistory,
   onRefreshHistory,
   onNewChat,
-  onImportClaude,
+  claudeSessions = [],
+  claudeLoading,
+  claudeImporting,
+  claudeError,
+  onRefreshClaude,
+  onImportClaudeSession,
   className = '',
 }) => {
-  // Mode: 'idle' (compact), 'projects' (expanded project picker), 'project-chats' (project's past chats), 'usage' (expanded usage card)
-  const [mode, setMode] = useState<'idle' | 'projects' | 'project-chats' | 'usage'>('idle');
+  // Mode: 'idle' (compact), 'projects' (expanded project picker), 'project-chats' (project's past chats), 'claude-chats' (native Claude Code chats), 'usage' (expanded usage card)
+  const [mode, setMode] = useState<'idle' | 'projects' | 'project-chats' | 'claude-chats' | 'usage'>('idle');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   // Project list arrangement: native drag from the row handle, dropped into a
   // gap position. The confirm id arms the inline remove confirmation.
@@ -617,7 +628,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
 
   // Dimensions based on mode
   const targetWidth =
-    mode === 'project-chats'
+    mode === 'project-chats' || mode === 'claude-chats'
       ? 360
       : mode === 'projects'
       ? 330
@@ -627,7 +638,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
       ? 320
       : 275;
   const targetHeight =
-    mode === 'project-chats' ? 335 : mode === 'projects' ? 245 : mode === 'usage' ? 180 : 36;
+    mode === 'project-chats' || mode === 'claude-chats' ? 335 : mode === 'projects' ? 245 : mode === 'usage' ? 180 : 36;
   const targetRadius = mode === 'idle' ? 18 : 24;
 
   // SVG Ring values for 20px circle (r=8 -> circum=50.26)
@@ -1050,6 +1061,47 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                   {dragId && dropGap === (projects?.projects.length ?? 0) && (
                     <div className="h-[2px] mx-3 rounded-full bg-[#007AFF]" aria-hidden />
                   )}
+
+                  {/* Native Claude Code chats, listed directly with no import step. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onRefreshClaude?.();
+                      setMode('claude-chats');
+                    }}
+                    className={`flex items-center gap-2 pl-1 pr-1 py-1.5 text-left cursor-pointer rounded-[10px] transition-colors ${
+                      isLight ? 'hover:bg-black/[0.04]' : 'hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    {providerIcon('claude', isLight) ? (
+                      <img
+                        src={providerIcon('claude', isLight)}
+                        alt=""
+                        draggable={false}
+                        className="w-[18px] h-[18px] object-contain shrink-0 rounded-[4px]"
+                      />
+                    ) : (
+                      <span className="material-symbols-rounded text-[15px] text-white/60 leading-none shrink-0">
+                        forum
+                      </span>
+                    )}
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
+                        Claude Code
+                      </span>
+                      <span className="text-[10px] font-mono text-[#8E8E93] truncate leading-[13px]">
+                        Chats from the Claude CLI
+                      </span>
+                    </div>
+                    {(claudeSessions?.length ?? 0) > 0 && (
+                      <span className="text-[11px] font-mono tabular-nums text-white/70 font-medium shrink-0">
+                        {claudeSessions?.length}
+                      </span>
+                    )}
+                    <span className="material-symbols-rounded text-[15px] leading-none text-white/50 shrink-0">
+                      chevron_right
+                    </span>
+                  </button>
                 </div>
               )}
             </ScrollArea>
@@ -1105,58 +1157,39 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 {selectedProject.name}
               </span>
 
-              <button
-                type="button"
-                onClick={() => setMode('idle')}
-                className={`w-5 h-5 rounded-full ${
-                  isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
-                } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
-              >
-                <span className="material-symbols-rounded text-[14px] leading-none">close</span>
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  title={`New chat in ${selectedProject.name}`}
+                  onClick={() => {
+                    void (async () => {
+                      // The selected folder must be durable before a fresh session
+                      // can be opened. Otherwise the first prompt can inherit the
+                      // app's launch directory instead of this project.
+                      if (selectedProject.id !== projects?.active?.id) {
+                        await projects?.select(selectedProject.id);
+                      }
+                      onNewChat?.();
+                    })();
+                    setMode('idle');
+                  }}
+                  className={`w-5 h-5 rounded-full ${
+                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
+                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
+                >
+                  <span className="material-symbols-rounded text-[14px] leading-none">add</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('idle')}
+                  className={`w-5 h-5 rounded-full ${
+                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
+                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
+                >
+                  <span className="material-symbols-rounded text-[14px] leading-none">close</span>
+                </button>
+              </div>
             </div>
-
-            {/* Start New Chat Button */}
-            <button
-              type="button"
-              onClick={() => {
-                void (async () => {
-                  // The selected folder must be durable before a fresh session
-                  // can be opened. Otherwise the first prompt can inherit the
-                  // app's launch directory instead of this project.
-                  if (selectedProject.id !== projects?.active?.id) {
-                    await projects?.select(selectedProject.id);
-                  }
-                  onNewChat?.();
-                })();
-                setMode('idle');
-              }}
-              className={`w-full my-1.5 h-[28px] rounded-full ${
-                isLight
-                  ? 'bg-black/[0.06] hover:bg-black/[0.1] text-[#1d1d1f]'
-                  : 'bg-[#1c1c1e] hover:bg-[#2c2c2e] text-white'
-              } active:scale-[0.98] flex items-center justify-center gap-1.5 text-[11.5px] font-medium font-['Geist'] transition-all cursor-pointer shrink-0`}
-            >
-              <span className="material-symbols-rounded text-[14px] leading-none text-white/80">add</span>
-              <span>New Chat in {selectedProject.name}</span>
-            </button>
-
-            {onImportClaude && (
-              <button
-                type="button"
-                onClick={() => {
-                  onImportClaude();
-                }}
-                className={`w-full my-1 h-[28px] rounded-full ${
-                  isLight
-                    ? 'bg-black/[0.04] hover:bg-black/[0.08] text-[#1d1d1f]'
-                    : 'bg-white/[0.05] hover:bg-white/[0.1] text-white/85'
-                } active:scale-[0.98] flex items-center justify-center gap-1.5 text-[11.5px] font-medium font-['Geist'] transition-all cursor-pointer shrink-0`}
-              >
-                <span className="material-symbols-rounded text-[14px] leading-none opacity-80">upload</span>
-                <span>Import Claude Code chat…</span>
-              </button>
-            )}
 
             {/* Chat Sessions List */}
             <ScrollArea className="flex-1 pr-1" maxHeight={205}>
@@ -1270,6 +1303,130 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                         })}
                       </div>
                     ))}
+                  </div>
+                );
+              })()}
+            </ScrollArea>
+          </motion.div>
+        )}
+
+        {/* ===================================================================
+            2.6 NATIVE CLAUDE CODE CHATS (straight from the Claude CLI)
+            =================================================================== */}
+        {mode === 'claude-chats' && (
+          <motion.div
+            key="claude-chats-view"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            className="flex flex-col w-full h-full p-3.5 justify-between"
+          >
+            {/* Header: Back to projects + Claude Code + Close */}
+            <div className="flex items-center justify-between pb-1 mb-1">
+              <button
+                type="button"
+                onClick={() => setMode('projects')}
+                className={`flex items-center gap-1 text-[11.5px] font-medium ${
+                  isLight ? 'text-black/60 hover:text-black' : 'text-white/60 hover:text-white'
+                } cursor-pointer transition-colors`}
+              >
+                <span className="material-symbols-rounded text-[15px] leading-none">arrow_back</span>
+                <span>Projects</span>
+              </button>
+
+              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/90 font-['Geist'] tracking-tight truncate max-w-[150px]">
+                {providerIcon('claude', isLight) ? (
+                  <img
+                    src={providerIcon('claude', isLight)}
+                    alt=""
+                    draggable={false}
+                    className="w-[14px] h-[14px] object-contain shrink-0 rounded-[3px]"
+                  />
+                ) : null}
+                Claude Code
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setMode('idle')}
+                className={`w-5 h-5 rounded-full ${
+                  isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
+                } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
+              >
+                <span className="material-symbols-rounded text-[14px] leading-none">close</span>
+              </button>
+            </div>
+
+            {/* Chats straight from the CLI: one click opens, no import step. */}
+            <ScrollArea className="flex-1 pr-1" maxHeight={250}>
+              {claudeError ? (
+                <div className="mx-1 mb-2 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
+                  <span className="text-[11px] font-medium font-['Geist'] text-red-200/90 leading-relaxed">
+                    {claudeError}
+                  </span>
+                </div>
+              ) : null}
+              {claudeLoading && claudeSessions.length === 0 ? (
+                <div className="py-8 text-center text-[11.5px] text-white/40 font-['Geist']">
+                  Reading Claude chats…
+                </div>
+              ) : (() => {
+                const visible = claudeSessions.filter((s) => !s.agentRun);
+                const rows = visible.length > 0 ? visible : claudeSessions;
+                if (rows.length === 0) {
+                  return (
+                    <div className="py-8 text-center text-[11.5px] text-white/40 font-['Geist']">
+                      No Claude Code chats on this machine yet
+                    </div>
+                  );
+                }
+                return (
+                  <div className="flex flex-col gap-0.5">
+                    {rows.map((s) => {
+                      const folder = (s.cwd || '').replace(/\\/g, '/').split('/').filter(Boolean).pop();
+                      return (
+                        <button
+                          key={s.filePath}
+                          type="button"
+                          disabled={claudeImporting}
+                          onClick={() => {
+                            onImportClaudeSession?.(s.filePath);
+                            setMode('idle');
+                          }}
+                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] text-left transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default ${
+                            isLight ? 'hover:bg-black/[0.04]' : 'hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <span
+                            className={`material-symbols-rounded text-[16px] leading-none shrink-0 ${
+                              isLight ? 'text-black/45' : 'text-white/50'
+                            }`}
+                          >
+                            forum
+                          </span>
+                          <span className="flex flex-col min-w-0 flex-1">
+                            <span
+                              className={`text-[12px] font-medium tracking-tight truncate leading-[14px] ${
+                                isLight ? 'text-black/90' : 'text-white'
+                              }`}
+                            >
+                              {s.title || 'Untitled chat'}
+                            </span>
+                            <span
+                              className={`text-[10px] truncate leading-[13px] ${
+                                isLight ? 'text-black/45' : 'text-white/40'
+                              }`}
+                            >
+                              {[relativeTime(s.updatedAt), folder].filter(Boolean).join(' · ')}
+                            </span>
+                          </span>
+                          <span className="material-symbols-rounded text-[15px] leading-none text-white/50 shrink-0">
+                            chevron_right
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 );
               })()}
