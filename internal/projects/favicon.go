@@ -75,9 +75,14 @@ var attrPattern = regexp.MustCompile(`(?i)(rel|href)\s*=\s*("[^"]*"|'[^']*'|[^\s
 // <link rel="icon"> first, then the web manifest's icons, then the well-known
 // filenames. It returns the raw bytes and content type, or ErrNoFavicon.
 func Find(root string) ([]byte, string, error) {
+	data, ctype, _, err := find(root)
+	return data, ctype, err
+}
+
+func find(root string) (data []byte, contentType, iconPath string, err error) {
 	clean := filepath.Clean(root)
 	if clean == "" || clean == "." {
-		return nil, "", ErrNoFavicon
+		return nil, "", "", ErrNoFavicon
 	}
 
 	for _, entry := range htmlEntryFiles {
@@ -86,8 +91,8 @@ func Find(root string) ([]byte, string, error) {
 		if !ok {
 			continue
 		}
-		if data, ctype, err := resolve(clean, filepath.Dir(htmlPath), href); err == nil {
-			return data, ctype, nil
+		if data, ctype, path, err := resolve(clean, filepath.Dir(htmlPath), href); err == nil {
+			return data, ctype, path, nil
 		}
 	}
 
@@ -97,8 +102,8 @@ func Find(root string) ([]byte, string, error) {
 		if !ok {
 			continue
 		}
-		if data, ctype, err := resolve(clean, filepath.Dir(manifestPath), src); err == nil {
-			return data, ctype, nil
+		if data, ctype, path, err := resolve(clean, filepath.Dir(manifestPath), src); err == nil {
+			return data, ctype, path, nil
 		}
 	}
 
@@ -106,12 +111,12 @@ func Find(root string) ([]byte, string, error) {
 		for _, name := range wellKnownNames {
 			path := filepath.Join(clean, dir, name)
 			if data, ctype, err := readIcon(path); err == nil {
-				return data, ctype, nil
+				return data, ctype, path, nil
 			}
 		}
 	}
 
-	return nil, "", ErrNoFavicon
+	return nil, "", "", ErrNoFavicon
 }
 
 // iconLink reports the href of the preferred <link> icon in an HTML file.
@@ -228,16 +233,16 @@ func largestSide(sizes string) int {
 
 // resolve maps an href from an HTML or manifest file to a file inside the
 // project root. Remote and embedded references are not icons on disk.
-func resolve(root, base, href string) ([]byte, string, error) {
+func resolve(root, base, href string) ([]byte, string, string, error) {
 	clean := strings.SplitN(strings.TrimSpace(href), "#", 2)[0]
 	clean = strings.SplitN(clean, "?", 2)[0]
 	if clean == "" {
-		return nil, "", ErrNoFavicon
+		return nil, "", "", ErrNoFavicon
 	}
 	lower := strings.ToLower(clean)
 	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") ||
 		strings.HasPrefix(clean, "//") || strings.HasPrefix(lower, "data:") {
-		return nil, "", ErrNoFavicon
+		return nil, "", "", ErrNoFavicon
 	}
 	var candidates []string
 	if strings.HasPrefix(clean, "/") {
@@ -258,10 +263,10 @@ func resolve(root, base, href string) ([]byte, string, error) {
 			continue
 		}
 		if data, ctype, err := readIcon(path); err == nil {
-			return data, ctype, nil
+			return data, ctype, path, nil
 		}
 	}
-	return nil, "", ErrNoFavicon
+	return nil, "", "", ErrNoFavicon
 }
 
 // withinRoot rejects hrefs that escape the project, so a crafted

@@ -206,13 +206,13 @@ func (s *Server) handleProjectIcon(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, errors.New("unknown project"))
 		return
 	}
-	data, contentType, err := projects.Find(path)
+	data, contentType, err := projects.FindCached(path)
 	if err != nil {
 		writeError(w, http.StatusNotFound, err)
 		return
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Cache-Control", "private, max-age=86400")
+	w.Header().Set("Cache-Control", "private, max-age=3600")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
 }

@@ -102,7 +102,7 @@ func (a *App) ProjectIcon(id string) string {
 	if path == "" {
 		return ""
 	}
-	data, contentType, err := projects.Find(path)
+	data, contentType, err := projects.FindCached(path)
 	if err != nil {
 		return ""
 	}
