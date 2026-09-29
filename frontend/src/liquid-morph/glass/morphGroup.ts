@@ -6,6 +6,10 @@ import { springAt, type SpringConfig } from '../motion/spring'
 export interface MorphAction {
   id: string
   label: string
+  /** Inline SVG/HTML rendered before the label inside the pill. */
+  icon?: string
+  /** Active choice: the piece keeps the hover fill so current reads via bg, not a tick. */
+  selected?: boolean
   tone?: 'danger'
   dismiss?: boolean
   onSelect?: () => void
@@ -229,13 +233,27 @@ export function morphGroup(host: HTMLElement, options: MorphGroupOptions): Morph
       button.type = 'button'
       button.className = 'ma-action'
       button.dataset.action = action.id
-      button.style.cssText = `position:absolute;top:0;height:${size}px;border-radius:${size / 2}px;background:none;border:0;padding:0;display:grid;place-items:center;touch-action:manipulation;white-space:nowrap;font:500 ${fontSize}px/1 var(--font, system-ui);color:${textColor(action.tone)};pointer-events:auto;outline:none`
+      button.style.cssText = `position:absolute;top:0;height:${size}px;border-radius:${size / 2}px;background:none;border:0;padding:0;display:grid;place-items:center;touch-action:manipulation;white-space:nowrap;font:500 ${fontSize}px/1 var(--font, system-ui);color:${textColor(action.tone)};pointer-events:auto;outline:none;cursor:pointer`
+      const row = document.createElement('span')
+      row.className = 'ma-label'
+      row.style.cssText = 'display:flex;align-items:center;gap:6px;opacity:0;will-change:transform,opacity'
+      let icon: HTMLElement | null = null
+      if (action.icon) {
+        icon = document.createElement('span')
+        icon.className = 'ma-icon'
+        icon.setAttribute('aria-hidden', 'true')
+        icon.style.cssText = 'display:grid;place-items:center;flex-shrink:0'
+        icon.innerHTML = action.icon
+        row.appendChild(icon)
+      }
       const text = document.createElement('span')
+      text.className = 'ma-text'
       text.textContent = action.label
-      text.style.cssText = 'display:block;opacity:0;will-change:transform,opacity'
-      button.appendChild(text)
+      text.style.cssText = 'display:block'
+      row.appendChild(text)
+      button.appendChild(row)
       group.appendChild(button)
-      return { button, text }
+      return { button, row, icon, text }
     })
     host.appendChild(group)
     return { group, buttons }
@@ -250,7 +268,7 @@ export function morphGroup(host: HTMLElement, options: MorphGroupOptions): Morph
       button.setAttribute('aria-expanded', 'false')
       button.setAttribute('aria-controls', `${id}-g${k}`)
     }
-    button.style.cssText = `position:absolute;top:0;width:${size}px;height:${size}px;border-radius:${size / 2}px;display:grid;place-items:center;background:none;border:0;padding:0;color:${textColor(trigger.tone)};touch-action:manipulation;outline:none`
+    button.style.cssText = `position:absolute;top:0;width:${size}px;height:${size}px;border-radius:${size / 2}px;display:grid;place-items:center;background:none;border:0;padding:0;color:${textColor(trigger.tone)};touch-action:manipulation;outline:none;cursor:pointer`
     const icon = document.createElement('span')
     icon.setAttribute('aria-hidden', 'true')
     icon.style.cssText = 'display:grid;place-items:center;will-change:transform,opacity'
@@ -273,7 +291,7 @@ export function morphGroup(host: HTMLElement, options: MorphGroupOptions): Morph
     closedRects = Array.from({ length: pieceCount }, (_, i) => (i < count ? circleRects[i] : budRect))
     openRects = menus.map(({ buttons }) => {
       if (buttons.length === 0) return closedRects
-      const widths = buttons.map(({ text }) => Math.max(size * 1.6, text.offsetWidth + inset * 2))
+      const widths = buttons.map(({ row }) => Math.max(size * 1.6, row.offsetWidth + inset * 2))
       const total = widths.reduce((a, b) => a + b, 0) + gap * (widths.length - 1)
       let left = anchor === 'start' ? 0 : anchor === 'end' ? closedWidth - total : (closedWidth - total) / 2
       const rects = widths.map((w) => {
@@ -340,9 +358,9 @@ export function morphGroup(host: HTMLElement, options: MorphGroupOptions): Morph
       }
     })
     menus.forEach(({ buttons }, k) => {
-      buttons.forEach(({ text }, i) => {
+      buttons.forEach(({ row }, i) => {
         if (k !== shown) {
-          text.style.opacity = '0'
+          row.style.opacity = '0'
           return
         }
         const r = rects[i]
@@ -351,9 +369,9 @@ export function morphGroup(host: HTMLElement, options: MorphGroupOptions): Morph
         const p = Math.min(1, Math.max(0, (r.w - from.w) / (to.w - from.w)))
         const visible = i === 0 ? smooth(0.35, 0.95, p) : smooth(0.2, 0.85, p)
         const grow = i < count ? 1 : 0.8 + 0.2 * p
-        text.style.transform = `translateX(${round(r.x + r.w / 2 - (to.x + to.w / 2), 10)}px) scale(${round(grow, 1000)})`
-        text.style.opacity = String(round(visible, 1000))
-        blur(text, calm ? 0 : BLUR * (1 - visible))
+        row.style.transform = `translateX(${round(r.x + r.w / 2 - (to.x + to.w / 2), 10)}px) scale(${round(grow, 1000)})`
+        row.style.opacity = String(round(visible, 1000))
+        blur(row, calm ? 0 : BLUR * (1 - visible))
       })
     })
   }
@@ -397,7 +415,7 @@ export function morphGroup(host: HTMLElement, options: MorphGroupOptions): Morph
       if (active >= 0) {
         const action = triggers[active].actions?.[i]
         danger = action?.tone === 'danger'
-        lit = Boolean(action) && (hovered.has(`a${i}`) || focused.has(`a${i}`))
+        lit = Boolean(action) && (hovered.has(`a${i}`) || focused.has(`a${i}`) || action?.selected === true)
       } else if (i < count) {
         danger = triggers[i].tone === 'danger'
         lit = hovered.has(`t${i}`) || focused.has(`t${i}`)
@@ -523,6 +541,30 @@ export function morphGroup(host: HTMLElement, options: MorphGroupOptions): Morph
     update(next) {
       triggers = triggers.map((t, i) => ({ ...t, ...next[i], actions: t.actions?.map((a, j) => ({ ...a, ...next[i]?.actions?.[j] })) }))
       if (active < 0) circles.forEach(({ button }, i) => (button.disabled = Boolean(triggers[i].disabled)))
+      // Live-refresh pill content so label/count/selected churn never needs a
+      // rebuild (which would destroy the trigger mid-click). Geometry only
+      // re-measures while closed, where it is invisible.
+      menus.forEach(({ buttons }, k) => {
+        const actions = triggers[k]?.actions ?? []
+        buttons.forEach(({ row, icon, text }, i) => {
+          const action = actions[i]
+          if (!action) return
+          if (text.textContent !== action.label) text.textContent = action.label
+          if (icon && action.icon !== undefined && icon.innerHTML !== action.icon) icon.innerHTML = action.icon ?? ''
+        })
+      })
+      if (active < 0) {
+        layout()
+        pieces.forEach((p, i) => {
+          p.x.jump(closedRects[i].x)
+          p.w.jump(closedRects[i].w)
+          p.h.jump(closedRects[i].h)
+        })
+        tint()
+        paint()
+      } else {
+        tint()
+      }
     },
     iconSlot(triggerId) {
       const k = triggers.findIndex((t) => t.id === triggerId)

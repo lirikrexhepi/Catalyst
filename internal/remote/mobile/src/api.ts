@@ -187,6 +187,30 @@ export const api = {
     request<{ ok?: boolean }>('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint }) }),
   pushTest: (endpoint: string) =>
     request<{ ok?: boolean }>('/api/push/test', { method: 'POST', body: JSON.stringify({ endpoint }) }),
+  sendPhoneLogs: (logs: PhoneLogPayloadItem[], deviceId?: string) =>
+    request<{ ok?: boolean; count?: number }>('/api/phone/logs', {
+      method: 'POST',
+      body: JSON.stringify({ logs, deviceId }),
+    }),
+  phoneLogs: () => request<PhoneLogPayloadItem[]>('/api/phone/logs'),
+  pcStats: () => request<PCStats>('/api/pc/stats'),
+}
+
+export interface PCStats {
+  cpuPercent: number
+  cpuCores: number
+  memoryUsedBytes: number
+  memoryTotalBytes: number
+  memoryPercent: number
+  uptimeSeconds: number
+}
+
+export interface PhoneLogPayloadItem {
+  id?: string
+  timestamp: number
+  level: 'info' | 'warn' | 'error' | 'debug'
+  message: string
+  details?: Record<string, unknown>
 }
 
 export interface PushPrefs {

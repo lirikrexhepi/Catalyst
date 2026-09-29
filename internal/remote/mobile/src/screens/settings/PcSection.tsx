@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Coffee, Power, Unplug } from 'lucide-react'
+import { Activity, Coffee, Power, Unplug } from 'lucide-react'
 import { SheetList, SheetNote, SheetRow } from '../../components/sheet'
 import { ICON_STROKE } from '../../components/chrome/BarButton'
 import { MorphButtons } from '../../ui/glass/MorphButtons'
@@ -9,7 +9,7 @@ import { GlassSwitch } from '../../ui'
 import { setKeepAwake, useKeepAwake } from '../../keepAwake'
 import { clearRoute } from '../../platform/route'
 
-export function PcSection() {
+export function PcSection({ onOpenStats }: { onOpenStats?: () => void }) {
   const connection = useStore((s) => s.connection)
   const base = (getBase() || window.location.origin).replace(/^https?:\/\//, '')
   const [canPowerOff, setCanPowerOff] = useState(false)
@@ -45,6 +45,14 @@ export function PcSection() {
   return (
     <>
       <SheetList>
+        {onOpenStats ? (
+          <SheetRow
+            icon={Activity}
+            label="CPU & RAM telemetry"
+            chevron
+            onClick={onOpenStats}
+          />
+        ) : null}
         <SheetRow
           icon={Coffee}
           label="Keep awake while open"

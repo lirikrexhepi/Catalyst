@@ -31,6 +31,7 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
   const providers = useStore((s) => s.providers)
   useStore((s) => s.choices[threadId])
   const choice = effectiveChoice(threadId)
+  const pcDown = useStore((s) => s.pcDown)
   const [menu, setMenu] = useState(false)
   const [picking, setPicking] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -111,11 +112,57 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
         {thread?.loaded ? <Feed threadId={threadId} blocks={thread.blocks} turnMs={thread.turnMs} /> : null}
         {busy ? (
           <div className="feed" style={{ paddingTop: 0 }}>
-            <div className="working" role="status">
-              <span className="dot" aria-hidden />
-              <span className="shimmer">Working</span>
-              <Elapsed since={thread?.turnStartedAt} />
-            </div>
+            {pcDown ? (
+              <div
+                className="working paused"
+                role="status"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 14px',
+                  borderRadius: 16,
+                  background: 'rgba(255, 69, 58, 0.1)',
+                  border: '1px solid rgba(255, 69, 58, 0.25)',
+                  color: 'rgba(255, 255, 255, 0.85)',
+                  fontSize: 13,
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: 'var(--danger, #ff453a)',
+                  }}
+                  aria-hidden
+                />
+                <span style={{ fontWeight: 500 }}>Connection lost — status paused</span>
+                <button
+                  type="button"
+                  style={{
+                    marginLeft: 'auto',
+                    padding: '3px 10px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    borderRadius: 999,
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                    background: 'rgba(255, 255, 255, 0.12)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => void act(() => interrupt(threadId))}
+                >
+                  Stop agent
+                </button>
+              </div>
+            ) : (
+              <div className="working" role="status">
+                <span className="dot" aria-hidden />
+                <span className="shimmer">Working</span>
+                <Elapsed since={thread?.turnStartedAt} />
+              </div>
+            )}
           </div>
         ) : null}
         {actionError ? (

@@ -34,6 +34,7 @@ type ClientMessage struct {
 	Answers   []string       `json:"answers,omitempty"`
 	Visible   bool           `json:"visible,omitempty"`
 	KeepAwake bool           `json:"keepAwake,omitempty"`
+	Logs      []PhoneLogItem `json:"logs,omitempty"`
 }
 
 // PlanTaskItem represents a task dispatched from the phone.

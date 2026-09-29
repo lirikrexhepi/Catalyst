@@ -1,6 +1,14 @@
 import { useSyncExternalStore } from 'react'
 import { logConnection } from './connectionLog'
 import { keepAwakeEnabled, onKeepAwakeChange } from './keepAwake'
+import {
+  flushPhoneLogs,
+  logPhoneError,
+  logPhoneInfo,
+  logPhoneWarn,
+  setAgentRunningState,
+  setSocketSender,
+} from './phoneLogger'
 import { api, getBase, getToken } from './api'
 import { reduceEvent, userBlock } from './feed/reducer'
 import { readLocal, readThread, writeLocal, writeThread } from './cache'
@@ -271,6 +279,7 @@ function applyEvents(events: RuntimeEvent[]) {
           case 'turn.started':
             summary.busy = true
             summary.turnStartedAt = e.at
+            logPhoneInfo(`Agent turn started: ${threadId}`)
             break
           case 'turn.completed':
           case 'turn.failed':
@@ -280,6 +289,11 @@ function applyEvents(events: RuntimeEvent[]) {
             summary.attention = ''
             if (!finished.includes(threadId)) finished.push(threadId)
             refresh = true
+            if (e.kind === 'turn.failed') {
+              logPhoneError(`Agent turn failed: ${threadId}${e.error ? ` (${e.error})` : ''}`)
+            } else {
+              logPhoneInfo(`Agent turn completed: ${threadId}`)
+            }
             break
           case 'agent.message':
             summary.preview = e.delta ? ((summary.preview ?? '') + (e.text ?? '')).slice(-240) : e.text
@@ -307,6 +321,8 @@ function applyEvents(events: RuntimeEvent[]) {
   }
 
   set({ threads, summaries })
+  const anyBusy = Object.values(threads).some((t) => t.busy) || summaries.some((s) => s.busy)
+  setAgentRunningState(anyBusy)
   setBadge(summaries.filter((t) => t.attention).length)
   if (refresh) scheduleSummaryRefresh()
   for (const threadId of finished) void drainQueue(threadId)
@@ -424,6 +440,7 @@ export async function send(threadId: string, text: string, files: FileRef[] = []
 
 async function dispatch(threadId: string, text: string, files: FileRef[], choice?: ModelChoice) {
   const stamp = Date.now()
+  logPhoneInfo(`Prompt dispatched to agent: ${threadId}`, { textLength: text.length, filesCount: files.length })
   patchThread(threadId, (th) => ({
     ...th,
     sending: true,
@@ -433,6 +450,7 @@ async function dispatch(threadId: string, text: string, files: FileRef[], choice
     await api.send(threadId, text, files, choice)
     patchThread(threadId, (th) => ({ ...th, sending: false }))
   } catch (e) {
+    logPhoneError(`Failed to send prompt to agent: ${threadId}`, { error: message(e) })
     patchThread(threadId, (th) => ({
       ...th,
       sending: false,
@@ -500,7 +518,19 @@ function connect() {
     backoff = 1000
     logConnection('Connected to the PC')
     set({ connection: 'live', pcDown: false })
+    setSocketSender((logs) => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        try {
+          socket.send(JSON.stringify({ action: 'phone_logs', logs }))
+          return true
+        } catch {
+          return false
+        }
+      }
+      return false
+    })
     sendPresence()
+    void flushPhoneLogs()
     // Anything missed while disconnected comes back through fresh snapshots.
     void refreshSummaries()
     for (const [threadId, t] of Object.entries(state.threads)) {
@@ -519,15 +549,19 @@ function connect() {
   }
   socket.onclose = (event) => {
     socket = null
-    logConnection(
-      opened
-        ? `Lost the live connection to the PC (code ${event.code})`
-        : `Couldn't connect to the PC (code ${event.code}). It may be off or asleep, or Tailscale on it isn't running or is signed out`,
-    )
+    setSocketSender(null)
+    const text = opened
+      ? `Lost the live connection to the PC (code ${event.code})`
+      : `Couldn't connect to the PC (code ${event.code}). It may be off or asleep, or Tailscale on it isn't running or is signed out`
+    logConnection(text)
+    logPhoneWarn(text, { code: event.code, reason: event.reason, wasClean: event.wasClean, openedBefore: opened })
     set({ connection: 'offline', pcDown: true })
     retry()
   }
-  socket.onerror = () => socket?.close()
+  socket.onerror = (e) => {
+    logPhoneError('PC WebSocket connection error', { error: String(e) })
+    socket?.close()
+  }
 }
 
 function retry() {

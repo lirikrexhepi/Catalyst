@@ -15,9 +15,11 @@ import App from './App'
 import { trackVisualViewport } from './platform/viewport'
 import { installSpringEasing } from './ui/motion/springEasing'
 import { SPRINGS } from './ui/motion/spring'
+import { initPhoneLogger } from './phoneLogger'
 
 trackVisualViewport()
 installSpringEasing('ease-drawer', SPRINGS.drawer)
+initPhoneLogger()
 
 initTheme()
 

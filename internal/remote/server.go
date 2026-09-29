@@ -52,13 +52,16 @@ type Server struct {
 	cancelNotify func()
 	awake        awakeHold
 	awakeStop    chan struct{}
+	lastWorkAt   time.Time
+	phoneLogs    *phoneLogStore
 }
 
 type clientPresence struct {
-	threadID  string
-	visible   bool
-	keepAwake bool
-	at        time.Time
+	threadID    string
+	visible     bool
+	keepAwake   bool
+	at          time.Time
+	lastVisible time.Time
 }
 
 func NewServer(
@@ -89,6 +92,7 @@ func NewServer(
 		projects:     projectsStore,
 		recorder:     recorder,
 		history:      historyStore,
+		phoneLogs:    newPhoneLogStore(""),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Allows mobile phone connecting over local LAN, Tailscale, or Cloudflare tunnel
@@ -199,6 +203,9 @@ func (s *Server) SetStoragePath(path string) {
 	if s != nil && s.auth != nil {
 		s.auth.SetStoragePath(path)
 	}
+	if s != nil && s.phoneLogs != nil && path != "" {
+		s.phoneLogs.setStorageDir(filepath.Dir(path))
+	}
 	if s != nil && s.notifier != nil && path != "" {
 		if err := s.notifier.Load(filepath.Join(filepath.Dir(path), "remote_push.json")); err != nil {
 			logger.Errorf("RemoteServer", "Push notifications unavailable: %v", err)
@@ -271,6 +278,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/pc/monitors/off", s.requireAuth(s.handleMonitorsOff))
 	mux.HandleFunc("/api/pc/monitors/auto", s.requireAuth(s.handleMonitorsAuto))
 	mux.HandleFunc("/api/pc/diagnostics", s.requireAuth(s.handleDiagnostics))
+	mux.HandleFunc("/api/pc/stats", s.requireAuth(s.handlePCStats))
+	mux.HandleFunc("/api/phone/logs", s.requireAuth(s.handlePhoneLogs))
 	mux.HandleFunc("/api/ws", s.handleWebSocket)
 	mux.HandleFunc("/api/system/shutdown", s.requireAuth(s.handleSystemShutdown))
 	mux.HandleFunc("/api/push/key", s.requireAuth(s.handlePushKey))
@@ -686,9 +695,28 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		if err := json.Unmarshal(payload, &msg); err != nil {
 			continue
 		}
+		if msg.Action == "phone_logs" || len(msg.Logs) > 0 {
+			if s.phoneLogs != nil {
+				s.phoneLogs.Ingest(msg.Logs, conn.RemoteAddr().String())
+			}
+			if msg.Action == "phone_logs" {
+				continue
+			}
+		}
 		if msg.Action == "presence" {
 			s.mu.Lock()
-			s.presence[conn] = clientPresence{threadID: msg.ThreadID, visible: msg.Visible, keepAwake: msg.KeepAwake, at: time.Now()}
+			prev := s.presence[conn]
+			lastVis := prev.lastVisible
+			if msg.Visible {
+				lastVis = time.Now()
+			}
+			s.presence[conn] = clientPresence{
+				threadID:    msg.ThreadID,
+				visible:     msg.Visible,
+				keepAwake:   msg.KeepAwake,
+				at:          time.Now(),
+				lastVisible: lastVis,
+			}
 			s.mu.Unlock()
 			s.updateAwake()
 			continue
@@ -899,6 +927,11 @@ func (s *Server) broadcastEvents(events <-chan domain.RuntimeEvent) {
 				flush()
 				return
 			}
+			if event.Kind == domain.EventTurnStarted || event.Kind == domain.EventTurnCompleted ||
+				event.Kind == domain.EventTurnFailed || event.Kind == domain.EventSessionStarted ||
+				event.Kind == domain.EventSessionStopped {
+				go s.updateAwake()
+			}
 			if n := len(batch); n > 0 && event.Delta && continuesItem(batch[n-1], event) {
 				batch[n-1].Text += event.Text
 				batch[n-1].Seq = event.Seq
@@ -955,4 +988,32 @@ func (s *Server) Info() RemoteInfo {
 func (s *Server) RegenerateToken() RemoteInfo {
 	s.auth.Regenerate()
 	return s.Info()
+}
+
+func (s *Server) handlePhoneLogs(w http.ResponseWriter, r *http.Request) {
+	if s.phoneLogs == nil {
+		http.Error(w, "phone logs not initialized", http.StatusInternalServerError)
+		return
+	}
+	switch r.Method {
+	case http.MethodPost:
+		var payload PhoneLogsPayload
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&payload); err != nil {
+			http.Error(w, "invalid json payload", http.StatusBadRequest)
+			return
+		}
+		source := payload.DeviceID
+		if source == "" {
+			source = r.RemoteAddr
+		}
+		s.phoneLogs.Ingest(payload.Logs, source)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "count": len(payload.Logs)})
+	case http.MethodGet:
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(s.phoneLogs.Recent())
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }

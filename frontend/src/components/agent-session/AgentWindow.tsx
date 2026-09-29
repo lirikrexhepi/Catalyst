@@ -248,12 +248,22 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
 
   usePinnedScroll(feedScrollRef, [streamBlocks, isWorking], {
     scroll: (el, top) => {
-      if (smoothScroll.lenis.current) {
-        smoothScroll.lenis.current.scrollTo(top, { immediate: true });
+      const lenis = smoothScroll.lenis.current;
+      if (lenis) {
+        lenis.scrollTo(top, { duration: 0.32, easing: (t: number) => 1 - Math.pow(2, -10 * t) });
       } else {
         el.scrollTop = top;
       }
     },
+    snap: (el, top) => {
+      const lenis = smoothScroll.lenis.current;
+      if (lenis) {
+        lenis.scrollTo(top, { immediate: true });
+      } else {
+        el.scrollTop = top;
+      }
+    },
+    onUnpin: () => smoothScroll.stopGlide(),
   });
 
   const isGrid = mode === 'grid';
@@ -418,9 +428,14 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
                     onClose();
                   }}
                   title="Close and terminate agent"
-                  className="w-6 h-6 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer pointer-events-auto"
+                  aria-label="Close and terminate agent"
+                  className={`w-[28px] h-[28px] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-90 pointer-events-auto ${
+                    isLight
+                      ? 'bg-black/[0.06] text-black/60 hover:bg-black/[0.12] hover:text-black'
+                      : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                  }`}
                 >
-                  <X size={14} />
+                  <X size={14} strokeWidth={2} />
                 </button>
               )}
             </div>

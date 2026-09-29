@@ -37,21 +37,11 @@ export function MorphButtons({ items, size, gap, spacing, inset, anchor, fontSiz
   const latest = useRef({ items, onOpenChange })
   latest.current = { items, onOpenChange }
   const [slots, setSlots] = useState<(HTMLElement | null)[]>([])
-  // Structural identity only. Labels and counts change constantly (task
-  // progress, server counts) and must never destroy the group: a rebuild
-  // snaps an open menu shut and drops focus mid-interaction.
-  const [revision, setRevision] = useState(0)
-  const labelSig = JSON.stringify(items.map((i) => [i.label, i.actions?.map((a) => a.label)]))
-  const prevSig = useRef(labelSig)
-  useEffect(() => {
-    // Refresh stale labels while closed, where a rebuild is invisible. While
-    // open the menu keeps its labels; they refresh the next time it opens.
-    if (prevSig.current !== labelSig && !handle.current?.openId()) {
-      setRevision((r) => r + 1)
-    }
-    prevSig.current = labelSig
-  })
-  const key = JSON.stringify({ revision, size, gap, spacing, inset, anchor, fontSize, items: items.map((i) => [i.id, i.tone, i.actions?.map((a) => [a.id, a.tone, a.dismiss])]) })
+  // Structural identity only: labels, counts and selection flow through
+  // update() so live churn never destroys the group (which would drop an
+  // in-flight click/focus). A rebuild happens only when buttons appear,
+  // disappear or change tone.
+  const key = JSON.stringify({ size, gap, spacing, inset, anchor, fontSize, items: items.map((i) => [i.id, i.tone, i.actions?.map((a) => [a.id, a.tone])]) })
 
   useLayoutEffect(() => {
     const el = host.current
@@ -81,12 +71,48 @@ export function MorphButtons({ items, size, gap, spacing, inset, anchor, fontSiz
   }, [key])
 
   const disabled = items.map((i) => Boolean(i.disabled)).join()
+  const contentSig = JSON.stringify(
+    items.map((i) => [i.label, i.disabled, i.actions?.map((a) => [a.label, a.icon, a.selected, a.dismiss])]),
+  )
   useEffect(() => {
-    handle.current?.update(latest.current.items.map((item) => ({ id: item.id, label: item.label, disabled: item.disabled })))
-  }, [disabled, key])
+    handle.current?.update(
+      latest.current.items.map((item) => ({
+        id: item.id,
+        label: item.label,
+        disabled: item.disabled,
+        actions: item.actions?.map((a) => ({
+          id: a.id,
+          label: a.label,
+          icon: a.icon,
+          selected: a.selected,
+          tone: a.tone,
+          dismiss: a.dismiss,
+        })),
+      })),
+    )
+    // contentSig re-pushes live labels/selection; key rebuilds structure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [disabled, contentSig, key])
+
+  // Capture-phase fallback: if a trigger click ever reaches the host without
+  // the engine opening (e.g. listener lost in a rebuild race), open it here.
+  // Runs before the trigger's own bubble listener; a duplicate open() is a
+  // harmless no-op thanks to the engine's active guard.
+  const openTriggerFromEvent = (e: React.MouseEvent) => {
+    const h = handle.current
+    if (!h || h.openId()) return
+    const hostEl = host.current
+    const target = e.target as HTMLElement | null
+    const hit = target?.closest?.('.ma-trigger')
+    if (!hit || !hostEl?.contains(hit)) return
+    const order = Array.from(hostEl.querySelectorAll(':scope > .ma-trigger'))
+    const k = order.indexOf(hit)
+    const id = k >= 0 ? latest.current.items[k]?.id : undefined
+    if (id) h.open(id)
+  }
 
   return (
-    <div ref={host} className={className}>
+    <div ref={host} className={className} onClickCapture={openTriggerFromEvent}>
       {slots.map((slot, k) => (slot && items[k] ? createPortal(items[k].icon, slot, items[k].id) : null))}
     </div>
   )

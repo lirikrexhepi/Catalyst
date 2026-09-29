@@ -21,6 +21,8 @@ const (
 	powerRequestContextVersion      = 0
 	powerRequestContextSimpleString = 1
 	esSystemRequired                = 0x00000001
+	esAwayModeRequired              = 0x00000040
+	esContinuous                    = 0x80000000
 	invalidHandle                   = ^uintptr(0)
 )
 
@@ -45,7 +47,7 @@ func (h *awakeHold) set(on bool) (bool, error) {
 	}
 	if on {
 		if h.handle == 0 {
-			reason, err := syscall.UTF16PtrFromString("Orchestrator: the phone app is open")
+			reason, err := syscall.UTF16PtrFromString("Orchestrator: active tasks or mobile session")
 			if err != nil {
 				return false, err
 			}
@@ -60,13 +62,17 @@ func (h *awakeHold) set(on bool) (bool, error) {
 		if ok, _, callErr := procPowerSetRequest.Call(h.handle, powerRequestSystemRequired); ok == 0 {
 			return false, fmt.Errorf("PowerSetRequest: %v", callErr)
 		}
+		// SetThreadExecutionState with ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_AWAYMODE_REQUIRED
+		// guarantees Windows will not sleep or hibernate during background tasks/remote work.
+		procSetThreadExecutionState.Call(uintptr(esContinuous | esSystemRequired | esAwayModeRequired))
 		h.held = true
 		return true, nil
 	}
 	if ok, _, callErr := procPowerClearRequest.Call(h.handle, powerRequestSystemRequired); ok == 0 {
 		return false, fmt.Errorf("PowerClearRequest: %v", callErr)
 	}
-	procSetThreadExecutionState.Call(esSystemRequired)
+	// Calling SetThreadExecutionState with only ES_CONTINUOUS clears the continuous requirement.
+	procSetThreadExecutionState.Call(uintptr(esContinuous))
 	h.held = false
 	return true, nil
 }

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { readLocal, writeLocal } from './cache'
+import { logPhone } from './phoneLogger'
 
 export interface LogEntry {
   at: number
@@ -17,6 +18,9 @@ export function logConnection(text: string) {
   entries = [...entries, { at: Date.now(), text }].slice(-LIMIT)
   writeLocal(KEY, entries)
   listeners.forEach((l) => l())
+
+  const isWarn = /lost|couldn't|error|failed|closed/i.test(text)
+  logPhone(isWarn ? 'warn' : 'info', text)
 }
 
 export function clearConnectionLog() {

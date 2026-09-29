@@ -1,5 +1,6 @@
 import type { ThreadSummary } from '../../types'
 import { useLongPress } from '../../hooks/useLongPress'
+import { useStore } from '../../store'
 import { ModelStack } from './ModelStack'
 
 interface ChatRowProps {
@@ -10,10 +11,19 @@ interface ChatRowProps {
 }
 
 export function ChatRow({ thread, current, onOpen, onActions }: ChatRowProps) {
+  const pcDown = useStore((s) => s.pcDown)
   const press = useLongPress(() => onActions(thread))
   const waiting = thread.attention === 'approval' || thread.attention === 'question'
-  const state = waiting ? 'attention' : thread.busy ? 'working' : ''
-  const sub = waiting ? (thread.attention === 'approval' ? 'Needs approval' : 'Has a question') : thread.busy ? 'Working' : thread.projectName || 'No project'
+  const state = waiting ? 'attention' : thread.busy ? (pcDown ? '' : 'working') : ''
+  const sub = waiting
+    ? thread.attention === 'approval'
+      ? 'Needs approval'
+      : 'Has a question'
+    : thread.busy
+    ? pcDown
+      ? 'Paused (offline)'
+      : 'Working'
+    : thread.projectName || 'No project'
   const drivers = thread.drivers && thread.drivers.length > 0 ? thread.drivers : thread.driver ? [thread.driver] : []
   return (
     <button className="dw-chat" aria-current={current} onClick={() => onOpen(thread.threadId)} {...press}>
