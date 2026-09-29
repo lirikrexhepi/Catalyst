@@ -11,6 +11,7 @@ import { GlassPill } from '../ui'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { ChatRow } from './drawer/ChatRow'
 import { ChatRowActions } from './drawer/ChatRowActions'
+import { ProjectIcon } from '../components/ProjectIcon'
 import { useHiddenChats } from '../hiddenChats'
 
 const DAY = 86_400_000
@@ -91,7 +92,11 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
           </div>
           {projects.map((p) => (
             <button key={p.path} className="dw-project" aria-current={project === p.path} onClick={() => openProject(p.path)}>
-              <FolderGit2 size={24} strokeWidth={ICON_STROKE} aria-hidden />
+              <ProjectIcon
+                projectId={p.id}
+                size={24}
+                fallback={<FolderGit2 size={24} strokeWidth={ICON_STROKE} aria-hidden />}
+              />
               <span className="dw-project-name">{p.name}</span>
               {p.runningAgents > 0 ? <span className="dot pulse" aria-label="Agents working" /> : null}
             </button>

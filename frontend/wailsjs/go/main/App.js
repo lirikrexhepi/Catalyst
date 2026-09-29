@@ -158,6 +158,10 @@ export function ListManagedServers() {
   return window['go']['main']['App']['ListManagedServers']();
 }
 
+export function ProjectIcon(arg1) {
+  return window['go']['main']['App']['ProjectIcon'](arg1);
+}
+
 export function ListProjects() {
   return window['go']['main']['App']['ListProjects']();
 }

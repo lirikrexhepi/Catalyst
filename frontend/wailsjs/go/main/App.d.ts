@@ -92,6 +92,8 @@ export function ListHistory():Promise<Array<history.Meta>>;
 
 export function ListManagedServers():Promise<Array<devserver.Snapshot>>;
 
+export function ProjectIcon(arg1:string):Promise<string>;
+
 export function ListProjects():Promise<Array<projects.Project>>;
 
 export function ListProviders(arg1:boolean):Promise<Array<domain.ProviderSnapshot>>;

@@ -4,6 +4,7 @@ import { ICON_STROKE } from '../chrome/BarButton'
 
 interface SheetRowProps {
   icon?: LucideIcon
+  iconNode?: ReactNode
   label: ReactNode
   detail?: string
   onClick?: () => void
@@ -14,10 +15,10 @@ interface SheetRowProps {
   trailing?: ReactNode
 }
 
-export function SheetRow({ icon: Icon, label, detail, onClick, selected, chevron, tone, disabled, trailing }: SheetRowProps) {
+export function SheetRow({ icon: Icon, iconNode, label, detail, onClick, selected, chevron, tone, disabled, trailing }: SheetRowProps) {
   const content = (
     <>
-      {Icon ? <Icon size={22} strokeWidth={ICON_STROKE} className="sheet-row-icon" aria-hidden /> : null}
+      {iconNode ?? (Icon ? <Icon size={22} strokeWidth={ICON_STROKE} className="sheet-row-icon" aria-hidden /> : null)}
       <span className="sheet-row-label">{label}</span>
       {detail ? <span className="sheet-row-detail">{detail}</span> : null}
       {trailing}

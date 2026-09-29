@@ -118,6 +118,10 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 }
 
+export function projectIconUrl(projectId: string): string {
+  return url(`/api/project/icon?${q({ project: projectId })}`)
+}
+
 /** True when the request never got an HTTP answer, so a retry cannot double-send. */
 export function isNetworkError(e: unknown): boolean {
   return !(e && typeof e === 'object' && 'status' in e)

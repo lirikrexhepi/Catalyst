@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 
@@ -85,6 +86,27 @@ func (a *App) MoveProject(id string, toIndex int) error {
 // RemoveProject forgets a project. The directory itself is never touched.
 func (a *App) RemoveProject(id string) error {
 	return a.projects.Remove(id)
+}
+
+// ProjectIcon reports a saved project's app icon as a data URL, or an empty
+// string when the project has no detectable favicon. The desktop picker shows
+// it in place of the folder glyph when the user enables project favicons.
+func (a *App) ProjectIcon(id string) string {
+	var path string
+	for _, project := range a.projects.List() {
+		if project.ID == id {
+			path = project.Path
+			break
+		}
+	}
+	if path == "" {
+		return ""
+	}
+	data, contentType, err := projects.Find(path)
+	if err != nil {
+		return ""
+	}
+	return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data)
 }
 
 func (a *App) GetProjectMemory(cwd string) string {

@@ -8,6 +8,7 @@ import claudeLogo from '../../assets/logo/claude-icon-logo.png';
 import antigravityLogo from '../../assets/logo/antigravity-icon-logo.png';
 import { useTheme } from '../../themes';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
+import { ProjectGlyph } from '../orchestrator/ProjectGlyph';
 import { providerIcon } from '../orchestrator/providerIcons';
 
 export interface DynamicIslandNotification {
@@ -478,6 +479,12 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
       : projects?.active?.name ||
         (projects && projects.projects.length > 0 ? projects.projects[0].name : 'Select Project');
 
+  // Best-effort id for the favicon lookup; empty means the folder glyph stays.
+  const displayedProjectId =
+    viewMode === 'deck' && activeTaskProjectName
+      ? (projects?.projects.find((p) => p.name === activeTaskProjectName)?.id ?? '')
+      : (projects?.active?.id ?? '');
+
   // Identify model vendor from selectedProviderId, selectedModelId, activeTask or usageReport
   const driverName = useMemo<'claude' | 'codex' | 'antigravity' | 'opencode'>(() => {
     if (selectedProviderId === 'claude') return 'claude';
@@ -741,9 +748,15 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               } active:scale-95 transition-all cursor-pointer min-w-0`}
               title={`Project: ${displayedProjectName}\nClick to switch`}
             >
-              <span className="material-symbols-rounded text-[15px] text-white/60 shrink-0 leading-none">
-                folder
-              </span>
+              <ProjectGlyph
+                projectId={displayedProjectId}
+                size={15}
+                glyph={
+                  <span className="material-symbols-rounded text-[15px] text-white/60 shrink-0 leading-none">
+                    folder
+                  </span>
+                }
+              />
               <span className="text-[12.5px] font-medium text-white tracking-tight truncate max-w-[110px]">
                 {displayedProjectName}
               </span>
@@ -964,9 +977,15 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                                 }}
                                 className="flex-1 min-w-0 flex items-center gap-2 pl-1 pr-1 py-1.5 text-left cursor-pointer transition-colors"
                               >
-                                <span className="material-symbols-rounded text-[15px] text-white/60 leading-none shrink-0">
-                                  folder
-                                </span>
+                                <ProjectGlyph
+                                  projectId={project.id}
+                                  size={15}
+                                  glyph={
+                                    <span className="material-symbols-rounded text-[15px] text-white/60 leading-none shrink-0">
+                                      folder
+                                    </span>
+                                  }
+                                />
                                 <div className="flex flex-col min-w-0">
                                   <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
                                     {project.name}

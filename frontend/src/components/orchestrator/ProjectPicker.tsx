@@ -2,6 +2,7 @@ import React from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { ScrollArea } from '../common/ScrollArea';
 import { Project } from './useProjects';
+import { ProjectGlyph } from './ProjectGlyph';
 import { useTheme } from '../../themes';
 
 export interface ProjectPickerProps {
@@ -85,22 +86,28 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
                 }}
                 className="w-full text-left pl-2.5 pr-7 py-1.5 flex items-center gap-2 cursor-pointer"
               >
-                <span
-                  className={`material-symbols-rounded text-[16px] leading-none shrink-0 ${
-                    project.missing
-                      ? 'text-amber-500'
-                      : isActive
-                        ? isLight
-                          ? 'text-[#030303]'
-                          : 'text-white/90'
-                        : isLight
-                          ? 'text-black/55'
-                          : 'text-white/55'
-                  }`}
-                  style={{ fontVariationSettings: `'FILL' ${isActive ? 1 : 0}` }}
-                >
-                  {project.missing ? 'folder_off' : 'folder'}
-                </span>
+                <ProjectGlyph
+                  projectId={project.id}
+                  size={16}
+                  glyph={
+                    <span
+                      className={`material-symbols-rounded text-[16px] leading-none shrink-0 ${
+                        project.missing
+                          ? 'text-amber-500'
+                          : isActive
+                            ? isLight
+                              ? 'text-[#030303]'
+                              : 'text-white/90'
+                            : isLight
+                              ? 'text-black/55'
+                              : 'text-white/55'
+                      }`}
+                      style={{ fontVariationSettings: `'FILL' ${isActive ? 1 : 0}` }}
+                    >
+                      {project.missing ? 'folder_off' : 'folder'}
+                    </span>
+                  }
+                />
                 <span className="flex flex-col min-w-0 gap-[1px]">
                   <span
                     className={`text-[12.5px] font-['Geist'] tracking-tight truncate leading-[15px] ${

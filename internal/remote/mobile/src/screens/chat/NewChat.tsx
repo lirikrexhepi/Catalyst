@@ -122,6 +122,7 @@ export function NewChat({ openDrawer, go }: NewChatProps) {
         {error && !isUnreachable(error) ? <StatusCard className="start-error">{error}</StatusCard> : null}
         <StartOptions
           projectName={project?.name ?? (projects.length ? undefined : 'None')}
+          projectId={project?.id}
           onProject={() => setSheet('project')}
           autoApprove={autoApprove}
           onAutoApprove={setAutoApprove}

@@ -34,6 +34,7 @@ func (s *Server) registerWorkspaceRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/file", s.requireAuth(s.handleFile))
 	mux.HandleFunc("/api/folders", s.requireAuth(s.handleFolders))
 	mux.HandleFunc("/api/projects/add", s.requireAuth(s.handleAddProject))
+	mux.HandleFunc("/api/project/icon", s.requireAuth(s.handleProjectIcon))
 }
 
 func (s *Server) workspace() WorkspaceHooks {
@@ -178,4 +179,40 @@ func (s *Server) handleAddProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, project)
+}
+
+// handleProjectIcon serves a saved project's app icon as raw image bytes for
+// the phone's project rows. The project is looked up by id so the phone can
+// never use this to read arbitrary files; unknown ids and icon-less projects
+// answer 404 and the phone falls back to its folder glyph.
+func (s *Server) handleProjectIcon(w http.ResponseWriter, r *http.Request) {
+	if s.projects == nil {
+		writeError(w, http.StatusNotFound, errUnavailable)
+		return
+	}
+	id := r.URL.Query().Get("project")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, errors.New("project id required"))
+		return
+	}
+	path := ""
+	for _, project := range s.projects.List() {
+		if project.ID == id {
+			path = project.Path
+			break
+		}
+	}
+	if path == "" {
+		writeError(w, http.StatusNotFound, errors.New("unknown project"))
+		return
+	}
+	data, contentType, err := projects.Find(path)
+	if err != nil {
+		writeError(w, http.StatusNotFound, err)
+		return
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }
