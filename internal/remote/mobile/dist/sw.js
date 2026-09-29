@@ -1,4 +1,4 @@
-const CACHE = 'orchestrator-shell-v2'
+const CACHE = 'orchestrator-shell-8c095d0'
 const SHELL = '/index.html'
 const NETWORK_TIMEOUT = 4000
 
