@@ -103,6 +103,7 @@ func TestIsAgentRunFlagsOrchestratorAndWorktreeSessions(t *testing.T) {
 }
 
 func TestListFindsSampleSession(t *testing.T) {
+
 	dir := t.TempDir()
 	projects := filepath.Join(dir, "projects", "proj")
 	if err := os.MkdirAll(projects, 0o755); err != nil {
@@ -122,5 +123,29 @@ func TestListFindsSampleSession(t *testing.T) {
 	}
 	if sessions[0].ID != "s-9" || sessions[0].Title != "hello" {
 		t.Fatalf("session = %+v", sessions[0])
+	}
+}
+
+func TestListSkipsTranscriptsWithoutHumanText(t *testing.T) {
+	dir := t.TempDir()
+	projects := filepath.Join(dir, "projects", "proj")
+	if err := os.MkdirAll(projects, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	assistantOnly := "{\"isSidechain\":false,\"type\":\"assistant\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"done\"}]},\"uuid\":\"a1\",\"timestamp\":\"2026-09-20T10:00:01.000Z\",\"cwd\":\"C:\\\\w\",\"sessionId\":\"s-a\"}\n"
+	toolResultOnly := "{\"isSidechain\":false,\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"t1\",\"content\":\"ok\"}]},\"uuid\":\"u1\",\"timestamp\":\"2026-09-20T10:00:01.000Z\",\"cwd\":\"C:\\\\w\",\"sessionId\":\"s-t\"}\n"
+	if err := os.WriteFile(filepath.Join(projects, "s-a.jsonl"), []byte(assistantOnly), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projects, "s-t.jsonl"), []byte(toolResultOnly), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_CONFIG_DIR", dir)
+	sessions, err := List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(sessions) != 0 {
+		t.Fatalf("sessions = %+v, want none", sessions)
 	}
 }

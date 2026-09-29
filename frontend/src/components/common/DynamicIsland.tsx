@@ -496,6 +496,10 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
       ? (projects?.projects.find((p) => p.name === activeTaskProjectName)?.id ?? '')
       : (projects?.active?.id ?? '');
 
+  // Only chats the user opened and wrote in: agent-spawned runs and AI side
+  // tasks never appear here.
+  const handClaudeChats = (claudeSessions ?? []).filter((s) => !s.agentRun);
+
   // Identify model vendor from selectedProviderId, selectedModelId, activeTask or usageReport
   const driverName = useMemo<'claude' | 'codex' | 'antigravity' | 'opencode'>(() => {
     if (selectedProviderId === 'claude') return 'claude';
@@ -1093,9 +1097,9 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                         Chats from the Claude CLI
                       </span>
                     </div>
-                    {(claudeSessions?.length ?? 0) > 0 && (
+                    {handClaudeChats.length > 0 && (
                       <span className="text-[11px] font-mono tabular-nums text-white/70 font-medium shrink-0">
-                        {claudeSessions?.length}
+                        {handClaudeChats.length}
                       </span>
                     )}
                     <span className="material-symbols-rounded text-[15px] leading-none text-white/50 shrink-0">
@@ -1372,8 +1376,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                   Reading Claude chats…
                 </div>
               ) : (() => {
-                const visible = claudeSessions.filter((s) => !s.agentRun);
-                const rows = visible.length > 0 ? visible : claudeSessions;
+                const rows = handClaudeChats;
                 if (rows.length === 0) {
                   return (
                     <div className="py-8 text-center text-[11.5px] text-white/40 font-['Geist']">

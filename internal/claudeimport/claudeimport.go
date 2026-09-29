@@ -49,8 +49,8 @@ type ExternalSession struct {
 	UpdatedAt    int64  `json:"updatedAt"`
 	// AgentRun marks transcripts produced by an agent rather than typed by
 	// the user: Composer/catalyst worktree runs, orchestrator-spawned CLIs
-	// and test sessions. The picker hides these by default so hand-written
-	// chats are findable, with a toggle to reveal them.
+	// and test sessions. UIs show hand-written chats only, so these stay out
+	// of the list even when they contain text.
 	AgentRun bool `json:"agentRun"`
 }
 
@@ -80,9 +80,10 @@ func ProjectsDir() string {
 	return filepath.Join(home, ".claude", "projects")
 }
 
-// List scans the projects tree and describes every importable conversation,
-// newest first. Files that cannot be parsed are skipped rather than failing
-// the whole listing.
+// List scans the projects tree and describes every conversation a user typed
+// into, newest first. Transcripts with no human-written message — tool-result
+// only runs and assistant-only side tasks the AI ran on its own — are skipped,
+// as are files that cannot be parsed, rather than failing the whole listing.
 func List() ([]ExternalSession, error) {
 	root := ProjectsDir()
 	if root == "" {
@@ -121,7 +122,7 @@ func List() ([]ExternalSession, error) {
 			continue
 		}
 		parsed, err := ParseFile(path)
-		if err != nil || parsed == nil || len(parsed.Events) == 0 {
+		if err != nil || parsed == nil || !hasHumanText(parsed.Events) {
 			continue
 		}
 		out = append(out, ExternalSession{
@@ -515,6 +516,19 @@ func isAgentRun(parsed *ParsedSession) bool {
 	}
 	if temp := strings.ToLower(os.TempDir()); temp != "" && temp != `\` && temp != "/" {
 		if lowered == temp || strings.HasPrefix(lowered, temp+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasHumanText reports whether the transcript contains at least one message
+// the user typed. Tool results riding on user records and assistant-only
+// output do not count: the list is meant to show chats the user opened and
+// wrote in, not side tasks the AI ran on its own.
+func hasHumanText(events []domain.RuntimeEvent) bool {
+	for _, event := range events {
+		if event.Kind == domain.EventUserMessage && strings.TrimSpace(event.Text) != "" {
 			return true
 		}
 	}
