@@ -1,17 +1,15 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { ScrollArea } from '../common/ScrollArea';
-import { CleanDropdown } from '../common/CleanDropdown';
 import { WallpaperState } from './useWallpaper';
 import { DefaultModels } from './useDefaultModels';
 import { isCustom } from './wallpapers';
 import { useTheme } from '../../themes';
-import { providerIcon } from '../orchestrator/providerIcons';
+import { ProvidersSection } from './ProvidersSection';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
 import { useClaudeUpdate } from '../orchestrator/useClaudeUpdate';
 import { RemoteAccessSection } from './RemoteAccessSection';
 import { BackgroundSection } from './BackgroundSection';
-import { AccountsSection } from './AccountsSection';
 import { GetUserPreference, SetUserPreference } from '../../../wailsjs/go/main/App';
 
 export interface SettingsPanelProps {
@@ -93,165 +91,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       <ScrollArea maxHeight={460} className="px-4 pb-4 flex flex-col gap-2.5">
         {defaultModels.entries.length > 0 && (
-          <>
-            <div className="flex items-baseline justify-between gap-2 px-0.5 pt-1.5">
-              <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
-                Providers & Models
-              </span>
-              <span className="text-[10px] font-['Geist'] text-white/25 tracking-tight">
-                toggle to enable
-              </span>
-            </div>
-
-            {defaultModels.error && (
-              <div className="px-3 py-2 rounded-[9px] bg-amber-500/10 border border-amber-400/25">
-                <span className="text-[11px] font-medium font-['Geist'] text-amber-100/90 leading-relaxed">
-                  {defaultModels.error}
-                </span>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-1.5">
-              {defaultModels.entries.map(({ provider, models, modelId, enabled, effortId, effortChoices }) => {
-                const options = [
-                  { value: '', label: 'CLI default' },
-                  ...models.map((m) => ({ value: m.id, label: m.name })),
-                ];
-                const showEffort = enabled && modelId !== '' && effortChoices.length > 0;
-
-                return (
-                  <div
-                    key={provider.id}
-                    className={`flex flex-col gap-1.5 p-2 rounded-[10px] transition-colors ${
-                      enabled
-                        ? isLight ? 'bg-black/[0.04]' : 'bg-white/[0.05]'
-                        : isLight ? 'bg-black/[0.02] opacity-60' : 'bg-white/[0.02] opacity-60'
-                    }`}
-                  >
-                    <div className="grid grid-cols-[1fr_auto_145px] items-center gap-2.5">
-                      <div className="flex items-center gap-2 min-w-0">
-                        {provider.icon ? (
-                          <img
-                            src={providerIcon(provider.id, isLight) || provider.icon}
-                            alt=""
-                            draggable={false}
-                            className="w-[18px] h-[18px] object-contain shrink-0 rounded-[3px]"
-                          />
-                        ) : (
-                          <span className={`material-symbols-rounded text-[18px] leading-none shrink-0 ${
-                            isLight ? 'text-black/50' : 'text-white/50'
-                          }`}>
-                            smart_toy
-                          </span>
-                        )}
-
-                        <span className={`text-[12px] font-medium font-['Geist'] tracking-tight truncate ${
-                          isLight ? 'text-[#030303]' : 'text-white/90'
-                        }`}>
-                          {provider.name}
-                        </span>
-                      </div>
-
-                      {/* Enable/Disable Permission Toggle */}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={enabled}
-                        title={enabled ? `Disable ${provider.name}` : `Enable ${provider.name}`}
-                        onClick={() => void defaultModels.toggle(provider.id, !enabled)}
-                        className={`w-8 h-[18px] rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ${
-                          enabled
-                            ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
-                            : isLight ? 'bg-black/15' : 'bg-white/15'
-                        }`}
-                      >
-                        <div
-                          className={`w-3.5 h-3.5 rounded-full transition-transform duration-200 ease-out ${
-                            enabled
-                              ? isLight ? 'translate-x-3.5 bg-white shadow-sm' : 'translate-x-3.5 bg-black shadow-sm'
-                              : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
-                          }`}
-                        />
-                      </button>
-
-                      {/* Simplistic Clean Dropdown for Preferred Model */}
-                      <CleanDropdown
-                        value={modelId}
-                        options={options}
-                        disabled={!enabled || defaultModels.isSaving === provider.id || models.length === 0}
-                        onChange={(val) => void defaultModels.select(provider.id, val)}
-                        className="w-[145px]"
-                      />
-                    </div>
-
-                    {showEffort && (
-                      <div className="flex items-center justify-between gap-2.5 pl-[26px]">
-                        <span className={`text-[11px] font-['Geist'] tracking-tight ${
-                          isLight ? 'text-black/50' : 'text-white/45'
-                        }`}>
-                          Effort
-                        </span>
-                        <CleanDropdown
-                          value={effortId}
-                          options={effortChoices}
-                          disabled={!enabled || defaultModels.isSaving === provider.id}
-                          onChange={(val) => void defaultModels.selectEffort(provider.id, val)}
-                          className="w-[145px]"
-                        />
-                      </div>
-                    )}
-
-                    {/* CLI release advisory, Claude only for now. */}
-                    {provider.id === 'claude' && claudeUpdate.status && (
-                      <div className="flex items-center justify-between gap-2.5 pl-[26px] min-h-[22px]">
-                        {claudeUpdate.status.available ? (
-                          <>
-                            <span className={`text-[11px] font-['Geist'] tracking-tight tabular-nums ${
-                              isLight ? 'text-black/60' : 'text-white/60'
-                            }`}>
-                              {claudeUpdate.status.installed} → {claudeUpdate.status.latest}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={claudeUpdate.updating}
-                              onClick={() => void claudeUpdate.startUpdate()}
-                              className={`h-[22px] px-2.5 rounded-full text-[11px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer shrink-0 ${
-                                claudeUpdate.updating
-                                  ? isLight ? 'text-black/35 cursor-default' : 'text-white/35 cursor-default'
-                                  : 'bg-[#007AFF] hover:bg-[#0A84FF] text-white'
-                              }`}
-                            >
-                              {claudeUpdate.updating ? 'Updating…' : 'Update'}
-                            </button>
-                          </>
-                        ) : (
-                          <span className={`text-[11px] font-['Geist'] tracking-tight ${
-                            isLight ? 'text-black/35' : 'text-white/30'
-                          }`}>
-                            Claude Code up to date
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {provider.id === 'claude' && (claudeUpdate.output || claudeUpdate.error) && (
-                      <div className={`pl-[26px] text-[11px] font-['Geist'] tracking-tight leading-snug ${
-                        claudeUpdate.error
-                          ? isLight ? 'text-red-600/90' : 'text-red-300/90'
-                          : isLight ? 'text-black/50' : 'text-white/50'
-                      }`}>
-                        {claudeUpdate.error ?? claudeUpdate.output}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className={`h-px my-1 ${isLight ? 'bg-black/[0.06]' : 'bg-white/[0.06]'}`} />
-          </>
+          <ProvidersSection defaultModels={defaultModels} claudeUpdate={claudeUpdate} isLight={isLight} />
         )}
-
-        <AccountsSection isLight={isLight} />
 
         {/* Themes: Dark, Light, Glass */}
         <div className="flex items-baseline justify-between gap-2 px-0.5 pt-0.5">
