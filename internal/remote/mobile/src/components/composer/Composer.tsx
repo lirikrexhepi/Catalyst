@@ -45,8 +45,16 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   function grow() {
     const el = field.current
     if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`
+    const target = Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)
+    el.style.overflowY = target >= MAX_INPUT_HEIGHT ? 'auto' : 'hidden'
+    if (target >= el.clientHeight - 1) {
+      if (Math.abs(target - el.clientHeight) > 1) el.style.height = `${target}px`
+    } else if (el.clientHeight - target > 4) {
+      el.style.height = 'auto'
+      const snapped = Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)
+      el.style.overflowY = snapped >= MAX_INPUT_HEIGHT ? 'auto' : 'hidden'
+      el.style.height = `${snapped}px`
+    }
   }
 
   useEffect(grow, [text, dictation.draft])
@@ -124,6 +132,19 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
       {attachments.error ? <div className="hint composer-error">{attachments.error}</div> : null}
       <PcDownNotice placement="dock" />
       <GlassSquircle radius={30} fill="var(--composer-fill)" className="composer-surface" onPointerDown={focusField}>
+        <button className="composer-attach" onClick={attachments.open} disabled={attachments.uploading} aria-label="Attach a file">
+          <Paperclip {...ICON} className={attachments.uploading ? 'spin' : undefined} aria-hidden />
+        </button>
+        <input
+          ref={attachments.input}
+          className="composer-file"
+          type="file"
+          accept="image/*,.heic,.heif,application/pdf,.pdf,text/plain,.txt,.md,.log"
+          multiple
+          tabIndex={-1}
+          aria-hidden
+          onChange={(e) => void attachments.add(e.target.files)}
+        />
         <textarea
           ref={field}
           className="composer-input"
@@ -149,41 +170,25 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
             }
           }}
         />
-        <div className="composer-actions">
-          <button className="composer-attach" onClick={attachments.open} disabled={attachments.uploading} aria-label="Attach a file">
-            <Paperclip {...ICON} className={attachments.uploading ? 'spin' : undefined} aria-hidden />
-          </button>
-          <input
-            ref={attachments.input}
-            className="composer-file"
-            type="file"
-            accept="image/*,.heic,.heif,application/pdf,.pdf,text/plain,.txt,.md,.log"
-            multiple
-            tabIndex={-1}
-            aria-hidden
-            onChange={(e) => void attachments.add(e.target.files)}
-          />
-          <span className="composer-grow" />
-          <GlassCircle
-            size={BUTTON}
-            fill={dictation.listening ? 'var(--voice-live)' : 'var(--voice)'}
-            onClick={onMic}
-            aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
-            aria-pressed={dictation.listening}
-            className={dictation.listening ? 'composer-mic listening on-accent' : 'composer-mic on-accent'}
-          >
-            {dictation.listening ? <AudioLines {...ICON} aria-hidden /> : <Mic {...ICON} aria-hidden />}
+        <GlassCircle
+          size={BUTTON}
+          fill={dictation.listening ? 'var(--voice-live)' : 'var(--voice)'}
+          onClick={onMic}
+          aria-label={dictation.listening ? 'Stop dictation' : 'Dictate'}
+          aria-pressed={dictation.listening}
+          className={dictation.listening ? 'composer-mic listening on-accent' : 'composer-mic on-accent'}
+        >
+          {dictation.listening ? <AudioLines {...ICON} aria-hidden /> : <Mic {...ICON} aria-hidden />}
+        </GlassCircle>
+        {busy && !canSend ? (
+          <GlassCircle size={BUTTON} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding" className="on-accent">
+            <Square size={16} fill="currentColor" aria-hidden />
           </GlassCircle>
-          {busy && !canSend ? (
-            <GlassCircle size={BUTTON} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding" className="on-accent">
-              <Square size={16} fill="currentColor" aria-hidden />
-            </GlassCircle>
-          ) : (
-            <GlassCircle size={BUTTON} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send on-accent">
-              <Send {...ICON} style={SEND_NUDGE} aria-hidden />
-            </GlassCircle>
-          )}
-        </div>
+        ) : (
+          <GlassCircle size={BUTTON} fill="var(--send)" onClick={submit} disabled={!canSend} aria-label={busy ? 'Queue message' : 'Send'} className="composer-send on-accent">
+            <Send {...ICON} style={SEND_NUDGE} aria-hidden />
+          </GlassCircle>
+        )}
       </GlassSquircle>
     </div>
   )
