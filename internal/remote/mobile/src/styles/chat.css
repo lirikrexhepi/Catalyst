@@ -12,7 +12,7 @@
 }
 .chat-dock {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; pointer-events: none;
-  padding: 16px 24px var(--dock-gap);
+  padding: 8px 12px var(--dock-gap);
   background: linear-gradient(transparent, color-mix(in srgb, var(--chat-bg) 85%, transparent) 30%, var(--chat-bg) 60%);
 }
 .chat-dock > * { pointer-events: auto; }
@@ -35,10 +35,11 @@
 .composer-stack { display: flex; flex-direction: column; gap: 8px; }
 .composer-stack .queued, .composer-stack .attachments, .composer-stack .hint { padding-left: 4px; padding-right: 4px; padding-bottom: 0; }
 .composer-error { color: var(--fault); }
-.composer-surface { display: flex; flex-direction: column; min-height: 108px; color: var(--fg); }
+.composer-surface { display: flex; flex-direction: column; color: var(--fg); }
 .composer-input {
   display: block; width: 100%; min-height: 20px; max-height: 132px; resize: none;
-  padding: 18px 20px 6px; font: 400 var(--input-font-size)/1.45 var(--font); color: var(--fg); background: none; border: 0; outline: none;
+  padding: 12px 16px 6px; font: 400 var(--input-font-size)/1.45 var(--font); color: var(--fg); background: none; border: 0; outline: none;
+  transition: height 120ms ease-out;
 }
 .composer-input::placeholder { color: var(--placeholder); opacity: 1; }
 .composer-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 0 12px 8px 6px; }

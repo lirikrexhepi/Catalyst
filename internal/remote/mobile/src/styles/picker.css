@@ -1,6 +1,6 @@
 .picker-catcher { position: absolute; inset: 0; z-index: 9; }
 .model-picker {
-  position: absolute; left: 24px; right: 24px; bottom: var(--dock-gap); z-index: 10;
+  position: absolute; left: 12px; right: 12px; bottom: var(--dock-gap); z-index: 10;
   pointer-events: none; transform-origin: 50% 100%; opacity: 0;
 }
 .picker-pane { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; pointer-events: auto; }

@@ -31,6 +31,7 @@ function recognitionCtor(): RecognitionCtor | null {
 
 export function useDictation(onText: (text: string) => void) {
   const [listening, setListening] = useState(false)
+  const [draft, setDraft] = useState('')
   const active = useRef<Recognition | null>(null)
   const latest = useRef(onText)
   latest.current = onText
@@ -44,16 +45,22 @@ export function useDictation(onText: (text: string) => void) {
     const rec = new Ctor()
     rec.lang = navigator.language || 'en-US'
     rec.continuous = true
-    rec.interimResults = false
+    rec.interimResults = true
     rec.onresult = (event) => {
+      let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
-        if (result.isFinal) latest.current(result[0].transcript.trim())
+        const transcript = result[0].transcript.trim()
+        if (!transcript) continue
+        if (result.isFinal) latest.current(transcript)
+        else interim += (interim ? ' ' : '') + transcript
       }
+      setDraft(interim)
     }
     const done = () => {
       if (active.current === rec) active.current = null
       setListening(false)
+      setDraft('')
     }
     rec.onend = done
     rec.onerror = done
@@ -67,5 +74,5 @@ export function useDictation(onText: (text: string) => void) {
     else start()
   }
 
-  return { supported, listening, toggle }
+  return { supported, listening, draft, toggle }
 }

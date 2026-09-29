@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent, type TouchEvent } from 'react'
+import { useEffect, useRef, useState, type PointerEvent, type TouchEvent } from 'react'
 import { AudioLines, Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
 import { GlassCircle, GlassSquircle, SEND_NUDGE } from '../../ui'
 import { interrupt, removeQueued, send, useStore } from '../../store'
@@ -32,14 +32,14 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   const dictation = useDictation((spoken) => {
     if (!spoken) return
     setText((prev) => (prev.trim() ? `${prev.trimEnd()} ${spoken}` : spoken))
-    requestAnimationFrame(grow)
   })
+  const liveText = dictation.listening && dictation.draft ? (text.trim() ? `${text.trimEnd()} ${dictation.draft}` : dictation.draft) : text
 
   const busy = Boolean(thread?.busy)
   const waiting = thread?.blocks.some(
     (b) => (b.type === 'approval_request' && b.status === 'pending') || (b.type === 'tool_question' && !b.answered),
   )
-  const hasContent = text.trim().length > 0 || attachments.files.length > 0
+  const hasContent = liveText.trim().length > 0 || attachments.files.length > 0
   const canSend = hasContent && !attachments.uploading && !creating && !pcDown
 
   function grow() {
@@ -49,13 +49,16 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
     el.style.height = `${Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)}px`
   }
 
+  useEffect(grow, [text, dictation.draft])
+
   const submit = () => {
     if (!canSend) return
+    const body = liveText.trim()
     if (!threadId) {
-      if (!onCreate || (!text.trim() && attachments.files.length === 0)) return
+      if (!onCreate || (!body && attachments.files.length === 0)) return
       setCreating(true)
       const files = attachments.files.map((f) => f.ref)
-      void onCreate(text.trim(), files).then((ok) => {
+      void onCreate(body, files).then((ok) => {
         setCreating(false)
         if (ok) {
           setText('')
@@ -64,7 +67,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
       })
       return
     }
-    void send(threadId, text, attachments.files.map((f) => f.ref))
+    void send(threadId, body, attachments.files.map((f) => f.ref))
     setText('')
     attachments.clear()
     requestAnimationFrame(grow)
@@ -125,15 +128,19 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
           ref={field}
           className="composer-input"
           rows={1}
-          value={text}
+          value={liveText}
           placeholder={pcDown ? 'PC not responding' : placeholder}
           aria-label="Message"
           enterKeyHint="send"
           onTouchStart={onFieldTouchStart}
           onTouchEnd={onFieldTouchEnd}
           onChange={(e) => {
-            setText(e.target.value)
-            grow()
+            const next = e.target.value
+            if (dictation.listening && dictation.draft && next.endsWith(dictation.draft)) {
+              setText(next.slice(0, next.length - dictation.draft.length).trimEnd())
+            } else {
+              setText(next)
+            }
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey && !('ontouchstart' in window)) {

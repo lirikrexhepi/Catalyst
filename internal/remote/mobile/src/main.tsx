@@ -33,11 +33,39 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator && window.isSecureConte
   const hadController = Boolean(navigator.serviceWorker.controller)
   let refreshing = false
 
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController && !refreshing) {
-      refreshing = true
-      window.location.reload()
+  function agentBusy(): boolean {
+    try {
+      const raw = localStorage.getItem('orchestrator_summaries_cache')
+      if (!raw) return false
+      const list = JSON.parse(raw)
+      return Array.isArray(list) && list.some((s) => s && s.busy === true)
+    } catch {
+      return false
     }
+  }
+
+  function reloadWhenIdle() {
+    if (refreshing) return
+    if (agentBusy()) {
+      window.setTimeout(reloadWhenIdle, 5000)
+      return
+    }
+    refreshing = true
+    window.location.reload()
+  }
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || refreshing) return
+    if (document.visibilityState !== 'visible') {
+      const onVisible = () => {
+        if (document.visibilityState !== 'visible') return
+        document.removeEventListener('visibilitychange', onVisible)
+        reloadWhenIdle()
+      }
+      document.addEventListener('visibilitychange', onVisible)
+      return
+    }
+    reloadWhenIdle()
   })
 
   window.addEventListener('load', () => {
