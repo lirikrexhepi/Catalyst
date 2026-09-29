@@ -99,7 +99,8 @@ export function trackVisualViewport(): () => void {
   let healTimer = 0
 
   const write = () => {
-    root.style.setProperty('--app-h', `${height}px`)
+    if (open) root.style.setProperty('--app-h', `${height}px`)
+    else root.style.removeProperty('--app-h')
     root.style.setProperty('--app-y', `${top}px`)
   }
 
@@ -117,33 +118,42 @@ export function trackVisualViewport(): () => void {
     const topShift = top - nextTop
     top = nextTop
     height = nextHeight
-    write()
     if (!rotated) {
       glide('[data-kb-follow="bottom"]', bottomShift)
       glide('[data-kb-follow="top"]', topShift)
     }
     const next = resting - vv.height > KEYBOARD_THRESHOLD
-    if (next === open) return
-    open = next
-    root.classList.toggle('kb-open', open)
-    if (open) {
-      window.clearTimeout(healTimer)
-      lock.on()
-    } else {
-      lock.off()
-      window.scrollTo(0, 0)
-      healTimer = window.setTimeout(() => {
-        if (resting - vv.height > 4) healViewport()
-      }, HEAL_DELAY)
+    if (next !== open) {
+      open = next
+      root.classList.toggle('kb-open', open)
+      if (open) {
+        window.clearTimeout(healTimer)
+        lock.on()
+      } else {
+        lock.off()
+        window.scrollTo(0, 0)
+        healTimer = window.setTimeout(() => {
+          if (resting - vv.height > 4) healViewport()
+        }, HEAL_DELAY)
+      }
     }
+    write()
+  }
+
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') apply()
   }
 
   vv.addEventListener('resize', apply)
   vv.addEventListener('scroll', apply)
+  window.addEventListener('resize', apply)
+  document.addEventListener('visibilitychange', onVisible)
   write()
   return () => {
     vv.removeEventListener('resize', apply)
     vv.removeEventListener('scroll', apply)
+    window.removeEventListener('resize', apply)
+    document.removeEventListener('visibilitychange', onVisible)
     lock.off()
     window.clearTimeout(healTimer)
   }

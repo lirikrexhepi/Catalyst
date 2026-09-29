@@ -63,7 +63,7 @@ svg { flex-shrink: 0; }
 .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
 
 /* ---------- shell: drawer pushes the chat aside, like ChatGPT ---------- */
-.shell { position: fixed; left: 0; right: 0; top: var(--app-y, 0px); height: var(--app-h, 100%); overflow: hidden; background: var(--bg); }
+.shell { position: fixed; left: 0; right: 0; top: var(--app-y, 0px); height: var(--app-h, 100%); height: var(--app-h, 100dvh); overflow: hidden; background: var(--bg); }
 .drawer {
   position: absolute; top: 0; bottom: 0; left: 0; width: var(--drawer-w); display: flex; flex-direction: column;
   padding-top: calc(var(--safe-top) + 8px); background: var(--bg); touch-action: pan-y;
