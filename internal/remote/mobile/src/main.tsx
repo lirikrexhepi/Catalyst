@@ -30,7 +30,27 @@ createRoot(document.getElementById('root')!).render(
 )
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator && window.isSecureContext) {
+  const hadController = Boolean(navigator.serviceWorker.controller)
+  let refreshing = false
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !refreshing) {
+      refreshing = true
+      window.location.reload()
+    }
+  })
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => undefined)
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      reg.update().catch(() => undefined)
+    }).catch(() => undefined)
+  })
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        reg?.update().catch(() => undefined)
+      })
+    }
   })
 }
