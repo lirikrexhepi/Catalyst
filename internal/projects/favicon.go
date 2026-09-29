@@ -30,12 +30,19 @@ var contentTypes = map[string]string{
 }
 
 // htmlEntryFiles are the pages scanned for <link rel="icon">, in the order a
-// browser would plausibly load them for the project.
+// browser would plausibly load them for the project. Nested app roots come
+// after the top level: a root index.html describes the whole project best.
 var htmlEntryFiles = []string{
 	"index.html",
 	"public/index.html",
 	"src/index.html",
 	"app/index.html",
+	"demo/index.html",
+	"frontend/index.html",
+	"client/index.html",
+	"web/index.html",
+	"www/index.html",
+	"site/index.html",
 	"dist/index.html",
 	"build/index.html",
 }
@@ -49,7 +56,7 @@ var manifestFiles = []string{
 	"public/site.webmanifest",
 }
 
-var wellKnownDirs = []string{"", "public", "static", "assets", "src"}
+var wellKnownDirs = []string{"", "public", "static", "assets", "src", "app", "demo", "demo/assets", "frontend", "frontend/public", "client", "client/public", "web", "www"}
 
 var wellKnownNames = []string{
 	"favicon.ico",
@@ -238,6 +245,10 @@ func resolve(root, base, href string) ([]byte, string, error) {
 		candidates = []string{
 			filepath.Join(root, "public", trimmed),
 			filepath.Join(root, trimmed),
+			// Dev servers often serve a nested root (demo/, frontend/): a
+			// root-absolute href then resolves against the page's own
+			// directory on disk.
+			filepath.Join(base, trimmed),
 		}
 	} else {
 		candidates = []string{filepath.Join(base, clean)}

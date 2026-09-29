@@ -4,7 +4,7 @@ import { providerIcon } from '../orchestrator/providerIcons';
 import { DefaultModels, ProviderDefault } from './useDefaultModels';
 import { COPYABLE, emailFromDetail, ProviderAccounts, statusKey } from './useProviderAccounts';
 import { ClaudeUpdateState } from '../orchestrator/useClaudeUpdate';
-import { compactTokens, isStale, QuotaBar, since, usageKey } from './usageBars';
+import { compactTokens, isStale, QuotaBar, since, usageKey, UsageRing, until } from './usageBars';
 import { domain, session } from '../../../wailsjs/go/models';
 
 export interface ProviderCardProps {
@@ -50,6 +50,8 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
 
   const driverAccounts = snapshot?.accounts ?? [];
   const projectDefault = accounts.project?.accounts?.[provider.id] || 'default';
+  const [openUsage, setOpenUsage] = React.useState<string | null>(null);
+  const logo = provider.icon ? providerIcon(provider.id, isLight) || provider.icon : undefined;
 
   return (
     <div className={`flex flex-col gap-2.5 p-3 rounded-[12px] ${isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'}`}>
@@ -278,52 +280,87 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
         </div>
       )}
 
-      {/* Usage, per account */}
+      {/* Usage, one compact ring row per account; expands to the full bars. */}
       {usage.length > 0 && (
-        <div className="flex flex-col gap-2 pt-0.5">
+        <div className="flex flex-col gap-1 pt-0.5">
           <span className={groupLabelCls}>Usage</span>
           {usage.map((entry) => {
+            const key = usageKey(entry);
             const accountLabel = entry.accountName || (entry.account && entry.account !== 'default' ? entry.account : '');
+            const primary = entry.limits?.find((l) => l.window === 'five_hour' && typeof l.usedPercent === 'number')
+              ?? entry.limits?.find((l) => typeof l.usedPercent === 'number')
+              ?? entry.limits?.[0];
+            const used = primary?.usedPercent;
+            const known = typeof used === 'number';
+            const open = openUsage === key;
             const spend = (entry.inputTokens ?? 0) + (entry.outputTokens ?? 0) > 0 ||
               (entry.costUsd ?? 0) > 0 || (entry.turns ?? 0) > 0;
+            const expandable = (entry.limits?.length ?? 0) > 0 || !!entry.limitsError;
             return (
-              <div key={usageKey(entry)} className="flex flex-col gap-1.5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className={`text-[11px] font-medium font-['Geist'] tracking-tight ${isLight ? 'text-black/60' : 'text-white/60'}`}>
-                    {accountLabel || 'This run'}
+              <div key={key} className="flex flex-col">
+                <button
+                  type="button"
+                  disabled={!expandable}
+                  onClick={() => setOpenUsage(open ? null : key)}
+                  className={`w-full flex items-center gap-2.5 py-1 text-left rounded-[8px] transition-colors ${
+                    expandable ? (isLight ? 'hover:bg-black/[0.04] cursor-pointer' : 'hover:bg-white/[0.05] cursor-pointer') : 'cursor-default'
+                  }`}
+                >
+                  <UsageRing used={used} logo={logo} size={30} isLight={isLight} />
+                  <span className="flex flex-col min-w-0 flex-1">
+                    <span className={`text-[12px] font-medium font-['Geist'] tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white/90'}`}>
+                      {accountLabel || 'This run'}
+                    </span>
+                    {!!primary?.resetsAt && (
+                      <span className={`text-[10px] font-['Geist'] tracking-tight truncate ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+                        {until(primary.resetsAt)}
+                      </span>
+                    )}
                   </span>
                   {(entry.costUsd ?? 0) > 0 && (
                     <span className={`text-[11px] font-semibold font-['Geist'] tabular-nums ${isLight ? 'text-[#030303]' : 'text-white/90'}`}>
                       ${entry.costUsd.toFixed(2)}
                     </span>
                   )}
-                </div>
-                {spend && (
-                  <div className={`flex items-center gap-3 text-[10px] font-['Geist'] tracking-tight tabular-nums ${isLight ? 'text-black/45' : 'text-white/45'}`}>
-                    <span title="Input tokens">↓ {compactTokens(entry.inputTokens ?? 0)}</span>
-                    <span title="Output tokens">↑ {compactTokens(entry.outputTokens ?? 0)}</span>
-                    {(entry.turns ?? 0) > 0 && (
-                      <span title="Turns">{entry.turns} turn{entry.turns === 1 ? '' : 's'}</span>
+                  <span className={`text-[12px] font-semibold font-['Geist'] tabular-nums ${isLight ? 'text-[#030303]' : 'text-white/90'}`}>
+                    {known ? `${used}%` : '—'}
+                  </span>
+                  {expandable && (
+                    <span className={`material-symbols-rounded text-[15px] leading-none shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''} ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                      expand_more
+                    </span>
+                  )}
+                </button>
+                {open && (
+                  <div className="flex flex-col gap-2 pl-[40px] pr-1 pb-1.5">
+                    {spend && (
+                      <div className={`flex items-center gap-3 text-[10px] font-['Geist'] tracking-tight tabular-nums ${isLight ? 'text-black/45' : 'text-white/45'}`}>
+                        <span title="Input tokens">↓ {compactTokens(entry.inputTokens ?? 0)}</span>
+                        <span title="Output tokens">↑ {compactTokens(entry.outputTokens ?? 0)}</span>
+                        {(entry.turns ?? 0) > 0 && (
+                          <span title="Turns">{entry.turns} turn{entry.turns === 1 ? '' : 's'}</span>
+                        )}
+                      </div>
+                    )}
+                    {entry.limits?.map((limit) => (
+                      <QuotaBar key={`${key}-${limit.window}`} limit={limit} />
+                    ))}
+                    {!!entry.limitsFetchedAt && (
+                      <span
+                        title="Fetched from your subscription while Settings is open."
+                        className={`text-[9px] font-['Geist'] tracking-tight self-end ${
+                          isStale(entry.limitsFetchedAt) ? 'text-amber-300/60' : isLight ? 'text-black/30' : 'text-white/30'
+                        }`}
+                      >
+                        Updated {since(entry.limitsFetchedAt)}
+                      </span>
+                    )}
+                    {!!entry.limitsError && (
+                      <span className={`text-[10px] font-['Geist'] tracking-tight leading-relaxed ${isLight ? 'text-black/40' : 'text-white/35'}`}>
+                        {entry.limitsError}
+                      </span>
                     )}
                   </div>
-                )}
-                {entry.limits?.map((limit) => (
-                  <QuotaBar key={`${usageKey(entry)}-${limit.window}`} limit={limit} />
-                ))}
-                {!!entry.limitsFetchedAt && (
-                  <span
-                    title="Fetched from your subscription while Settings is open."
-                    className={`text-[9px] font-['Geist'] tracking-tight self-end ${
-                      isStale(entry.limitsFetchedAt) ? 'text-amber-300/60' : isLight ? 'text-black/30' : 'text-white/30'
-                    }`}
-                  >
-                    Updated {since(entry.limitsFetchedAt)}
-                  </span>
-                )}
-                {!!entry.limitsError && (
-                  <span className={`text-[10px] font-['Geist'] tracking-tight leading-relaxed ${isLight ? 'text-black/40' : 'text-white/35'}`}>
-                    {entry.limitsError}
-                  </span>
                 )}
               </div>
             );

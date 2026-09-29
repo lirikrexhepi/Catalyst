@@ -642,7 +642,11 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
       ? 320
       : 275;
   const targetHeight =
-    mode === 'project-chats' || mode === 'claude-chats' ? 335 : mode === 'projects' ? 245 : mode === 'usage' ? 180 : 36;
+    mode === 'project-chats' || mode === 'claude-chats' || mode === 'projects'
+      ? 'auto'
+      : mode === 'usage'
+        ? 180
+        : 36;
   const targetRadius = mode === 'idle' ? 18 : 24;
 
   // SVG Ring values for 20px circle (r=8 -> circum=50.26)
@@ -854,19 +858,35 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               <span className="text-[12px] font-semibold text-white/90 font-['Geist'] tracking-tight">
                 Projects
               </span>
-              <button
-                type="button"
-                onClick={() => setMode('idle')}
-                className={`w-5 h-5 rounded-full ${
-                  isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
-                } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
-              >
-                <span className="material-symbols-rounded text-[14px] leading-none">close</span>
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  title="Add project folder"
+                  disabled={projects?.isChoosing}
+                  onClick={() => {
+                    void projects?.choose();
+                    setMode('idle');
+                  }}
+                  className={`w-5 h-5 rounded-full ${
+                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
+                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40`}
+                >
+                  <span className="material-symbols-rounded text-[14px] leading-none">add</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('idle')}
+                  className={`w-5 h-5 rounded-full ${
+                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
+                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
+                >
+                  <span className="material-symbols-rounded text-[14px] leading-none">close</span>
+                </button>
+              </div>
             </div>
 
             {/* Projects List */}
-            <ScrollArea className="flex-1 pr-1" maxHeight={145}>
+            <ScrollArea className="flex-1 pr-1" maxHeight={210}>
               {projects?.projects.length === 0 ? (
                 <div className="py-6 text-center text-[11.5px] text-white/40 font-['Geist']">
                   No projects added yet
@@ -1109,26 +1129,6 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 </div>
               )}
             </ScrollArea>
-
-            {/* Bottom + Add Project Folder */}
-            <button
-              type="button"
-              disabled={projects?.isChoosing}
-              onClick={() => {
-                void projects?.choose();
-                setMode('idle');
-              }}
-              className={`w-full mt-2 h-[30px] rounded-full ${
-                isLight
-                  ? 'bg-black/[0.06] hover:bg-black/[0.1] text-[#1d1d1f]'
-                  : 'bg-[#1c1c1e] hover:bg-[#2c2c2e] text-white'
-              } active:scale-[0.98] flex items-center justify-center gap-1.5 text-[11.5px] font-medium font-['Geist'] transition-all cursor-pointer shrink-0`}
-            >
-              <span className="material-symbols-rounded text-[14px] leading-none text-white/80">
-                {projects?.isChoosing ? 'hourglass_top' : 'add'}
-              </span>
-              <span>{projects?.isChoosing ? 'Choosing…' : 'Add Project Folder…'}</span>
-            </button>
           </motion.div>
         )}
 

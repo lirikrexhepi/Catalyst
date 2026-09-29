@@ -76,6 +76,21 @@ func TestFindWellKnownFallback(t *testing.T) {
 	}
 }
 
+func TestFindNestedEntryWithRootAbsoluteHref(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "demo", "assets", "house_icon.ico"), "HOUSE")
+	writeFile(t, filepath.Join(root, "demo", "index.html"),
+		`<html><head><link rel="icon" type="image/x-icon" href="/assets/house_icon.ico"></head></html>`)
+
+	data, ctype, err := Find(root)
+	if err != nil {
+		t.Fatalf("Find: %v", err)
+	}
+	if string(data) != "HOUSE" || ctype != "image/x-icon" {
+		t.Fatalf("got %q %q", data, ctype)
+	}
+}
+
 func TestFindNone(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "main.go"), "package main")

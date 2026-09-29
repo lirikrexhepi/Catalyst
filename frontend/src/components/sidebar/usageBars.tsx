@@ -72,11 +72,65 @@ export function until(resetsAtSeconds: number): string {
   return hours < 24 ? `resets in ${hours}h` : `resets in ${Math.floor(hours / 24)}d`;
 }
 
+// Bar/ring tone by quota used: calm below 75, warming below 90, hot above.
+export function quotaTone(used: number | undefined): string {
+  if (typeof used !== 'number' || used < 75) return 'bg-white/55';
+  if (used < 90) return 'bg-amber-300/80';
+  return 'bg-rose-400/85';
+}
+
+export function quotaRingColor(used: number | undefined, isLight: boolean): string {
+  if (typeof used !== 'number' || used < 75) return isLight ? 'rgba(0, 0, 0, 0.55)' : 'rgba(255, 255, 255, 0.6)';
+  if (used < 90) return 'rgba(252, 211, 77, 0.9)';
+  return 'rgba(251, 113, 133, 0.9)';
+}
+
+export interface UsageRingProps {
+  used?: number;
+  logo?: string;
+  size?: number;
+  isLight?: boolean;
+}
+
+/** Compact quota ring: progress arc around the provider logo, mirroring the
+ *  island's model usage ring. The % itself sits beside the ring. */
+export const UsageRing: React.FC<UsageRingProps> = ({ used, logo, size = 26, isLight }) => {
+  const r = 8;
+  const circumference = 2 * Math.PI * r;
+  const known = typeof used === 'number';
+  const offset = circumference - (circumference * Math.min(100, used ?? 0)) / 100;
+  const logoSize = Math.round(size * 0.52);
+  return (
+    <span className="relative inline-flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r={r} fill="none" stroke="rgba(127, 127, 127, 0.25)" strokeWidth="2" />
+        {known && (
+          <circle
+            cx="10"
+            cy="10"
+            r={r}
+            fill="none"
+            stroke={quotaRingColor(used, !!isLight)}
+            strokeWidth="2"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-[stroke-dashoffset] duration-300"
+          />
+        )}
+      </svg>
+      {logo ? (
+        <img src={logo} alt="" draggable={false} className="object-contain" style={{ width: logoSize, height: logoSize }} />
+      ) : null}
+    </span>
+  );
+};
+
 export const QuotaBar: React.FC<{ limit: domain.RateLimit }> = ({ limit }) => {
   const used = limit.usedPercent;
   const known = typeof used === 'number';
   const label = windowLabel(limit.window);
-  const tone = !known || used < 75 ? 'bg-white/55' : used < 90 ? 'bg-amber-300/80' : 'bg-rose-400/85';
+  const tone = quotaTone(used);
 
   return (
     <div className="flex flex-col gap-1">

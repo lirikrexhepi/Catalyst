@@ -92,8 +92,6 @@ export function ListHistory():Promise<Array<history.Meta>>;
 
 export function ListManagedServers():Promise<Array<devserver.Snapshot>>;
 
-export function ProjectIcon(arg1:string):Promise<string>;
-
 export function ListProjects():Promise<Array<projects.Project>>;
 
 export function ListProviders(arg1:boolean):Promise<Array<domain.ProviderSnapshot>>;
@@ -133,6 +131,8 @@ export function ParseTasks(arg1:string):Promise<Array<session.TaskRequest>>;
 export function PreviewAttachment(arg1:string):Promise<string>;
 
 export function ProjectFile(arg1:string,arg2:string):Promise<files.Content>;
+
+export function ProjectIcon(arg1:string):Promise<string>;
 
 export function ProjectTree(arg1:string,arg2:string):Promise<Array<files.Entry>>;
 
