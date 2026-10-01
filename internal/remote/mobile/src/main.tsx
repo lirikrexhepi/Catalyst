@@ -4,6 +4,7 @@ import '@fontsource-variable/geist'
 import './index.css'
 import './styles/tokens.css'
 import { initTheme } from './theme'
+import { initAppIcon } from './appIcon'
 import './styles/chat.css'
 import './styles/picker.css'
 import './styles/scrubber.css'
@@ -22,6 +23,7 @@ installSpringEasing('ease-drawer', SPRINGS.drawer)
 initPhoneLogger()
 
 initTheme()
+initAppIcon()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

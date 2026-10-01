@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react'
 import jsQR from 'jsqr'
 import { QrCode } from 'lucide-react'
 import { api, applyScannedLink, getBase, getToken } from '../api'
+import { appIconSrc } from '../appIcons'
+import { useAppIcon } from '../appIcon'
 import { runDiagnostics, maskToken, DiagResult } from '../debug'
 import wallpaperImg from '../assets/wallpaper.png'
 
@@ -16,6 +18,7 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
   const [diagRunning, setDiagRunning] = useState(false)
   const [diagResults, setDiagResults] = useState<DiagResult[] | null>(null)
   const [copied, setCopied] = useState(false)
+  const appIcon = useAppIcon()
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -165,7 +168,7 @@ export default function AuthScreen({ onDone }: { onDone: () => void }) {
 
         <div className="pair-card">
           <div className="pair-brand">
-            <img src="/icon-192.png" alt="" className="pair-brand-icon" />
+            <img src={appIconSrc(appIcon)} alt="" className="pair-brand-icon" />
             <span>the orchestrator.</span>
           </div>
           <h1 className="pair-title">

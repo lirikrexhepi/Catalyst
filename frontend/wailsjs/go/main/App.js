@@ -82,6 +82,10 @@ export function GetAllUserPreferences() {
   return window['go']['main']['App']['GetAllUserPreferences']();
 }
 
+export function GetAppIcon() {
+  return window['go']['main']['App']['GetAppIcon']();
+}
+
 export function GetBackgroundSettings() {
   return window['go']['main']['App']['GetBackgroundSettings']();
 }
@@ -320,6 +324,10 @@ export function SendTurn(arg1) {
 
 export function ServerLogs(arg1) {
   return window['go']['main']['App']['ServerLogs'](arg1);
+}
+
+export function SetAppIcon(arg1) {
+  return window['go']['main']['App']['SetAppIcon'](arg1);
 }
 
 export function SetChatArchived(arg1, arg2, arg3) {

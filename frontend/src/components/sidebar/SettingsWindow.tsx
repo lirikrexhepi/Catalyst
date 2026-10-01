@@ -8,7 +8,7 @@ import { ProvidersSection } from './ProvidersSection';
 import { RemoteAccessSection } from './RemoteAccessSection';
 import { useClaudeUpdate } from '../orchestrator/useClaudeUpdate';
 import { ScrollArea } from '../common/ScrollArea';
-import { FontPicker, GeneralSettings, SectionLabel, ThemePicker, WallpaperPicker } from './SettingsParts';
+import { AppIconPicker, FontPicker, GeneralSettings, SectionLabel, ThemePicker, WallpaperPicker } from './SettingsParts';
 
 type SectionId = 'general' | 'providers' | 'appearance' | 'remote';
 
@@ -137,6 +137,8 @@ export function SettingsWindow({
                       <>
                         <SectionLabel isLight={isLight}>Theme</SectionLabel>
                         <ThemePicker isLight={isLight} />
+                        <div className="h-2" />
+                        <AppIconPicker isLight={isLight} />
                         <div className="h-2" />
                         <FontPicker isLight={isLight} />
                         <div className="h-2" />

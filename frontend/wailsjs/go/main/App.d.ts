@@ -54,6 +54,8 @@ export function GetAgentTasks(arg1:string):Promise<Array<domain.PlanEntry>>;
 
 export function GetAllUserPreferences():Promise<Record<string, string>>;
 
+export function GetAppIcon():Promise<string>;
+
 export function GetBackgroundSettings():Promise<main.BackgroundSettings>;
 
 export function GetProjectMemory(arg1:string):Promise<string>;
@@ -173,6 +175,8 @@ export function SelectProject(arg1:string):Promise<projects.Project>;
 export function SendTurn(arg1:domain.SendTurnInput):Promise<void>;
 
 export function ServerLogs(arg1:string):Promise<Array<string>>;
+
+export function SetAppIcon(arg1:string):Promise<void>;
 
 export function SetChatArchived(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 

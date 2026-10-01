@@ -3,7 +3,8 @@ import { WallpaperState } from './useWallpaper';
 import { isCustom } from './wallpapers';
 import { useTheme } from '../../themes';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
-import { GetUserPreference, SetUserPreference } from '../../../wailsjs/go/main/App';
+import { GetAppIcon, GetUserPreference, SetAppIcon, SetUserPreference } from '../../../wailsjs/go/main/App';
+import { APP_ICONS, DEFAULT_APP_ICON } from '../../appIcons';
 import { BackgroundRows } from './BackgroundSection';
 import { addFontFiles, applyFont, currentFontChoice, FONT_PRESETS, fontStack, isFontAvailable, loadFontCss, removeFamily, storedFaces } from '../../fonts';
 
@@ -403,6 +404,63 @@ export function FontPicker({ isLight }: { isLight: boolean }) {
         ))}
       </div>
       {error && <span className="text-[11px] text-red-300/90">{error}</span>}
+    </div>
+  );
+}
+
+export function AppIconPicker({ isLight }: { isLight: boolean }) {
+  const [current, setCurrent] = useState(DEFAULT_APP_ICON);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    GetAppIcon()
+      .then((id) => setCurrent(id || DEFAULT_APP_ICON))
+      .catch(() => undefined);
+  }, []);
+
+  const choose = (id: string) => {
+    const previous = current;
+    setCurrent(id);
+    setError(null);
+    SetAppIcon(id).catch((cause) => {
+      setCurrent(previous);
+      setError(cause instanceof Error ? cause.message : String(cause));
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <SectionLabel isLight={isLight}>App icon</SectionLabel>
+      <div className="grid grid-cols-6 gap-2">
+        {APP_ICONS.map((icon) => {
+          const active = icon.id === current;
+          return (
+            <button
+              key={icon.id}
+              type="button"
+              title={icon.label}
+              aria-label={icon.label}
+              aria-pressed={active}
+              onClick={() => choose(icon.id)}
+              className={`aspect-square rounded-[16px] p-1.5 transition-all duration-150 cursor-pointer active:scale-95 ${
+                active
+                  ? isLight
+                    ? 'ring-2 ring-black/70'
+                    : 'ring-2 ring-white/80'
+                  : isLight
+                    ? 'hover:bg-black/[0.05]'
+                    : 'hover:bg-white/[0.06]'
+              }`}
+            >
+              <img src={icon.src} alt="" draggable={false} className="w-full h-full object-contain" />
+            </button>
+          );
+        })}
+      </div>
+      <span className={`px-1 text-[11px] tracking-tight leading-snug ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+        Changes the window and taskbar icon. Pinned shortcuts keep the original icon.
+      </span>
+      {error && <span className="px-1 text-[11px] text-red-300/90">{error}</span>}
     </div>
   );
 }

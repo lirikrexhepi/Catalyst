@@ -323,6 +323,13 @@ func (a *App) observe(event domain.RuntimeEvent) {
 
 func (a *App) domReady(ctx context.Context) {
 	runtime.WindowShow(ctx)
+	if id := a.GetAppIcon(); id != defaultAppIcon {
+		go func() {
+			if err := applyAppIcon(id); err != nil {
+				logger.Warnf("App", "Could not apply app icon %s: %v", id, err)
+			}
+		}()
+	}
 }
 
 // trackTaskState keeps a task's stored state in step with its turns, so a
