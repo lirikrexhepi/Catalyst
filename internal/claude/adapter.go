@@ -136,11 +136,14 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 	}
 	if in.Resume != "" {
 		args = append(args, "--resume", in.Resume)
+		if in.Fork {
+			args = append(args, "--fork-session")
+		}
 	}
 	if in.Skills != nil && in.Skills.Mode == domain.SkillsNone {
 		args = append(args, "--disable-slash-commands")
 	}
-	if prompt := skillPrompt(in.Skills); prompt != "" {
+	if prompt := systemPromptAppend(in); prompt != "" {
 		args = append(args, "--append-system-prompt", prompt)
 	}
 
@@ -157,6 +160,17 @@ func (a *Adapter) buildArgs(in domain.SessionStartInput) []string {
 
 func skillPrompt(policy *domain.SkillPolicy) string {
 	return policy.Instruction()
+}
+
+func systemPromptAppend(in domain.SessionStartInput) string {
+	parts := []string{}
+	if !in.PlanOnly {
+		parts = append(parts, provider.RuntimeInstructions)
+	}
+	if skills := skillPrompt(in.Skills); skills != "" {
+		parts = append(parts, skills)
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 func sessionSettings(options domain.ModelOptions, policy *domain.SkillPolicy) string {

@@ -104,7 +104,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
       >
       <div className="overflow-hidden">
       <ScrollArea ref={scrollRef} maxHeight={maxHeight} className="px-4 pb-4">
-        <AgentSessionFeed blocks={blocks} />
+        <AgentSessionFeed blocks={blocks} isWorking={isBusy} />
 
         {/* The feed already renders its own spinner while a thinking block is
             streaming, so this only covers the gap before any block arrives. */}

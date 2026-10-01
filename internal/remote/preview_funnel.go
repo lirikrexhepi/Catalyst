@@ -3,10 +3,6 @@ package remote
 import (
 	"context"
 	"fmt"
-	"net"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os/exec"
 	"strings"
 	"time"
@@ -29,22 +25,18 @@ func (m *PreviewManager) startFunnel(port int) (*previewTunnel, bool) {
 		return nil, false
 	}
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	target, stopProxy, err := startPreviewProxy(port)
 	if err != nil {
 		m.releaseFunnelPort(https)
 		return nil, false
 	}
-	proxy := &http.Server{Handler: hostRewriteProxy(port), ReadHeaderTimeout: 10 * time.Second}
-	go func() { _ = proxy.Serve(listener) }()
-
-	target := "http://" + listener.Addr().String()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "tailscale", "funnel", "--bg", fmt.Sprintf("--https=%d", https), target)
 	setSysProcAttr(cmd)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		logger.Warnf("Preview", "Tailscale Funnel for localhost:%d failed, using Cloudflare: %s", port, strings.TrimSpace(string(out)))
-		_ = proxy.Close()
+		stopProxy()
 		m.releaseFunnelPort(https)
 		return nil, false
 	}
@@ -52,7 +44,7 @@ func (m *PreviewManager) startFunnel(port int) (*previewTunnel, bool) {
 	link := fmt.Sprintf("%s:%d", base, https)
 	closeFunnel := func() {
 		funnelOff(https)
-		_ = proxy.Close()
+		stopProxy()
 		m.releaseFunnelPort(https)
 	}
 	for i := 0; i < 6 && !tunnelAnswers(link); i++ {
@@ -98,17 +90,4 @@ func funnelOff(https int) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		logger.Warnf("Preview", "Could not turn off Tailscale Funnel on %d: %s", https, strings.TrimSpace(string(out)))
 	}
-}
-
-func hostRewriteProxy(port int) http.Handler {
-	target := &url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", port)}
-	host := fmt.Sprintf("localhost:%d", port)
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	direct := proxy.Director
-	proxy.Director = func(r *http.Request) {
-		direct(r)
-		r.Host = host
-	}
-	proxy.FlushInterval = -1
-	return proxy
 }

@@ -230,7 +230,7 @@ func (a *App) remoteDeleteThread(threadID string) error {
 	for _, meta := range a.ListHistory() {
 		for _, task := range meta.Tasks {
 			if task.ThreadID == threadID {
-				return a.DeleteTaskHistory(meta.Workspace.ID, threadID)
+				return a.SetChatArchived(meta.Workspace.ID, threadID, true)
 			}
 		}
 	}

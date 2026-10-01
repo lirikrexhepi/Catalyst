@@ -495,3 +495,54 @@ func (r *Recorder) ForgetCliTask(workspaceID, threadID string) error {
 	r.notifyChanged()
 	return err
 }
+
+func (r *Recorder) SetChatArchived(workspaceID, threadID string, archived bool) error {
+	if workspaceID == "" {
+		return nil
+	}
+	rootID := RootThreadID(threadID)
+	apply := func(meta *Meta) bool {
+		changed := false
+		matched := false
+		for i := range meta.Tasks {
+			t := &meta.Tasks[i]
+			if threadID != "" && t.ThreadID != threadID && t.ThreadID != rootID && RootThreadID(t.ThreadID) != rootID {
+				continue
+			}
+			matched = true
+			if t.Archived != archived {
+				t.Archived = archived
+				changed = true
+			}
+		}
+		if (threadID == "" || !matched) && meta.Workspace.Archived != archived {
+			meta.Workspace.Archived = archived
+			changed = true
+		}
+		return changed
+	}
+
+	r.mu.Lock()
+	if meta, ok := r.metas[workspaceID]; ok {
+		if apply(meta) {
+			r.dirty[workspaceID] = true
+		}
+		r.mu.Unlock()
+		r.flushMeta(workspaceID)
+		r.notifyChanged()
+		return nil
+	}
+	r.mu.Unlock()
+
+	meta, err := r.store.LoadMeta(workspaceID)
+	if err != nil {
+		return err
+	}
+	if apply(&meta) {
+		if err := r.store.SaveMeta(meta); err != nil {
+			return err
+		}
+	}
+	r.notifyChanged()
+	return nil
+}

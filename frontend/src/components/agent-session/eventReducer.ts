@@ -2,6 +2,7 @@ import { domain } from '../../../wailsjs/go/models';
 import { AgentStreamBlock, UserMessageFile } from './types';
 import { ToolGroupItem } from './ToolGroup';
 import { DiffLine } from './EditTool';
+import { chatRefTitle, isChatRefPath } from '../common/chatDrag';
 
 export type RuntimeEvent = domain.RuntimeEvent;
 
@@ -242,11 +243,15 @@ function resolveApproval(blocks: AgentStreamBlock[], event: RuntimeEvent): Agent
 
 function questionOptionLabel(opt: any): string {
   if (typeof opt === 'string') return opt;
-  if (opt && typeof opt === 'object') {
-    const base = opt.label || opt.value || '';
-    return opt.description ? `${base} — ${opt.description}` : String(base);
-  }
+  if (opt && typeof opt === 'object') return String(opt.label || opt.value || '');
   return String(opt);
+}
+
+function questionOptionDescription(opt: any): string | undefined {
+  if (opt && typeof opt === 'object' && typeof opt.description === 'string' && opt.description.trim()) {
+    return opt.description.trim();
+  }
+  return undefined;
 }
 
 function toQuestionItems(raw: any[]): Array<{ question: string; options: any[] }> {
@@ -262,10 +267,13 @@ function toQuestionItems(raw: any[]): Array<{ question: string; options: any[] }
     .filter((item) => Boolean(item.question));
 }
 
-function buildQuestionOptions(rawOptions: any[]): Array<{ key: string; label: string; isCustomInput?: boolean }> {
+function buildQuestionOptions(
+  rawOptions: any[],
+): Array<{ key: string; label: string; description?: string; isCustomInput?: boolean }> {
   const options = (rawOptions ?? []).map((opt: any, idx: number) => ({
     key: String.fromCharCode(65 + idx),
     label: questionOptionLabel(opt),
+    description: questionOptionDescription(opt),
   }));
   options.push({ key: String.fromCharCode(65 + options.length), label: 'Type your answer', isCustomInput: true } as any);
   return options;
@@ -340,11 +348,12 @@ export function userBlock(
 ): AgentStreamBlock {
   const normalizedFiles: UserMessageFile[] = (files || []).map((f) => {
     if (typeof f === 'string') {
+      if (isChatRefPath(f)) return { path: f, name: chatRefTitle(f), mime: 'application/x-orchestrator-chat' };
       const parts = f.split(/[\\/]/);
       return { path: f, name: parts[parts.length - 1] || f };
     }
     const path = f.path || '';
-    const name = (f as any).name || path.split(/[\\/]/).pop() || path;
+    const name = isChatRefPath(path) ? chatRefTitle(path) : (f as any).name || path.split(/[\\/]/).pop() || path;
     return { path, name, mime: f.mime };
   });
 
@@ -369,7 +378,7 @@ function appendUserMessage(blocks: AgentStreamBlock[], event: RuntimeEvent): Age
   const rawFiles = ((event as any).files || []) as (domain.FileRef | UserMessageFile)[];
   const eventFiles: UserMessageFile[] = rawFiles.map((f) => {
     const path = f.path || '';
-    const name = (f as any).name || path.split(/[\\/]/).pop() || path;
+    const name = isChatRefPath(path) ? chatRefTitle(path) : (f as any).name || path.split(/[\\/]/).pop() || path;
     return { path, name, mime: f.mime };
   });
 

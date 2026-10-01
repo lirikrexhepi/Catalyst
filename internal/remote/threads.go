@@ -225,7 +225,7 @@ func (s *Server) threadSummaries() []ThreadSummary {
 				continue
 			}
 			for _, task := range meta.Tasks {
-				if task.ThreadID == "" || task.ThreadID == meta.CoordinatorThreadID || task.ThreadID == session.CoordinatorThreadID || seen[task.ThreadID] {
+				if task.Archived || task.ThreadID == "" || task.ThreadID == meta.CoordinatorThreadID || task.ThreadID == session.CoordinatorThreadID || seen[task.ThreadID] {
 					continue
 				}
 				seen[task.ThreadID] = true

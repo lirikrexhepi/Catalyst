@@ -13,7 +13,7 @@ func TestSkillPolicyNoneDisablesSkills(t *testing.T) {
 	if !strings.Contains(args, "--disable-slash-commands") {
 		t.Fatal("a no-skills session must disable skills")
 	}
-	if strings.Contains(args, "--append-system-prompt") || strings.Contains(args, "Skill(") {
+	if strings.Contains(args, "load each of these skills") || strings.Contains(args, "Skill(") {
 		t.Fatal("a no-skills session must not mention skills")
 	}
 }
@@ -22,7 +22,7 @@ func TestSkillPolicyOnlyDeniesOthers(t *testing.T) {
 	a := NewAdapter(domain.ProviderSettings{}, &captureEmitter{})
 	policy := &domain.SkillPolicy{Mode: domain.SkillsOnly, Skills: []domain.SkillRef{{Name: "spacious-minimal"}}, Denied: []string{"apple-design", "animate"}}
 	args := strings.Join(a.buildArgs(domain.SessionStartInput{Skills: policy}), "\x00")
-	for _, want := range []string{`"deny":["Skill(apple-design)","Skill(animate)"]`, "--append-system-prompt\x00Before you start, load each of these skills", "spacious-minimal."} {
+	for _, want := range []string{`"deny":["Skill(apple-design)","Skill(animate)"]`, "\n\nBefore you start, load each of these skills", "spacious-minimal."} {
 		if !strings.Contains(args, want) {
 			t.Errorf("args missing %q", strings.ReplaceAll(want, "\x00", " "))
 		}

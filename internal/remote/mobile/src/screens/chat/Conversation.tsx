@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowDown } from 'lucide-react'
-import Feed from '../../feed/Feed'
+import { VirtualFeed, type VirtualFeedHandle } from '../../feed/VirtualFeed'
 import { ModelPicker } from '../../components/modelPicker/ModelPicker'
 import Elapsed from '../../components/Elapsed'
 import { ChatFrame } from '../../components/chrome/ChatFrame'
@@ -9,7 +9,6 @@ import { ModelSwitch } from '../../components/chrome/ModelSwitch'
 import { usageRatio } from '../../components/chrome/usageTone'
 import { Composer } from '../../components/composer/Composer'
 import { providerIcon } from '../../components/providerIcons'
-import { useStickToBottom } from '../../hooks/useStickToBottom'
 import { StatusCard } from '../../components/status/StatusCard'
 import { HistoryScrubber } from '../../components/scrubber/HistoryScrubber'
 import { api } from '../../api'
@@ -24,6 +23,9 @@ interface ConversationProps {
   go: (id: string | null) => void
 }
 
+const EMPTY: never[] = []
+const NO_TIMES: Record<string, number> = {}
+
 export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
   const summaries = useStore((s) => s.summaries)
   const summary = summaries.find((t) => t.threadId === threadId)
@@ -37,7 +39,10 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
   const [actionError, setActionError] = useState<string | null>(null)
   const coordinator = threadId === 'coordinator'
   const preview = usePreviewFlow(coordinator ? null : threadId, summary?.projectCwd || summary?.cwd)
-  const { scroller, pinned, onScroll, jump } = useStickToBottom([thread?.blocks, thread?.busy], threadId)
+  const [pinned, setPinned] = useState(true)
+  const feed = useRef<VirtualFeedHandle | null>(null)
+  const onPinnedChange = useCallback((next: boolean) => setPinned(next), [])
+  const jump = () => feed.current?.jump()
 
   useEffect(() => {
     void loadThread(threadId)
@@ -94,7 +99,22 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
 
   return (
     <div className="screen">
-      <ChatFrame ref={scroller} header={header} dock={dock} floating={floating} onScroll={onScroll}>
+      <ChatFrame
+        header={header}
+        dock={dock}
+        floating={floating}
+        list={(insets) => (
+          <VirtualFeed
+            insetTop={insets.top}
+            insetBottom={insets.bottom}
+            key={threadId}
+            ref={feed}
+            threadId={threadId}
+            blocks={thread?.loaded ? thread.blocks : EMPTY}
+            turnMs={thread?.turnMs ?? NO_TIMES}
+            onPinnedChange={onPinnedChange}
+            header={
+              <>
         {thread?.error && !thread.loaded && !isUnreachable(thread.error) ? (
           <div className="feed">
             <StatusCard title="Couldn't load chat" action={{ label: 'Retry', onClick: () => void loadThread(threadId, true) }}>
@@ -109,7 +129,10 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
             {coordinator ? 'Describe the work. The orchestrator splits it up and starts agents.' : 'Send a message to continue.'}
           </div>
         ) : null}
-        {thread?.loaded ? <Feed threadId={threadId} blocks={thread.blocks} turnMs={thread.turnMs} /> : null}
+              </>
+            }
+            footer={
+              <>
         {busy ? (
           <div className="feed" style={{ paddingTop: 0 }}>
             {pcDown ? (
@@ -170,7 +193,11 @@ export function Conversation({ threadId, openDrawer, go }: ConversationProps) {
             {isUnreachable(actionError) ? null : <StatusCard>{actionError}</StatusCard>}
           </div>
         ) : null}
-      </ChatFrame>
+              </>
+            }
+          />
+        )}
+      />
 
       {picking ? (
         <ModelPicker value={choice} usage={usageRatio(thread?.context)} onChange={(c) => setChoice(threadId, c)} onClose={() => setPicking(false)} />

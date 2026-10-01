@@ -68,6 +68,10 @@ func (a *App) DeleteTaskHistory(workspaceID, threadID string) error {
 	return a.recorder.ForgetCliTask(workspaceID, threadID)
 }
 
+func (a *App) SetChatArchived(workspaceID, threadID string, archived bool) error {
+	return a.recorder.SetChatArchived(workspaceID, threadID, archived)
+}
+
 // ResumeHistory restarts the agents of a stored session.
 //
 // Every task is attempted; the per-task outcome says whether the agent genuinely
@@ -98,6 +102,15 @@ func (a *App) ResumeHistoryThread(workspaceID, threadID string) (session.ResumeR
 		if task.Worktree != nil && task.Worktree.Path != "" {
 			cwd = task.Worktree.Path
 		}
+		resumeID := loaded.Meta.Resume[task.ThreadID]
+		fork := false
+		if loaded.Meta.Workspace.ImportedFrom == "claude-code" {
+			original := importedClaudeSession(loaded.Meta.Workspace, task.ThreadID)
+			if resumeID == "" {
+				resumeID = original
+			}
+			fork = resumeID != "" && resumeID == original
+		}
 		requests = append(requests, session.ResumeRequest{
 			ThreadID:          task.ThreadID,
 			Title:             task.Title,
@@ -106,8 +119,9 @@ func (a *App) ResumeHistoryThread(workspaceID, threadID string) (session.ResumeR
 			Model:             task.Model,
 			Options:           task.Options,
 			Cwd:               cwd,
-			ProviderSessionID: loaded.Meta.Resume[task.ThreadID],
+			ProviderSessionID: resumeID,
 			Permission:        task.Permission,
+			Fork:              fork,
 		})
 	}
 

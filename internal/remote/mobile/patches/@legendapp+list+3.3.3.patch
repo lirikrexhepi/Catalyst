@@ -1,0 +1,44 @@
+diff --git a/node_modules/@legendapp/list/react.js b/node_modules/@legendapp/list/react.js
+index 544cca8..224c588 100644
+--- a/node_modules/@legendapp/list/react.js
++++ b/node_modules/@legendapp/list/react.js
+@@ -1392,7 +1392,7 @@ function doMaintainScrollAtEnd(ctx) {
+       const activeState = maintainScrollAtEnd.animated ? "animated" : "instant";
+       state.maintainingScrollAtEnd = pendingState;
+       requestAnimationFrame(() => {
+-        if (peek$(ctx, "isWithinMaintainScrollAtEndThreshold")) {
++        if (state.props.maintainScrollAtEnd && peek$(ctx, "isWithinMaintainScrollAtEndThreshold")) {
+           state.maintainingScrollAtEnd = activeState;
+           const scroller = refScroller.current;
+           if (state.props.horizontal && isHorizontalRTL(state)) {
+@@ -4072,7 +4072,7 @@ function trackVisibleRange(range, i, top, size, scroll, scrollBottom) {
+ function getIdsInVisibleRange(state, range) {
+   var _a3, _b;
+   const idsInView = [];
+-  const firstVisibleAnchorIndex = (_a3 = range.firstFullyOnScreenIndex) != null ? _a3 : range.startNoBuffer;
++  const firstVisibleAnchorIndex = (_a3 = range.startNoBuffer) != null ? _a3 : range.firstFullyOnScreenIndex;
+   if (firstVisibleAnchorIndex !== null && firstVisibleAnchorIndex !== void 0 && range.endNoBuffer !== null) {
+     for (let i = firstVisibleAnchorIndex; i <= range.endNoBuffer; i++) {
+       const id = (_b = state.idCache[i]) != null ? _b : getId(state, i);
+diff --git a/node_modules/@legendapp/list/react.mjs b/node_modules/@legendapp/list/react.mjs
+index 6b2d901..0fd9b30 100644
+--- a/node_modules/@legendapp/list/react.mjs
++++ b/node_modules/@legendapp/list/react.mjs
+@@ -1371,7 +1371,7 @@ function doMaintainScrollAtEnd(ctx) {
+       const activeState = maintainScrollAtEnd.animated ? "animated" : "instant";
+       state.maintainingScrollAtEnd = pendingState;
+       requestAnimationFrame(() => {
+-        if (peek$(ctx, "isWithinMaintainScrollAtEndThreshold")) {
++        if (state.props.maintainScrollAtEnd && peek$(ctx, "isWithinMaintainScrollAtEndThreshold")) {
+           state.maintainingScrollAtEnd = activeState;
+           const scroller = refScroller.current;
+           if (state.props.horizontal && isHorizontalRTL(state)) {
+@@ -4051,7 +4051,7 @@ function trackVisibleRange(range, i, top, size, scroll, scrollBottom) {
+ function getIdsInVisibleRange(state, range) {
+   var _a3, _b;
+   const idsInView = [];
+-  const firstVisibleAnchorIndex = (_a3 = range.firstFullyOnScreenIndex) != null ? _a3 : range.startNoBuffer;
++  const firstVisibleAnchorIndex = (_a3 = range.startNoBuffer) != null ? _a3 : range.firstFullyOnScreenIndex;
+   if (firstVisibleAnchorIndex !== null && firstVisibleAnchorIndex !== void 0 && range.endNoBuffer !== null) {
+     for (let i = firstVisibleAnchorIndex; i <= range.endNoBuffer; i++) {
+       const id = (_b = state.idCache[i]) != null ? _b : getId(state, i);

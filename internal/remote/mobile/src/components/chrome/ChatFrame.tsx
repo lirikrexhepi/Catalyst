@@ -6,10 +6,11 @@ interface ChatFrameProps {
   dock: ReactNode
   floating?: ReactNode
   onScroll?: UIEventHandler<HTMLDivElement>
-  children: ReactNode
+  list?: (insets: { top: number; bottom: number }) => ReactNode
+  children?: ReactNode
 }
 
-export const ChatFrame = forwardRef<HTMLDivElement, ChatFrameProps>(function ChatFrame({ header, dock, floating, onScroll, children }, scrollRef) {
+export const ChatFrame = forwardRef<HTMLDivElement, ChatFrameProps>(function ChatFrame({ header, dock, floating, onScroll, list, children }, scrollRef) {
   const head = useRef<HTMLDivElement | null>(null)
   const foot = useRef<HTMLDivElement | null>(null)
   const headSize = useElementSize(head)
@@ -21,9 +22,15 @@ export const ChatFrame = forwardRef<HTMLDivElement, ChatFrameProps>(function Cha
 
   return (
     <div className="chat-frame" style={vars}>
-      <div className="chat-scroll" ref={scrollRef} onScroll={onScroll} data-kb-follow="bottom">
-        {children}
-      </div>
+      {list ? (
+        <div className="chat-scroll chat-scroll-list" data-kb-follow="bottom">
+          {list({ top: headSize?.height ?? 0, bottom: footSize?.height ?? 0 })}
+        </div>
+      ) : (
+        <div className="chat-scroll" ref={scrollRef} onScroll={onScroll} data-kb-follow="bottom">
+          {children}
+        </div>
+      )}
       <div className="chat-head" ref={head} data-kb-follow="top">
         {header}
       </div>

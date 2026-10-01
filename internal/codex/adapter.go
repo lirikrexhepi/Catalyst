@@ -183,6 +183,7 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	if in.Resume != "" {
 		params := ThreadResumeParams{
 			ThreadID: in.Resume, Cwd: in.Cwd, Model: model, ApprovalPolicy: approval,
+			DeveloperInstructions: provider.RuntimeInstructions,
 		}
 		var resumed ThreadStartResponse
 		if err := conn.Call(ctx, "thread/resume", params, &resumed); err == nil {
@@ -191,7 +192,7 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	}
 
 	if t.codexID == "" {
-		params := ThreadStartParams{Cwd: in.Cwd, Model: model, ApprovalPolicy: approval}
+		params := ThreadStartParams{Cwd: in.Cwd, Model: model, ApprovalPolicy: approval, DeveloperInstructions: provider.RuntimeInstructions}
 		var started ThreadStartResponse
 		if err := conn.Call(ctx, "thread/start", params, &started); err != nil {
 			return domain.Session{}, fmt.Errorf("codex thread/start: %w", err)

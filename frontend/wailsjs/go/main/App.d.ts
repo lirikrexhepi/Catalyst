@@ -174,6 +174,8 @@ export function SendTurn(arg1:domain.SendTurnInput):Promise<void>;
 
 export function ServerLogs(arg1:string):Promise<Array<string>>;
 
+export function SetChatArchived(arg1:string,arg2:string,arg3:boolean):Promise<void>;
+
 export function SetKeepRunningOnClose(arg1:boolean):Promise<main.BackgroundSettings>;
 
 export function SetProjectAccount(arg1:string,arg2:string,arg3:string):Promise<projects.Project>;

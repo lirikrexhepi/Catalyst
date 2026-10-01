@@ -176,6 +176,7 @@ func NewApp() *App {
 		prefService:    prefService,
 	}
 	app.wireRemote()
+	manager.SetRefExpander(app.expandChatRefs)
 	return app
 }
 

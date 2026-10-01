@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 
 export interface QuestionOption {
-  key: string; // e.g. 'A', 'B', 'C'
+  key: string;
   label: string;
+  description?: string;
   isCustomInput?: boolean;
 }
 
@@ -19,7 +20,6 @@ export interface QuestionToolProps {
   items?: QuestionItem[];
   onAnswer?: (answers: string[]) => void;
   onSkip?: () => void;
-  /** Identifier forwarded to the block-scoped callbacks so the parent can pass stable ones. */
   blockId?: string;
   onAnswerBlock?: (blockId: string, answers: string[]) => void;
   onSkipBlock?: (blockId: string) => void;
@@ -28,13 +28,7 @@ export interface QuestionToolProps {
   className?: string;
 }
 
-/**
- * QuestionTool Component
- * Interactive agent clarification question card with single choice, custom text, and skip/next controls.
- */
 const QuestionToolImpl: React.FC<QuestionToolProps> = ({
-  questionNumber = 1,
-  totalQuestions = 1,
   question,
   options = [],
   items,
@@ -48,41 +42,59 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
   className = '',
 }) => {
   const list: QuestionItem[] = items && items.length > 0 ? items : [{ question, options }];
-  const [picked, setPicked] = useState<Record<number, string>>(() => {
-    const initial: Record<number, string> = {};
-    list.forEach((item, idx) => {
-      if (item.options.length > 0) initial[idx] = item.options[0].key;
-    });
-    return initial;
-  });
+  const [page, setPage] = useState(0);
+  const [picked, setPicked] = useState<Record<number, string>>({});
   const [customs, setCustoms] = useState<Record<number, string>>({});
   const [submitted, setSubmitted] = useState<string | null>(
-    initialAnswered ? (initialAnswer || 'Answered') : null,
+    initialAnswered ? initialAnswer || 'Answered' : null,
   );
 
-  const handleSelect = (index: number, key: string) => {
-    if (submitted) return;
-    setPicked((prev) => ({ ...prev, [index]: key }));
-  };
+  if (submitted) {
+    return (
+      <div className={`flex items-center gap-2 min-w-0 py-[3px] text-[12.5px] tracking-tight leading-[18px] font-['Geist'] text-current/55 ${className}`}>
+        <span className="w-[15px] flex items-center justify-center shrink-0">
+          <span className="material-symbols-outlined text-[14px] leading-none">
+            {submitted === 'Skipped' ? 'block' : 'check'}
+          </span>
+        </span>
+        <span className="truncate min-w-0">
+          {submitted === 'Skipped' ? 'Skipped question' : 'Answered'}
+          {submitted !== 'Skipped' && submitted !== 'Answered' && <span className="text-current/40"> {submitted}</span>}
+        </span>
+      </div>
+    );
+  }
+
+  const item = list[page];
+  const custom = item.options.find((option) => option.isCustomInput);
+  const choices = item.options.filter((option) => !option.isCustomInput);
+  const selected = picked[page];
+  const customText = customs[page] ?? '';
+  const isLast = page === list.length - 1;
 
   const answerFor = (index: number): string => {
-    const item = list[index];
-    const key = picked[index] ?? item.options[0]?.key ?? '';
-    const selectedOpt = item.options.find((o) => o.key === key);
-    if (selectedOpt?.isCustomInput) return customs[index] || selectedOpt.label;
-    return selectedOpt?.label || key;
+    const typed = (customs[index] ?? '').trim();
+    const key = picked[index];
+    const option = list[index].options.find((candidate) => candidate.key === key);
+    if (option?.isCustomInput || (!option && typed)) return typed || option?.label || '';
+    return option?.label || list[index].options.find((candidate) => !candidate.isCustomInput)?.label || '';
   };
 
-  const handleNext = () => {
-    if (submitted) return;
-    const answers = list.map((_, idx) => answerFor(idx));
-    setSubmitted(answers.join(' / '));
+  const canAdvance = Boolean(selected) || customText.trim().length > 0;
+
+  const advance = () => {
+    if (!canAdvance) return;
+    if (!isLast) {
+      setPage(page + 1);
+      return;
+    }
+    const answers = list.map((_, index) => answerFor(index));
+    setSubmitted(answers.join(' · '));
     onAnswer?.(answers);
     if (blockId) onAnswerBlock?.(blockId, answers);
   };
 
-  const handleSkip = () => {
-    if (submitted) return;
+  const skip = () => {
     setSubmitted('Skipped');
     onSkip?.();
     if (blockId) onSkipBlock?.(blockId);
@@ -90,119 +102,101 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
 
   return (
     <div
-      className={`rounded-xl bg-current/[0.05] p-3 text-current max-w-full font-['Geist'] select-none flex flex-col gap-2.5 border-0 shadow-none ${className}`}
+      className={`rounded-[16px] bg-current/[0.045] border border-current/[0.07] p-1.5 font-['Geist'] text-current select-none ${className}`}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[15px] text-current/60">
-            chat_bubble_outline
-          </span>
-          <span className="text-[12px] font-medium text-current/90">Question</span>
-        </div>
-
-        <span className="text-[11px] text-current/40 tabular-nums">
-          {questionNumber} of {totalQuestions}
-        </span>
-      </div>
-
-      {list.map((item, index) => {
-        const selectedKey = picked[index] ?? item.options[0]?.key ?? '';
-        const customText = customs[index] ?? '';
-        return (
-          <div key={index} className="flex flex-col gap-1.5">
-            <div className="flex items-start gap-2 pt-0.5">
-              <span className="text-[12px] font-bold text-white/60 select-none">
-                {list.length > 1 ? `${questionNumber + index}` : questionNumber}
-              </span>
-              <span className="text-[12px] font-medium text-white tracking-tight leading-relaxed">
-                {item.question}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1.5 pl-3">
-              {item.options.map((opt) => {
-                const isSelected = selectedKey === opt.key;
-
-                if (opt.isCustomInput) {
-                  return (
-                    <div
-                      key={opt.key}
-                      onClick={() => handleSelect(index, opt.key)}
-                      className={`flex items-center gap-2 px-2 py-1 rounded-lg transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-current/[0.12] text-current'
-                          : 'bg-current/[0.04] hover:bg-current/[0.08] text-current/70'
-                      }`}
-                    >
-                      <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-white/15 text-white/90 select-none">
-                        {opt.key}
-                      </span>
-                      <input
-                        type="text"
-                        value={customText}
-                        onChange={(e) => {
-                          setCustoms((prev) => ({ ...prev, [index]: e.target.value }));
-                          setPicked((prev) => ({ ...prev, [index]: opt.key }));
-                        }}
-                        placeholder="Type your answer"
-                        className="bg-transparent border-0 outline-none text-[12px] font-['Geist'] text-white placeholder:text-white/40 flex-1 p-0 m-0"
-                      />
-                    </div>
-                  );
-                }
-
-                return (
-                  <button
-                    key={opt.key}
-                    type="button"
-                    onClick={() => handleSelect(index, opt.key)}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all cursor-pointer active:scale-[0.99] ${
-                      isSelected
-                        ? 'bg-current/[0.12] text-current'
-                        : 'bg-current/[0.04] hover:bg-current/[0.08] text-current/75'
-                    }`}
-                  >
-                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-white/15 text-white/90 select-none">
-                      {opt.key}
-                    </span>
-                    <span className="text-[12px] tracking-tight">{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
-
-      <div className="flex items-center justify-between pt-1">
-        {submitted ? (
-          <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium py-0.5">
-            <span className="material-symbols-outlined text-[14px]">check_circle</span>
-            <span className="truncate max-w-[280px]">Answered: {submitted}</span>
-          </div>
-        ) : (
-          <div />
-        )}
-
-        {!submitted && (
-          <div className="flex items-center gap-2">
+      <div className="flex items-start justify-between gap-3 px-2.5 pt-2 pb-2.5">
+        <span className="text-[13px] font-medium tracking-tight leading-[1.45]">{item.question}</span>
+        {list.length > 1 && (
+          <span className="flex items-center gap-0.5 text-[11.5px] text-current/40 tabular-nums shrink-0 pt-px">
             <button
               type="button"
-              onClick={handleSkip}
-              className="px-2.5 py-1 text-[12px] text-current/50 hover:text-current transition-colors cursor-pointer"
+              disabled={page === 0}
+              onClick={() => setPage(page - 1)}
+              className="w-[18px] h-[18px] flex items-center justify-center rounded-[5px] enabled:hover:bg-current/[0.08] enabled:hover:text-current disabled:opacity-30 cursor-pointer disabled:cursor-default"
             >
-              Skip
+              <span className="material-symbols-outlined text-[14px] leading-none">chevron_left</span>
             </button>
-
+            {page + 1} of {list.length}
             <button
-              type="submit"
-              onClick={handleNext}
-              className="px-4 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 active:scale-95 text-[12px] font-medium text-white transition-all cursor-pointer"
+              type="button"
+              disabled={isLast || !canAdvance}
+              onClick={() => setPage(page + 1)}
+              className="w-[18px] h-[18px] flex items-center justify-center rounded-[5px] enabled:hover:bg-current/[0.08] enabled:hover:text-current disabled:opacity-30 cursor-pointer disabled:cursor-default"
             >
-              Submit
+              <span className="material-symbols-outlined text-[14px] leading-none">chevron_right</span>
             </button>
-          </div>
+          </span>
         )}
+      </div>
+
+      <div className="flex flex-col gap-0.5">
+        {choices.map((option, index) => {
+          const active = selected === option.key;
+          return (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setPicked((prev) => ({ ...prev, [page]: option.key }))}
+              onDoubleClick={() => {
+                setPicked((prev) => ({ ...prev, [page]: option.key }));
+                if (!isLast) setPage(page + 1);
+              }}
+              className={`flex items-start gap-3 px-2.5 py-2 rounded-[10px] text-left transition-colors duration-150 cursor-pointer ${
+                active ? 'bg-current/[0.08]' : 'hover:bg-current/[0.045]'
+              }`}
+            >
+              <span className={`w-3 text-[12px] tabular-nums leading-[18px] shrink-0 ${active ? 'text-current/80' : 'text-current/35'}`}>
+                {index + 1}
+              </span>
+              <span className="text-[12.5px] tracking-tight leading-[18px] min-w-0">
+                <span className={`font-medium ${active ? 'text-current' : 'text-current/85'}`}>{option.label}</span>
+                {option.description && <span className="text-current/40"> {option.description}</span>}
+              </span>
+            </button>
+          );
+        })}
+
+        <label
+          className={`flex items-center gap-3 px-2.5 py-2 rounded-[10px] transition-colors duration-150 cursor-text ${
+            custom && selected === custom.key ? 'bg-current/[0.08]' : 'hover:bg-current/[0.045]'
+          }`}
+        >
+          <span className="w-3 text-[12px] text-current/35 leading-[18px] shrink-0">
+            <span className="material-symbols-outlined text-[13px] leading-none align-[-2px]">edit</span>
+          </span>
+          <input
+            type="text"
+            value={customText}
+            onChange={(event) => {
+              const value = event.target.value;
+              setCustoms((prev) => ({ ...prev, [page]: value }));
+              setPicked((prev) => ({ ...prev, [page]: custom?.key ?? '' }));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') advance();
+            }}
+            placeholder="Type your own answer"
+            className="flex-1 min-w-0 bg-transparent border-0 outline-none p-0 text-[12.5px] tracking-tight leading-[18px] text-current placeholder:text-current/35 select-text"
+          />
+        </label>
+      </div>
+
+      <div className="flex items-center justify-end gap-1 px-1 pt-2 pb-0.5">
+        <button
+          type="button"
+          onClick={skip}
+          className="h-[28px] px-3 rounded-full text-[12px] text-current/45 hover:text-current transition-colors duration-150 cursor-pointer"
+        >
+          Skip
+        </button>
+        <button
+          type="button"
+          disabled={!canAdvance}
+          onClick={advance}
+          className="h-[28px] px-3.5 rounded-full bg-current/[0.12] enabled:hover:bg-current/[0.18] text-[12px] font-medium text-current disabled:text-current/35 disabled:bg-current/[0.05] transition-all duration-150 enabled:active:scale-95 cursor-pointer disabled:cursor-default"
+        >
+          {isLast ? 'Submit' : 'Next question'}
+        </button>
       </div>
     </div>
   );

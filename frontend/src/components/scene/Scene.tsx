@@ -14,6 +14,7 @@ import { useAttachments } from '../common/useAttachments';
 import { requestPinToBottom } from '../common/usePinnedScroll';
 import { TitleBar } from '../common/TitleBar';
 import { DynamicIsland, DynamicIslandNotification } from '../common/DynamicIsland';
+import { SettingsWindow } from '../sidebar/SettingsWindow';
 import { useGit } from '../git';
 import { useClaudeImport, useHistory } from '../history';
 import {
@@ -265,7 +266,8 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   // Always poll servers so cards know about running dev servers in real-time
   const runningServers = useServers(true);
   const wallpaper = useWallpaper();
-  const defaultModels = useDefaultModels(activePanel === 'settings');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const defaultModels = useDefaultModels(activePanel === 'settings' || settingsOpen);
 
   const clearSession = useCallback(() => {
     spawner.clear();
@@ -824,6 +826,9 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
           activeWorkspaceId={spawner.workspaceId}
           onOpenHistory={handleOpenHistory}
           onDeleteHistory={historyState.remove}
+          onSetChatArchived={(workspaceId, threadId, archived) => {
+            void historyState.setArchived(workspaceId, threadId, archived);
+          }}
           onRefreshHistory={historyState.refresh}
           onImportClaudeSession={(filePath) => {
             void (async () => {
@@ -1274,7 +1279,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
             }}
             animate={{
               width: 380,
-              height: 520,
+              height: 430,
               borderRadius: 24,
               y: 0,
               opacity: 1,
@@ -1343,12 +1348,16 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                 ease: [0.16, 1, 0.3, 1],
               }}
               style={{ transformOrigin: 'left center' }}
-              className="w-[380px] h-[520px] flex flex-col shrink-0"
+              className="w-[380px] h-[430px] flex flex-col shrink-0"
             >
               <SettingsPanel
                 wallpaper={wallpaper}
                 defaultModels={defaultModels}
                 onClose={closePanel}
+                onOpenAll={() => {
+                  closePanel();
+                  setSettingsOpen(true);
+                }}
               />
             </motion.div>
           </motion.div>
@@ -1356,6 +1365,13 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
       </AnimatePresence>
 
 
+
+      <SettingsWindow
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        wallpaper={wallpaper}
+        defaultModels={defaultModels}
+      />
 
       {/* Background Canvas Layer */}
       <div className="absolute inset-0 pointer-events-none z-10">

@@ -13,6 +13,7 @@ export interface AttachmentStripProps {
 
 function iconFor(mime: string | undefined): string {
   if (!mime) return 'draft';
+  if (mime === 'application/x-orchestrator-chat') return 'forum';
   if (mime.startsWith('image/')) return 'image';
   if (mime === 'application/pdf') return 'picture_as_pdf';
   if (mime.startsWith('text/')) return 'description';

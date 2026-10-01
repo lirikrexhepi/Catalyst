@@ -152,6 +152,7 @@ export const OrchestratorCard: React.FC<OrchestratorCardProps> = ({
             >
               <AgentSessionFeed
                 blocks={blocks}
+                isWorking={isBusy}
                 canUseWorktree={canUseWorktree}
                 isActive={isActive}
                 launchedKeys={launchedKeys}

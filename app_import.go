@@ -10,6 +10,7 @@ import (
 
 	"composer/internal/claudeimport"
 	"composer/internal/domain"
+	"composer/internal/history"
 	"composer/internal/session"
 
 )
@@ -55,6 +56,11 @@ func (a *App) ImportClaudeCodeSession(filePath string) (string, error) {
 		return "", fmt.Errorf("transcript holds no conversation")
 	}
 
+	if existing, ok := a.findClaudeImport(parsed.SessionID); ok {
+		a.syncClaudeImport(existing, parsed)
+		return existing.Workspace.ID, nil
+	}
+
 	cwd := parsed.Cwd
 	if strings.TrimSpace(cwd) == "" {
 		if wd := a.resolveCwd(""); wd != "" {
@@ -66,6 +72,7 @@ func (a *App) ImportClaudeCodeSession(filePath string) (string, error) {
 
 	workspace := a.workspaces.Create(parsed.Title, parsed.Prompt, cwd)
 	workspace.ImportedFrom = "claude-code"
+	workspace.ImportedSession = parsed.SessionID
 	threadID := "import-" + compactID(parsed.SessionID) + "-" + strconv.FormatInt(time.Now().UnixMilli(), 36)
 	task, ok := a.workspaces.AddTask(workspace.ID, domain.Task{
 		ThreadID: threadID,
@@ -81,13 +88,14 @@ func (a *App) ImportClaudeCodeSession(filePath string) (string, error) {
 
 	a.recorder.OpenWorkspace(*workspace, "")
 	a.recorder.TrackTask(*task)
+	a.recorder.NoteProviderSession(threadID, parsed.SessionID)
 
 	notice := domain.RuntimeEvent{
 		Kind:     domain.EventNotice,
 		ThreadID: threadID,
 		Driver:   domain.DriverClaude,
 		At:       parsed.StartedAt,
-		Text:     fmt.Sprintf("Imported from Claude Code session %s. New agents start fresh here with this transcript as context.", parsed.SessionID),
+		Text:     "Opened from Claude Code. Messages here continue a copy of that conversation.",
 	}
 	_ = a.historyStore.Append(workspace.ID, threadID, notice)
 	for _, event := range parsed.Events {
@@ -166,6 +174,78 @@ func (a *App) SpawnFromImported(workspaceID, prompt, driver, model string, optio
 	}
 	a.emit(historyChangedChannel)
 	return result, nil
+}
+
+func (a *App) findClaudeImport(sessionID string) (history.Meta, bool) {
+	if sessionID == "" {
+		return history.Meta{}, false
+	}
+	for _, meta := range a.ListHistory() {
+		if meta.Workspace.ImportedFrom == "claude-code" && meta.Workspace.ImportedSession == sessionID {
+			return meta, true
+		}
+	}
+	return history.Meta{}, false
+}
+
+func (a *App) syncClaudeImport(meta history.Meta, parsed *claudeimport.ParsedSession) {
+	if len(meta.Tasks) == 0 {
+		return
+	}
+	threadID := meta.Tasks[0].ThreadID
+	if resume := meta.Resume[threadID]; resume != "" && resume != parsed.SessionID {
+		return
+	}
+	loaded, err := a.historyStore.Load(meta.Workspace.ID)
+	if err != nil {
+		return
+	}
+	var latest int64
+	for _, event := range loaded.Transcripts[threadID] {
+		if event.Kind != domain.EventNotice && event.At > latest {
+			latest = event.At
+		}
+	}
+	appended := false
+	for _, event := range parsed.Events {
+		if event.At <= latest {
+			continue
+		}
+		event.ThreadID = threadID
+		_ = a.historyStore.Append(meta.Workspace.ID, threadID, event)
+		appended = true
+	}
+	if appended {
+		_ = a.historyStore.Flush(meta.Workspace.ID)
+		a.recorder.Touch(meta.Workspace.ID, parsed.UpdatedAt)
+	}
+	if a.recorder != nil {
+		_ = a.recorder.SetChatArchived(meta.Workspace.ID, threadID, false)
+	}
+}
+
+func importedClaudeSession(workspace domain.Workspace, threadID string) string {
+	if workspace.ImportedSession != "" {
+		return workspace.ImportedSession
+	}
+	rest := strings.TrimPrefix(threadID, "import-")
+	if rest == threadID {
+		return ""
+	}
+	compact := rest
+	if idx := strings.Index(rest, "-"); idx >= 0 {
+		compact = rest[:idx]
+	}
+	sessions, err := claudeimport.List()
+	if err != nil {
+		return ""
+	}
+	for _, s := range sessions {
+		if compactID(s.ID) == compact {
+			return s.ID
+		}
+	}
+	return ""
 }
 
 func isWithinDir(root, path string) bool {

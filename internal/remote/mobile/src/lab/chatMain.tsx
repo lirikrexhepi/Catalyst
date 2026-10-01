@@ -18,6 +18,7 @@ import Drawer from '../screens/Drawer'
 import { PreviewScreen } from '../screens/Preview'
 import { trackVisualViewport } from '../platform/viewport'
 import Feed from '../feed/Feed'
+import { LongFeedLab } from './LongFeedLab'
 import { WifiOff } from 'lucide-react'
 import { StatusPill } from '../components/status/StatusPill'
 import type { AgentStreamBlock } from '../feed/types'
@@ -81,6 +82,7 @@ createRoot(document.getElementById('root')!).render(
             <Feed threadId="lab" blocks={ASK_BLOCKS} turnMs={{}} />
           </div>
         ) : null}
+        {location.hash === '#long' ? <LongFeedLab /> : null}
         {location.hash === '#preview' ? <PreviewScreen port={5173} name="Configurator" onBack={() => undefined} /> : null}
       </main>
     </div>

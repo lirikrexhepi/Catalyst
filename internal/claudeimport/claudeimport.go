@@ -10,19 +10,18 @@
 //
 // Conversion targets domain.RuntimeEvent, the same shape live adapters emit,
 // which means an imported transcript replays through the existing frontend
-// reducer with no special casing. Imports are deliberately fresh-start only:
-// no provider session id is stored, so resuming an imported task begins a new
-// CLI session in the same directory and the old transcript rides along as
-// prompt context instead of a --resume.
+// reducer with no special casing.
 package claudeimport
 
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"composer/internal/domain"
@@ -32,8 +31,22 @@ const (
 	maxTextChars       = 30000
 	maxToolOutputChars = 8000
 	maxListFiles       = 2000
-	maxParseBytes      = 10 * 1024 * 1024
+	maxParseBytes      = 256 * 1024 * 1024
+	maxLineBytes       = 64 * 1024 * 1024
 )
+
+type cachedSession struct {
+	size    int64
+	modTime time.Time
+	session *ExternalSession
+}
+
+var (
+	listCacheMu sync.Mutex
+	listCache   = map[string]cachedSession{}
+)
+
+const continuationPrefix = "This session is being continued from a previous conversation"
 
 // ExternalSession is one Claude Code conversation found on disk, described
 // with only what the import picker needs to show.
@@ -51,20 +64,22 @@ type ExternalSession struct {
 	// the user: Composer/catalyst worktree runs, orchestrator-spawned CLIs
 	// and test sessions. UIs show hand-written chats only, so these stay out
 	// of the list even when they contain text.
-	AgentRun bool `json:"agentRun"`
+	AgentRun   bool   `json:"agentRun"`
+	Entrypoint string `json:"entrypoint,omitempty"`
 }
 
 // ParsedSession is a fully converted transcript, ready to be stored. Events
 // carry no thread id yet; the importer assigns that when it creates the task.
 type ParsedSession struct {
-	SessionID string                `json:"sessionId"`
-	Title     string                `json:"title"`
-	Prompt    string                `json:"prompt"`
-	Cwd       string                `json:"cwd"`
-	Model     string                `json:"model,omitempty"`
-	StartedAt int64                 `json:"startedAt"`
-	UpdatedAt int64                 `json:"updatedAt"`
-	Events    []domain.RuntimeEvent `json:"events"`
+	SessionID  string                `json:"sessionId"`
+	Title      string                `json:"title"`
+	Prompt     string                `json:"prompt"`
+	Cwd        string                `json:"cwd"`
+	Model      string                `json:"model,omitempty"`
+	Entrypoint string                `json:"entrypoint,omitempty"`
+	StartedAt  int64                 `json:"startedAt"`
+	UpdatedAt  int64                 `json:"updatedAt"`
+	Events     []domain.RuntimeEvent `json:"events"`
 }
 
 // ProjectsDir reports where Claude Code keeps its transcripts, honouring the
@@ -110,22 +125,44 @@ func List() ([]ExternalSession, error) {
 		return nil, err
 	}
 	out := make([]ExternalSession, 0, len(paths))
+	seen := make(map[string]bool, len(paths))
 	for _, path := range paths {
 		if len(out) >= maxListFiles {
 			break
 		}
-		info, err := os.Stat(path)
-		if err != nil {
+		seen[path] = true
+		session := describe(path)
+		if session == nil {
 			continue
 		}
-		if info.Size() > maxParseBytes {
-			continue
+		out = append(out, *session)
+	}
+	listCacheMu.Lock()
+	for path := range listCache {
+		if !seen[path] {
+			delete(listCache, path)
 		}
-		parsed, err := ParseFile(path)
-		if err != nil || parsed == nil || !hasHumanText(parsed.Events) {
-			continue
-		}
-		out = append(out, ExternalSession{
+	}
+	listCacheMu.Unlock()
+	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt > out[j].UpdatedAt })
+	return out, nil
+}
+
+func describe(path string) *ExternalSession {
+	info, err := os.Stat(path)
+	if err != nil || info.Size() > maxParseBytes {
+		return nil
+	}
+	listCacheMu.Lock()
+	cached, ok := listCache[path]
+	listCacheMu.Unlock()
+	if ok && cached.size == info.Size() && cached.modTime.Equal(info.ModTime()) {
+		return cached.session
+	}
+	var session *ExternalSession
+	parsed, err := ParseFile(path)
+	if err == nil && parsed != nil && hasHumanText(parsed.Events) {
+		session = &ExternalSession{
 			ID:           parsed.SessionID,
 			Title:        parsed.Title,
 			Cwd:          parsed.Cwd,
@@ -136,10 +173,26 @@ func List() ([]ExternalSession, error) {
 			StartedAt:    parsed.StartedAt,
 			UpdatedAt:    parsed.UpdatedAt,
 			AgentRun:     isAgentRun(parsed),
-		})
+			Entrypoint:   parsed.Entrypoint,
+		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].UpdatedAt > out[j].UpdatedAt })
-	return out, nil
+	listCacheMu.Lock()
+	listCache[path] = cachedSession{size: info.Size(), modTime: info.ModTime(), session: session}
+	listCacheMu.Unlock()
+	return session
+}
+
+func FindSessionFile(sessionID string) string {
+	sessionID = strings.TrimSpace(sessionID)
+	root := ProjectsDir()
+	if sessionID == "" || root == "" || strings.ContainsAny(sessionID, `/\*?[`) {
+		return ""
+	}
+	matches, _ := filepath.Glob(filepath.Join(root, "*", sessionID+".jsonl"))
+	if len(matches) == 0 {
+		return ""
+	}
+	return matches[0]
 }
 
 // ParseFile converts one Claude Code JSONL transcript into runtime events.
@@ -158,29 +211,27 @@ func ParseFile(path string) (*ParsedSession, error) {
 
 	parsed := &ParsedSession{}
 	converter := &converter{fallbackAt: fallbackAt}
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 64*1024), 4*1024*1024)
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
+	reader := bufio.NewReaderSize(file, 256*1024)
+	for {
+		line, err := readLine(reader)
+		if len(line) > 0 {
+			var record fileRecord
+			if json.Unmarshal(line, &record) == nil {
+				converter.visit(record, parsed)
+			}
 		}
-		var record fileRecord
-		if err := json.Unmarshal(line, &record); err != nil {
-			continue
+		if err == io.EOF {
+			break
 		}
-		converter.visit(record, parsed)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if parsed.SessionID == "" {
 		parsed.SessionID = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	}
-	if parsed.Title == "" {
-		parsed.Title = previewText(parsed.Prompt, 40)
-	}
+	parsed.Title = firstNonEmpty(converter.customTitle, converter.aiTitle, converter.summary, previewText(converter.titlePrompt, 40))
 	if parsed.Title == "" {
 		parsed.Title = "Imported Claude Code chat"
 	}
@@ -196,6 +247,34 @@ func ParseFile(path string) (*ParsedSession, error) {
 	return parsed, nil
 }
 
+func readLine(reader *bufio.Reader) ([]byte, error) {
+	var buf []byte
+	oversized := false
+	for {
+		chunk, isPrefix, err := reader.ReadLine()
+		if !oversized {
+			if len(buf)+len(chunk) > maxLineBytes {
+				oversized = true
+				buf = nil
+			} else {
+				buf = append(buf, chunk...)
+			}
+		}
+		if err != nil {
+			if oversized {
+				return nil, err
+			}
+			return buf, err
+		}
+		if !isPrefix {
+			if oversized {
+				return nil, nil
+			}
+			return buf, nil
+		}
+	}
+}
+
 type fileRecord struct {
 	Type        string          `json:"type"`
 	SessionID   string          `json:"sessionId"`
@@ -204,6 +283,9 @@ type fileRecord struct {
 	Cwd         string          `json:"cwd"`
 	IsSidechain bool            `json:"isSidechain"`
 	AITitle     string          `json:"aiTitle"`
+	CustomTitle string          `json:"customTitle"`
+	Entrypoint  string          `json:"entrypoint"`
+	Summary     string          `json:"summary"`
 	Message     json.RawMessage `json:"message"`
 }
 
@@ -234,11 +316,15 @@ type contentBlock struct {
 }
 
 type converter struct {
-	fallbackAt int64
-	lastAt     int64
-	seq        int
-	turn       int
-	turnID     string
+	customTitle string
+	aiTitle     string
+	summary     string
+	titlePrompt string
+	fallbackAt  int64
+	lastAt      int64
+	seq         int
+	turn        int
+	turnID      string
 }
 
 func (c *converter) visit(record fileRecord, parsed *ParsedSession) {
@@ -251,8 +337,17 @@ func (c *converter) visit(record fileRecord, parsed *ParsedSession) {
 	if record.Cwd != "" && parsed.Cwd == "" {
 		parsed.Cwd = record.Cwd
 	}
-	if record.AITitle != "" && parsed.Title == "" {
-		parsed.Title = record.AITitle
+	if record.Entrypoint != "" && parsed.Entrypoint == "" {
+		parsed.Entrypoint = record.Entrypoint
+	}
+	if title := strings.TrimSpace(record.CustomTitle); title != "" {
+		c.customTitle = title
+	}
+	if title := strings.TrimSpace(record.AITitle); title != "" {
+		c.aiTitle = title
+	}
+	if record.Type == "summary" && c.summary == "" {
+		c.summary = strings.TrimSpace(record.Summary)
 	}
 	at := parseAt(record.Timestamp, c.fallbackAt)
 	if at < c.lastAt {
@@ -286,6 +381,9 @@ func (c *converter) visitUser(record fileRecord, at int64, parsed *ParsedSession
 		c.turnID = "import-turn-" + itoa(c.turn)
 		if parsed.Prompt == "" {
 			parsed.Prompt = truncate(text, 2000)
+		}
+		if c.titlePrompt == "" && !strings.HasPrefix(text, continuationPrefix) && !strings.HasPrefix(text, "<") {
+			c.titlePrompt = text
 		}
 		if parsed.StartedAt == 0 {
 			parsed.StartedAt = at
@@ -506,7 +604,11 @@ func parseAt(raw string, fallback int64) int64 {
 // Those dwarf hand-written chats in the picker, so they are flagged rather
 // than listed alongside them.
 func isAgentRun(parsed *ParsedSession) bool {
-	if strings.HasPrefix(parsed.Prompt, "You are the orchestrator in Composer") {
+	if strings.HasPrefix(parsed.Entrypoint, "sdk") {
+		return true
+	}
+	if strings.HasPrefix(parsed.Prompt, "You are the orchestrator in Composer") ||
+		strings.HasPrefix(parsed.Prompt, "Reply with exactly:") {
 		return true
 	}
 	lowered := strings.ToLower(parsed.Cwd)

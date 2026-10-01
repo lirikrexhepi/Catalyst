@@ -1,3 +1,4 @@
+import { Archive } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { ScrollArea } from '../common/ScrollArea';
 import { history } from '../../../wailsjs/go/models';
@@ -82,14 +83,14 @@ const HistoryRow: React.FC<{
 
       <button
         type="button"
-        title="Delete chat"
+        title="Archive chat"
         onClick={(e) => {
           e.stopPropagation();
           onDelete(chat.workspaceId, chat.threadId);
         }}
-        className="w-[22px] h-[22px] rounded-[6px] grid place-items-center opacity-0 group-hover:opacity-100 text-white/40 hover:text-rose-200 hover:bg-rose-500/20 active:scale-90 transition-all shrink-0 cursor-pointer"
+        className="w-[22px] h-[22px] rounded-[6px] grid place-items-center opacity-0 group-hover:opacity-100 text-white/40 hover:text-white hover:bg-white/10 active:scale-90 transition-all shrink-0 cursor-pointer"
       >
-        <span className="material-symbols-rounded text-[14px] leading-none">delete</span>
+        <Archive size={13} strokeWidth={1.9} />
       </button>
     </div>
   );

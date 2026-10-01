@@ -15,6 +15,17 @@
         "--strictPort"
       ],
       "port": 5199
+    },
+    {
+      "name": "desktop",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "dev"
+      ],
+      "port": 9245
     }
   ]
 }

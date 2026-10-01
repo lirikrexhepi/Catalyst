@@ -16,6 +16,8 @@ import { InlinePlanCard } from '../orchestrator/InlinePlanCard';
 import { extractPlanFromText } from '../orchestrator/extractPlan';
 import { MessageTimestamp } from './MessageTimestamp';
 import { RespondToApproval, RespondToQuestion } from '../../../wailsjs/go/main/App';
+import { buildFeedSegments } from './feedTurns';
+import { ChangesCard, WorkedFor, WorkingHeader } from './TurnParts';
 
 export interface AgentSessionFeedProps {
   blocks: AgentStreamBlock[];
@@ -28,6 +30,7 @@ export interface AgentSessionFeedProps {
   onFileClick?: (path: string) => void;
   canUseWorktree?: boolean;
   isActive?: boolean;
+  isWorking?: boolean;
   /** Plan keys The Orchestrator already launched backend-side (status, not confirm). */
   launchedKeys?: string[];
   onConfirmPlan?: (
@@ -48,7 +51,9 @@ function planOf(content: string) {
   return plan;
 }
 
-type Handlers = Omit<AgentSessionFeedProps, 'blocks' | 'className' | 'isActive' | 'launchedKeys' | 'canUseWorktree'>;
+type Handlers = Omit<AgentSessionFeedProps, 'blocks' | 'className' | 'isActive' | 'isWorking' | 'launchedKeys' | 'canUseWorktree'>;
+
+const hasPlan = (content: string) => Boolean(planOf(content));
 
 interface FeedBlockProps {
   block: AgentStreamBlock;
@@ -184,7 +189,6 @@ const FeedBlock = React.memo(function FeedBlock({
           diffLines={block.diffLines}
           toolName={block.toolName}
           status={block.status}
-          defaultExpanded={Boolean(block.diffLines?.length) && (block.diffLines?.length ?? 0) <= 40}
         />
       );
 
@@ -279,6 +283,7 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
   className = '',
   canUseWorktree,
   isActive = true,
+  isWorking,
   launchedKeys,
   ...handlerProps
 }) => {
@@ -293,38 +298,87 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
     return null;
   }, [blocks]);
 
-  // One assistant reply can arrive as several text blocks split by tool calls.
-  // The date/copy row belongs only under the latest one so it reads once at
-  // the bottom instead of repeating after every segment.
-  const lastTextIndex = React.useMemo(() => {
+  const lastTextId = React.useMemo(() => {
+    if (isWorking) return null;
     for (let i = blocks.length - 1; i >= 0; i--) {
-      if (blocks[i].type === 'text') return i;
+      if (blocks[i].type === 'text') return blocks[i].id;
     }
-    return -1;
-  }, [blocks]);
+    return null;
+  }, [blocks, isWorking]);
 
   const launchedSet = React.useMemo(() => new Set(launchedKeys ?? []), [launchedKeys]);
 
+  const segments = React.useMemo(() => buildFeedSegments(blocks, isWorking, hasPlan), [blocks, isWorking]);
+
+  const renderBlock = (block: AgentStreamBlock) => {
+    let launched = false;
+    if (block.type === 'text' && launchedSet.size > 0) {
+      const plan = planOf(block.content);
+      launched = Boolean(plan && launchedSet.has(plan.tasks.map((task) => task.title).join('\n')));
+    }
+    return (
+      <FeedBlock
+        key={block.id}
+        block={block}
+        isLatestText={block.id === lastTextId}
+        isLatestPlan={block.id === latestPlanBlockId}
+        launched={launched}
+        canUseWorktree={canUseWorktree}
+        isActive={isActive}
+        handlers={handlers}
+      />
+    );
+  };
+
+  const renderSequence = (items: AgentStreamBlock[]) => {
+    const out: React.ReactNode[] = [];
+    let run: AgentStreamBlock[] = [];
+    const flush = () => {
+      if (run.length === 0) return;
+      out.push(
+        <div key={`run-${run[0].id}`} className="flex flex-col">
+          {run.map(renderBlock)}
+        </div>,
+      );
+      run = [];
+    };
+    for (const block of items) {
+      if (block.type === 'text' || block.type === 'tool_question' || block.type === 'approval_request') {
+        flush();
+        out.push(renderBlock(block));
+      } else {
+        run.push(block);
+      }
+    }
+    flush();
+    return out;
+  };
+
   return (
     <div className={`flex flex-col gap-3.5 ${className}`}>
-      {blocks.map((block, index) => {
-        let launched = false;
-        if (block.type === 'text' && launchedSet.size > 0) {
-          const plan = planOf(block.content);
-          launched = Boolean(plan && launchedSet.has(plan.tasks.map((task) => task.title).join('\n')));
+      {segments.map((segment) => {
+        switch (segment.kind) {
+          case 'block':
+            return <React.Fragment key={segment.key}>{renderBlock(segment.block)}</React.Fragment>;
+          case 'run':
+            return (
+              <div key={segment.key} className="flex flex-col -my-1">
+                {segment.blocks.map(renderBlock)}
+              </div>
+            );
+          case 'working':
+            return <WorkingHeader key={segment.key} startedAt={segment.startedAt} />;
+          case 'worked':
+            return (
+              <WorkedFor key={segment.key} seconds={segment.seconds}>
+                {renderSequence(segment.blocks)}
+              </WorkedFor>
+            );
+          case 'changes':
+            return <ChangesCard key={segment.key} edits={segment.edits} />;
+          default:
+            return null;
         }
-        return (
-          <FeedBlock
-            key={block.id}
-            block={block}
-            isLatestText={index === lastTextIndex}
-            isLatestPlan={block.id === latestPlanBlockId}
-            launched={launched}
-            canUseWorktree={canUseWorktree}
-            isActive={isActive}
-            handlers={handlers}
-          />
-        );
       })}
     </div>
   );

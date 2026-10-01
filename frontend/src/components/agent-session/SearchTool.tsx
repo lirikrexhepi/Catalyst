@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { fileIconForPath } from '../common/fileIcon';
+import { WorkRow } from './WorkRow';
 
 export interface SearchToolProps {
   files: string[];
@@ -11,96 +12,41 @@ export interface SearchToolProps {
   onFileClick?: (path: string) => void;
 }
 
-/**
- * Search Tool / Relevant Files Component
- * - Header: "Found X relevant files v" (12px Geist font)
- * - Frosted White Glass Bubble: rounded-[14px], translucent white glass with light transmission
- * - Icon: cards_stack (Material Symbols)
- */
 const SearchToolImpl: React.FC<SearchToolProps> = ({
   files = [],
   query,
   summary,
   isSearching = false,
-  className = '',
   defaultExpanded = false,
   onFileClick,
 }) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-
-  const fileCount = files.length;
-  const headerText = isSearching
-    ? (query ? `Searching for "${query}"...` : `Searching for relevant files...`)
-    : summary || (query
-        ? `Found ${fileCount} relevant ${fileCount === 1 ? 'file' : 'files'} for "${query}"`
-        : `Found ${fileCount} relevant ${fileCount === 1 ? 'file' : 'files'}`);
+  const count = files.length;
+  const label = isSearching ? 'Searching' : 'Searched';
+  const target = summary || query || (isSearching ? 'files' : '');
+  const meta = !isSearching ? (
+    <span className="text-[11.5px] text-current/30 tabular-nums shrink-0">
+      {count} {count === 1 ? 'file' : 'files'}
+    </span>
+  ) : undefined;
 
   return (
-    <div className={`flex flex-col gap-1.5 select-none font-['Geist'] ${className}`}>
-      {/* Trigger Header Row */}
-      <button
-        type="button"
-        onClick={() => setIsExpanded((prev) => !prev)}
-        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[6px] hover:bg-current/10 active:scale-95 transition-all duration-150 cursor-pointer self-start group"
-      >
-        <span className="text-[12px] font-medium text-current tracking-tight leading-none">
-          {headerText}
-        </span>
-
-        {/* Chevron Indicator */}
-        <span
-          className={`material-symbols-outlined text-[15px] text-current/60 group-hover:text-current leading-none transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-            isExpanded ? 'rotate-180' : 'rotate-0'
-          }`}
-        >
-          expand_more
-        </span>
-      </button>
-
-      {/* Collapsible Frosted White Glass Bubble */}
-      <div
-        className="grid transition-[grid-template-rows,opacity] duration-220 ease-[cubic-bezier(0.16,1,0.3,1)]"
-        style={{
-          gridTemplateRows: isExpanded ? '1fr' : '0fr',
-          opacity: isExpanded ? 1 : 0,
-          pointerEvents: isExpanded ? 'auto' : 'none',
-        }}
-      >
-        <div className="overflow-hidden">
-          <div
-            className="rounded-xl bg-current/[0.05] p-2.5 max-w-full flex flex-col gap-1 border-0 shadow-none"
-          >
-            {files.map((file, idx) => {
-              const fileIcon = fileIconForPath(file);
-              return (
-              <div
-                key={`${file}-${idx}`}
-                onClick={() => onFileClick?.(file)}
-                className="flex items-center gap-2.5 px-2 py-1.5 rounded-[8px] hover:bg-current/15 active:scale-[0.99] transition-colors duration-150 cursor-pointer group/item"
-              >
-                <img
-                  src={fileIcon}
-                  alt=""
-                  draggable={false}
-                  className="w-[18px] h-[18px] shrink-0"
-                />
-
-                <span className="text-[12px] font-medium text-current tracking-tight select-text truncate">
-                  {file}
-                </span>
-              </div>
-              );
-            })}
-
-            {files.length === 0 && !isSearching && (
-              <div className="px-2 py-1.5 text-[12px] text-current/60">
-                No matching files found.
-              </div>
-            )}
-          </div>
+    <WorkRow icon="search" label={label} target={target} running={isSearching} meta={meta} defaultOpen={defaultExpanded}>
+      {count > 0 ? (
+        <div className="flex flex-col max-h-[240px] overflow-y-auto custom-scrollbar">
+          {files.map((file, index) => (
+            <button
+              type="button"
+              key={`${file}-${index}`}
+              onClick={() => onFileClick?.(file)}
+              className="flex items-center gap-2 min-w-0 py-[3px] text-left text-[12px] tracking-tight text-current/55 hover:text-current transition-colors duration-150 cursor-pointer"
+            >
+              <img src={fileIconForPath(file)} alt="" draggable={false} className="w-[14px] h-[14px] shrink-0" />
+              <span className="truncate select-text">{file}</span>
+            </button>
+          ))}
         </div>
-      </div>
-    </div>
+      ) : undefined}
+    </WorkRow>
   );
 };
 

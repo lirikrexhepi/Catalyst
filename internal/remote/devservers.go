@@ -15,6 +15,7 @@ var ErrNoDevScript = errors.New("no dev, start or serve script was found in this
 type DevServerRequest struct {
 	ThreadID string `json:"threadId,omitempty"`
 	Cwd      string `json:"cwd,omitempty"`
+	Pinned   bool   `json:"pinned,omitempty"`
 }
 
 type DevServerInfo struct {

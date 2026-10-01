@@ -118,20 +118,24 @@ func (m *PreviewManager) Start(port int) (PreviewInfo, error) {
 		return PreviewInfo{}, err
 	}
 
-	// --http-host-header rewrites Host to localhost so Vite/Next host checks
-	// pass; without it dev servers reject the trycloudflare hostname.
-	cmd := exec.Command(bin, "tunnel", "--url", fmt.Sprintf("http://127.0.0.1:%d", port),
+	origin, stopProxy, err := startPreviewProxy(port)
+	if err != nil {
+		return PreviewInfo{}, fmt.Errorf("could not start preview proxy: %w", err)
+	}
+	cmd := exec.Command(bin, "tunnel", "--url", origin,
 		"--http-host-header", fmt.Sprintf("localhost:%d", port), "--no-autoupdate")
 	setSysProcAttr(cmd)
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
+		stopProxy()
 		return PreviewInfo{}, fmt.Errorf("could not start tunnel: %w", err)
 	}
 	if err := cmd.Start(); err != nil {
+		stopProxy()
 		return PreviewInfo{}, fmt.Errorf("could not start tunnel: %w", err)
 	}
 
-	t := &previewTunnel{cmd: cmd, state: PreviewStarting, startedAt: time.Now().UnixMilli()}
+	t := &previewTunnel{cmd: cmd, closeFn: stopProxy, state: PreviewStarting, startedAt: time.Now().UnixMilli()}
 	m.mu.Lock()
 	m.tunnels[port] = t
 	m.mu.Unlock()

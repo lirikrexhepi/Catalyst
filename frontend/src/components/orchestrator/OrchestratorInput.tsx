@@ -11,6 +11,7 @@ import { useTransitionMount } from '../common/useTransitionMount';
 import { SmoothTextarea } from '../common/SmoothTextarea';
 import { AttachmentStrip } from '../common/AttachmentStrip';
 import { AttachmentsState, filesFromTransfer } from '../common/useAttachments';
+import { readChatDrag } from '../common/chatDrag';
 import { providerIcon } from './providerIcons';
 import { SkillTestPicker } from './SkillTestPicker';
 import { ArrowUp, ChevronDown, Loader2, Paperclip, Plus, Square, X } from 'lucide-react';
@@ -199,6 +200,12 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
 
   const handleDrop = (e: React.DragEvent) => {
     if (!attachments) return;
+    const chat = readChatDrag(e.dataTransfer);
+    if (chat) {
+      e.preventDefault();
+      attachments.addChat(chat);
+      return;
+    }
     const files = filesFromTransfer(e.dataTransfer);
     if (files.length === 0) return;
     e.preventDefault();

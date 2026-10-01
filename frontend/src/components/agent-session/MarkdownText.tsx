@@ -106,7 +106,7 @@ const COMPONENTS: Components = {
     if (!isBlock) {
       return (
         <code
-          className="markdown-inline-code px-1.5 py-0.5 rounded-[5px] font-mono text-[11.5px] tracking-tight font-normal inline-block mx-0.5"
+          className="markdown-inline-code px-[5px] py-[1.5px] rounded-[5px] font-['Geist_Mono',monospace] text-[11.5px] tracking-tight font-normal box-decoration-clone"
           {...props}
         >
           {children}

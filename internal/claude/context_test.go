@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"composer/internal/domain"
+	"composer/internal/provider"
 )
 
 type captureEmitter struct{ events []domain.RuntimeEvent }
@@ -101,7 +102,7 @@ func TestLaunchRequestsThinkingSummaries(t *testing.T) {
 	if strings.Contains(off, "--thinking-display") || strings.Contains(off, "showThinkingSummaries") {
 		t.Errorf("thinking turned off must not request summaries: %s", strings.ReplaceAll(off, "\x00", " "))
 	}
-	if strings.Contains(args, "--append-system-prompt") {
-		t.Error("Claude narrates on its own and must not get the runtime note")
+	if !strings.Contains(args, "--append-system-prompt\x00"+provider.RuntimeInstructions) {
+		t.Error("Claude sessions must get the runtime note")
 	}
 }

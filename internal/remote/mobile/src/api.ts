@@ -158,7 +158,7 @@ export const api = {
     request<{ ok: boolean }>('/api/thread/delete', { method: 'POST', body: JSON.stringify({ threadId }) }),
   uploadPreview: (path: string) => request<{ dataUrl: string }>(`/api/upload/preview?${q({ path })}`),
   servers: () => request<ServerGroup[]>('/api/servers'),
-  startDevServer: (target: { threadId?: string; cwd?: string }) =>
+  startDevServer: (target: { threadId?: string; cwd?: string; pinned?: boolean }) =>
     request<ManagedDevServer>('/api/devserver/start', { method: 'POST', body: JSON.stringify(target) }),
   devServer: (id: string) => request<ManagedDevServer>(`/api/devserver/status?${q({ id })}`),
   monitors: () => request<MonitorStatus>('/api/pc/monitors'),

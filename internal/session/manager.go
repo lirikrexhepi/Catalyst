@@ -34,9 +34,18 @@ type Manager struct {
 	notes    TurnNotes
 
 	accountFor AccountResolver
+	expandRefs RefExpander
 }
 
 type AccountResolver func(kind domain.DriverKind, cwd string) string
+
+type RefExpander func(files []domain.FileRef) (string, []domain.FileRef)
+
+func (m *Manager) SetRefExpander(expand RefExpander) {
+	m.mu.Lock()
+	m.expandRefs = expand
+	m.mu.Unlock()
+}
 
 type adapterKey struct {
 	driver  domain.DriverKind
@@ -339,6 +348,15 @@ func (m *Manager) refreshProviderSession(threadID string) {
 }
 
 func (m *Manager) Send(ctx context.Context, in domain.SendTurnInput) error {
+	m.mu.RLock()
+	expand := m.expandRefs
+	m.mu.RUnlock()
+	if expand != nil && len(in.Files) > 0 {
+		if context, rest := expand(in.Files); context != "" {
+			in.Text = context + "\n\n" + in.Text
+			in.Files = rest
+		}
+	}
 	logger.Infof("Manager", "Send: thread=%s turn=%s len=%d files=%d", in.ThreadID, in.TurnID, len(in.Text), len(in.Files))
 	entry, err := m.lookup(in.ThreadID)
 	if err != nil {

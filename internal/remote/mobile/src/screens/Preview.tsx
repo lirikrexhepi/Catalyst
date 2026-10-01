@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bot, Check, ChevronLeft, Loader2, Minus, Monitor, Play, Plus, Square, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
+import { Bot, Check, ChevronLeft, GitBranch, Loader2, Minus, Monitor, Play, Plus, Square, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
 import { MorphButtons } from '../ui/glass/MorphButtons'
@@ -11,6 +11,7 @@ import { serversForThread } from '../servers'
 import { useLongPress } from '../hooks/useLongPress'
 import { message, send } from '../store'
 import type { DevServer, PreviewInfo } from '../types'
+import type { Checkout } from '../workspaceTypes'
 
 /** Desktop mode renders the site at this width, like a laptop browser. */
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600, 1920] as const
@@ -63,8 +64,8 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
   const [loaded, setLoaded] = useState(false)
   const [launch, setLaunch] = useState<Launch>({ phase: 'idle' })
   const [error, setError] = useState<string | null>(null)
-  const first = useRef(true)
-  const autoStarted = useRef(false)
+  const [checkouts, setCheckouts] = useState<Checkout[]>([])
+  const [target, setTarget] = useState<string | null>(null)
   const alive = useRef(true)
   const canStart = Boolean(threadId || cwd)
   const asking = launch.phase === 'asking'
@@ -86,11 +87,10 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
       setMine(own)
       setOthers(rest)
       setError(null)
-      if ((first.current && own.length === 1) || (asking && own.length > 0)) onOpen(own[0])
+      if (asking && own.length > 0) onOpen(own[0])
     } catch (e) {
       if (alive.current) setError(message(e))
     } finally {
-      first.current = false
       if (alive.current) setLoaded(true)
     }
   }, [threadId, onOpen, asking])
@@ -101,10 +101,34 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
     return () => window.clearInterval(id)
   }, [load, asking])
 
+  useEffect(() => {
+    if (!cwd) return
+    let live = true
+    api
+      .gitOverview(cwd)
+      .then((lanes) => {
+        if (!live) return
+        const list = (lanes ?? []).filter((lane) => lane.path && !lane.error)
+        setCheckouts(list)
+        setTarget((current) => {
+          if (current) return current
+          const own = threadId ? list.find((lane) => lane.threadId === threadId) : undefined
+          return (own ?? list.find((lane) => lane.isMain) ?? list[0])?.path ?? null
+        })
+      })
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [cwd, threadId])
+
   const start = useCallback(async () => {
     setLaunch({ phase: 'starting' })
     try {
-      let server = await api.startDevServer(threadId ? { threadId, cwd } : { cwd })
+      const where = target ?? cwd
+      let server = await api.startDevServer(
+        threadId ? { threadId, cwd: where, pinned: Boolean(target) } : { cwd: where, pinned: Boolean(target) },
+      )
       const deadline = Date.now() + START_TIMEOUT_MS
       while (alive.current && !server.port && server.status === 'running' && Date.now() < deadline) {
         setLaunch({ phase: 'starting', command: server.command, folder: folderLabel(server.cwd, cwd) })
@@ -113,7 +137,7 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
       }
       if (!alive.current) return
       if (server.port) {
-        onOpen({ pid: 0, port: server.port, name: server.name, kind: 'dev', ownerThreadId: threadId ?? undefined })
+        onOpen({ pid: 0, port: server.port, name: server.name, kind: 'dev', ownerThreadId: threadId ?? undefined, cwd: server.cwd })
         return
       }
       const last = server.log?.filter((l) => l.trim()).pop()
@@ -131,7 +155,7 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
       const noScript = typeof e === 'object' && e !== null && (e as { status?: number }).status === 422
       setLaunch({ phase: 'failed', noScript, error: noScript ? (e as Error).message : message(e) })
     }
-  }, [threadId, cwd, onOpen])
+  }, [threadId, cwd, target, onOpen])
 
   const ask = async () => {
     if (!threadId) return
@@ -142,12 +166,6 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
       setLaunch({ phase: 'failed', noScript: false, error: message(e) })
     }
   }
-
-  useEffect(() => {
-    if (!loaded || autoStarted.current) return
-    autoStarted.current = true
-    if (mine.length === 0 && canStart) void start()
-  }, [loaded, mine.length, canStart, start])
 
   const failed = launch.phase === 'failed' ? launch : null
   const busy = launch.phase === 'starting' || asking
@@ -163,7 +181,24 @@ export function PreviewLauncher({ threadId, cwd, onClose, onOpen }: {
           ))}
         </SheetList>
       ) : null}
-      {loaded && mine.length === 0 && canStart ? (
+      {checkouts.length > 1 && canStart && !busy ? (
+        <>
+          <span className="sheet-section">Run in</span>
+          <SheetList>
+            {checkouts.map((lane) => (
+              <SheetRow
+                key={lane.path}
+                icon={GitBranch}
+                label={lane.isMain ? 'Main' : lane.title || lane.branch}
+                detail={lane.isMain ? lane.branch : lane.branch !== lane.title ? lane.branch : folderLabel(lane.path, cwd)}
+                trailing={target === lane.path ? <Check size={18} className="sheet-row-chevron" aria-hidden /> : undefined}
+                onClick={() => setTarget(lane.path)}
+              />
+            ))}
+          </SheetList>
+        </>
+      ) : null}
+      {loaded && canStart && (mine.length === 0 || checkouts.length > 1) ? (
         <>
           {launch.phase === 'starting' ? (
             <SheetList>

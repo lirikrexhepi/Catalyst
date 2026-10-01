@@ -322,6 +322,10 @@ export function ServerLogs(arg1) {
   return window['go']['main']['App']['ServerLogs'](arg1);
 }
 
+export function SetChatArchived(arg1, arg2, arg3) {
+  return window['go']['main']['App']['SetChatArchived'](arg1, arg2, arg3);
+}
+
 export function SetKeepRunningOnClose(arg1) {
   return window['go']['main']['App']['SetKeepRunningOnClose'](arg1);
 }

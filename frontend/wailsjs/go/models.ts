@@ -38,6 +38,7 @@ export namespace claudeimport {
 	    startedAt: number;
 	    updatedAt: number;
 	    agentRun: boolean;
+	    entrypoint?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ExternalSession(source);
@@ -55,6 +56,7 @@ export namespace claudeimport {
 	        this.startedAt = source["startedAt"];
 	        this.updatedAt = source["updatedAt"];
 	        this.agentRun = source["agentRun"];
+	        this.entrypoint = source["entrypoint"];
 	    }
 	}
 
@@ -945,6 +947,7 @@ export namespace domain {
 	    model?: string;
 	    permissionMode?: string;
 	    resume?: string;
+	    fork?: boolean;
 	    options?: Record<string, any>;
 	    planOnly?: boolean;
 	    skills?: SkillPolicy;
@@ -962,6 +965,7 @@ export namespace domain {
 	        this.model = source["model"];
 	        this.permissionMode = source["permissionMode"];
 	        this.resume = source["resume"];
+	        this.fork = source["fork"];
 	        this.options = source["options"];
 	        this.planOnly = source["planOnly"];
 	        this.skills = this.convertValues(source["skills"], SkillPolicy);
@@ -1019,6 +1023,7 @@ export namespace domain {
 	    options?: Record<string, any>;
 	    state: string;
 	    permission?: string;
+	    archived?: boolean;
 	    worktree?: Worktree;
 	    summary?: string;
 	    createdAt: number;
@@ -1043,6 +1048,7 @@ export namespace domain {
 	        this.options = source["options"];
 	        this.state = source["state"];
 	        this.permission = source["permission"];
+	        this.archived = source["archived"];
 	        this.worktree = this.convertValues(source["worktree"], Worktree);
 	        this.summary = source["summary"];
 	        this.createdAt = source["createdAt"];
@@ -1160,6 +1166,7 @@ export namespace domain {
 	    updatedAt: number;
 	    archived?: boolean;
 	    importedFrom?: string;
+	    importedSession?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Workspace(source);
@@ -1175,6 +1182,7 @@ export namespace domain {
 	        this.updatedAt = source["updatedAt"];
 	        this.archived = source["archived"];
 	        this.importedFrom = source["importedFrom"];
+	        this.importedSession = source["importedSession"];
 	    }
 	}
 	

@@ -46,7 +46,7 @@ export default function Feed({ threadId, blocks, turnMs }: FeedProps) {
   )
 }
 
-const BlockView = React.memo(function BlockView({ threadId, block }: { threadId: string; block: Block }) {
+export const BlockView = React.memo(function BlockView({ threadId, block }: { threadId: string; block: Block }) {
   switch (block.type) {
     case 'user':
       return <UserBubble content={block.content} files={block.files} pending={block.pending} />

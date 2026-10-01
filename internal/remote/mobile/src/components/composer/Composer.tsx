@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type TouchEvent } from 'react'
-import { AudioLines, Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
+import { Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
+import { VoiceWave } from './VoiceWave'
 import { GlassCircle, GlassSquircle, SEND_NUDGE } from '../../ui'
 import { interrupt, removeQueued, send, useStore } from '../../store'
 import { PcDownNotice } from '../status/PcDownNotice'
@@ -45,16 +46,10 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   function grow() {
     const el = field.current
     if (!el) return
+    el.style.height = 'auto'
     const target = Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)
     el.style.overflowY = target >= MAX_INPUT_HEIGHT ? 'auto' : 'hidden'
-    if (target >= el.clientHeight - 1) {
-      if (Math.abs(target - el.clientHeight) > 1) el.style.height = `${target}px`
-    } else if (el.clientHeight - target > 4) {
-      el.style.height = 'auto'
-      const snapped = Math.min(el.scrollHeight, MAX_INPUT_HEIGHT)
-      el.style.overflowY = snapped >= MAX_INPUT_HEIGHT ? 'auto' : 'hidden'
-      el.style.height = `${snapped}px`
-    }
+    el.style.height = `${target}px`
   }
 
   useEffect(grow, [text, dictation.draft])
@@ -62,6 +57,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
   const submit = () => {
     if (!canSend) return
     const body = liveText.trim()
+    if (dictation.listening) dictation.cancel()
     if (!threadId) {
       if (!onCreate || (!body && attachments.files.length === 0)) return
       setCreating(true)
@@ -150,7 +146,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
           className="composer-input"
           rows={1}
           value={liveText}
-          placeholder={pcDown ? 'PC not responding' : placeholder}
+          placeholder={pcDown ? 'PC not responding' : dictation.listening ? 'Listening…' : placeholder}
           aria-label="Message"
           enterKeyHint="send"
           onTouchStart={onFieldTouchStart}
@@ -178,7 +174,7 @@ export function Composer({ threadId, placeholder, onCreate }: ComposerProps) {
           aria-pressed={dictation.listening}
           className={dictation.listening ? 'composer-mic listening on-accent' : 'composer-mic on-accent'}
         >
-          {dictation.listening ? <AudioLines {...ICON} aria-hidden /> : <Mic {...ICON} aria-hidden />}
+          {dictation.listening ? <VoiceWave active activity={dictation.activity} /> : <Mic {...ICON} aria-hidden />}
         </GlassCircle>
         {busy && !canSend ? (
           <GlassCircle size={BUTTON} fill="var(--send)" onClick={() => threadId && void interrupt(threadId)} aria-label="Stop responding" className="on-accent">

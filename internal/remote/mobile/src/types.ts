@@ -198,6 +198,7 @@ export interface DevServer {
   name: string
   kind: string
   ownerThreadId?: string
+  cwd?: string
   preview?: PreviewInfo
 }
 

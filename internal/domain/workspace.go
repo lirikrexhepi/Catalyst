@@ -16,7 +16,8 @@ type Workspace struct {
 	// (e.g. "claude-code"). Imported transcripts are read-only context:
 	// new agents start fresh and receive the transcript as prompt context
 	// rather than resuming the outside conversation.
-	ImportedFrom string `json:"importedFrom,omitempty"`
+	ImportedFrom    string `json:"importedFrom,omitempty"`
+	ImportedSession string `json:"importedSession,omitempty"`
 }
 
 type TaskState string
@@ -47,6 +48,7 @@ type Task struct {
 	// Permission is the mode the task was started with. Carried through resume,
 	// provider switch and model change so none of them silently widen access.
 	Permission PermissionMode `json:"permission,omitempty"`
+	Archived   bool           `json:"archived,omitempty"`
 
 	Worktree *Worktree `json:"worktree,omitempty"`
 	// Summary is captured at turn completion rather than on close, so context

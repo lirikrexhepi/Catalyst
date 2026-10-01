@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { fileIconForPath } from '../common/fileIcon';
+import { WorkRow } from './WorkRow';
 
 export interface DiffLine {
   type: 'add' | 'delete' | 'context';
@@ -14,158 +15,102 @@ export interface EditToolProps {
   diffLines?: DiffLine[];
   className?: string;
   defaultExpanded?: boolean;
-  /** Tool that produced the change (Write reads as "Wrote"). */
   toolName?: string;
   status?: 'running' | 'completed' | 'error';
 }
 
-/**
- * EditTool Component
- * Diff viewer card for code modifications matching the exact compact height of BashTool.
- */
-const EditToolImpl: React.FC<EditToolProps> = ({
-  filePath,
-  additions = 0,
-  deletions = 0,
-  diffLines = [],
-  className = '',
-  defaultExpanded = false,
-  toolName,
-  status,
-}) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-  const [isCopied, setIsCopied] = useState(false);
-  const fileIcon = fileIconForPath(filePath);
-
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const text = diffLines
-      .map((l) => `${l.type === 'add' ? '+' : l.type === 'delete' ? '-' : ' '} ${l.content}`)
-      .join('\n');
-    navigator.clipboard.writeText(text);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 1500);
-  };
-
+export function DiffStat({ additions = 0, deletions = 0 }: { additions?: number; deletions?: number }) {
+  if (!additions && !deletions) return null;
   return (
-    <div
-      className={`rounded-xl bg-current/[0.05] px-3.5 py-2.5 text-current max-w-full transition-all duration-150 group select-none font-['Geist'] border-0 shadow-none ${className}`}
-    >
-      {/* Header Row - Exact same 22px height & alignment as BashTool */}
-      <div
-        onClick={() => setIsExpanded((prev) => !prev)}
-        className="flex items-center justify-between cursor-pointer gap-2 h-[22px]"
+    <span className="flex items-center gap-1.5 text-[11.5px] tabular-nums shrink-0">
+      {additions > 0 && <span className="text-emerald-400/90">+{additions}</span>}
+      {deletions > 0 && <span className="text-rose-400/90">−{deletions}</span>}
+    </span>
+  );
+}
+
+export const DiffView = React.memo(function DiffView({ lines }: { lines: DiffLine[] }) {
+  const [copied, setCopied] = useState(false);
+  const copy = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    navigator.clipboard.writeText(
+      lines.map((l) => `${l.type === 'add' ? '+' : l.type === 'delete' ? '-' : ' '}${l.content}`).join('\n'),
+    );
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  };
+  return (
+    <div className="relative group/out rounded-[10px] bg-current/[0.04] overflow-hidden">
+      <button
+        type="button"
+        onClick={copy}
+        title="Copy diff"
+        className="absolute top-1.5 right-1.5 z-[1] w-[22px] h-[22px] rounded-[6px] flex items-center justify-center text-current/45 hover:text-current hover:bg-current/[0.08] opacity-0 group-hover/out:opacity-100 transition-all duration-150 cursor-pointer"
       >
-        <div className="flex items-center gap-2 min-w-0 h-full">
-          <img
-            src={fileIcon}
-            alt=""
-            draggable={false}
-            className="w-[18px] h-[18px] shrink-0"
-          />
-
-          <span className="text-[12px] font-medium text-current tracking-tight truncate leading-none flex items-center">
-            {editVerb(toolName, status)} {filePath}
-          </span>
-        </div>
-
-        {/* Right Stats & Controls */}
-        <div className="flex items-center gap-1.5 opacity-70 group-hover:opacity-100 transition-opacity shrink-0 h-full">
-          {/* Diff stats (+N -N) */}
-          <div className="flex items-center gap-1 text-[11px] font-mono leading-none mr-0.5">
-            <span className="text-emerald-400 font-semibold">+{additions}</span>
-            <span className="text-rose-400 font-semibold">-{deletions}</span>
-          </div>
-
-          {/* Copy Button */}
-          <button
-            type="button"
-            title="Copy diff"
-            onClick={handleCopy}
-            className="w-[20px] h-[20px] rounded flex items-center justify-center hover:bg-current/15 active:scale-90 transition-all text-current/80 hover:text-current cursor-pointer shrink-0"
-          >
-            <span className="material-symbols-outlined text-[13px] leading-none flex items-center justify-center">
-              {isCopied ? 'check' : 'content_copy'}
-            </span>
-          </button>
-
-          {/* Chevron */}
-          <button
-            type="button"
-            className="w-[20px] h-[20px] rounded flex items-center justify-center hover:bg-current/15 text-current/80 hover:text-current shrink-0 cursor-pointer"
-          >
-            <span
-              className={`material-symbols-outlined text-[15px] leading-none flex items-center justify-center transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                isExpanded ? 'rotate-180' : 'rotate-0'
+        <span className="material-symbols-outlined text-[13px] leading-none">{copied ? 'check' : 'content_copy'}</span>
+      </button>
+      <div className="max-h-[300px] overflow-auto custom-scrollbar py-1.5 select-text">
+        {lines.map((line, index) => {
+          const add = line.type === 'add';
+          const del = line.type === 'delete';
+          return (
+            <div
+              key={index}
+              className={`flex min-w-full w-max font-['Geist_Mono',monospace] text-[11px] leading-[18px] ${
+                add ? 'bg-emerald-500/[0.11]' : del ? 'bg-rose-500/[0.11]' : ''
               }`}
             >
-              expand_more
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Collapsible Diff Body */}
-      <div
-        className="grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
-        style={{
-          gridTemplateRows: isExpanded ? '1fr' : '0fr',
-          opacity: isExpanded ? 1 : 0,
-        }}
-      >
-        <div className="overflow-hidden">
-          <div className="pt-2 flex flex-col font-['Geist'] text-[12px] select-text overflow-x-auto max-h-[260px] custom-scrollbar rounded-[8px]">
-            {diffLines.map((line, idx) => {
-              const isAdd = line.type === 'add';
-              const isDel = line.type === 'delete';
-
-              return (
-                <div
-                  key={idx}
-                  className={`flex items-stretch px-2 py-0.5 min-w-full font-mono text-[11px] leading-[18px] ${
-                    isAdd
-                      ? 'bg-emerald-500/15 text-emerald-200'
-                      : isDel
-                      ? 'bg-rose-500/15 text-rose-200'
-                      : 'text-current/70'
-                  }`}
-                >
-                  {/* Line Number */}
-                  <span className="w-6 text-right pr-3 select-none text-current/35 shrink-0 font-mono text-[10px]">
-                    {line.lineNum}
-                  </span>
-
-                  {/* Indicator bar */}
-                  <span
-                    className={`w-1 select-none mr-2 shrink-0 ${
-                      isAdd
-                        ? 'bg-emerald-400/80'
-                        : isDel
-                        ? 'bg-rose-400/80'
-                        : 'bg-transparent'
-                    }`}
-                  />
-
-                  {/* Content line */}
-                  <span className="font-mono text-[11px] whitespace-pre">
-                    {line.content}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+              <span className="w-9 pr-2.5 text-right text-current/25 select-none shrink-0 tabular-nums">{line.lineNum || ''}</span>
+              <span
+                className={`w-3 select-none shrink-0 ${add ? 'text-emerald-400/80' : del ? 'text-rose-400/80' : 'text-transparent'}`}
+              >
+                {add ? '+' : del ? '−' : ' '}
+              </span>
+              <span
+                className={`whitespace-pre pr-4 ${add || del ? 'text-current/85' : 'text-current/55'}`}
+              >
+                {line.content}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
-};
+});
 
-function editVerb(toolName?: string, status?: string): string {
+export function editVerb(toolName?: string, status?: string): string {
   const write = /^(write|write_to_file|writefile|create)$/i.test(toolName || '');
   if (status === 'running') return write ? 'Writing' : 'Editing';
   if (status === 'error') return write ? 'Failed to write' : 'Failed to edit';
   return write ? 'Wrote' : 'Edited';
 }
+
+export function baseName(path: string): string {
+  return path.split(/[\\/]/).filter(Boolean).pop() || path;
+}
+
+const EditToolImpl: React.FC<EditToolProps> = ({
+  filePath,
+  additions = 0,
+  deletions = 0,
+  diffLines = [],
+  defaultExpanded = false,
+  toolName,
+  status,
+}) => (
+  <WorkRow
+    iconNode={<img src={fileIconForPath(filePath)} alt="" draggable={false} className="w-[14px] h-[14px]" />}
+    label={editVerb(toolName, status)}
+    target={baseName(filePath)}
+    running={status === 'running'}
+    error={status === 'error'}
+    meta={<DiffStat additions={additions} deletions={deletions} />}
+    defaultOpen={defaultExpanded}
+  >
+    {diffLines.length > 0 ? <DiffView lines={diffLines} /> : undefined}
+  </WorkRow>
+);
 
 export const EditTool = React.memo(EditToolImpl);
 EditTool.displayName = 'EditTool';

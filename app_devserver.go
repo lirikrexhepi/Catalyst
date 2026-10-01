@@ -196,16 +196,29 @@ func (a *App) managedSnapshot(id string) (devserver.Snapshot, bool) {
 
 func (a *App) runningDevServerIn(cwd string) (devserver.Snapshot, bool) {
 	for _, snap := range a.devservers.List() {
-		if snap.Status == devserver.StatusRunning && underDir(snap.Cwd, cwd) {
+		if snap.Status == devserver.StatusRunning && underDir(snap.Cwd, cwd) && !inNestedWorktree(snap.Cwd, cwd) {
 			return snap, true
 		}
 	}
 	return devserver.Snapshot{}, false
 }
 
+func inNestedWorktree(path, root string) bool {
+	rel, err := filepath.Rel(root, path)
+	if err != nil || rel == "." {
+		return false
+	}
+	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
+		if strings.EqualFold(part, "worktrees") || strings.EqualFold(part, ".worktrees") {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *App) remoteStartDevServer(_ context.Context, req remote.DevServerRequest) (remote.DevServerInfo, error) {
 	cwd := req.Cwd
-	if req.ThreadID != "" {
+	if req.ThreadID != "" && !req.Pinned {
 		if found := a.threadCwd(req.ThreadID); found != "" {
 			cwd = found
 		}

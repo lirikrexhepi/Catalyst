@@ -531,7 +531,12 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
         // Imported outside chats are read-only context: messaging one starts a
         // fresh agent in the same folder with the transcript attached, rather
         // than resuming a conversation the CLI never had.
-        if (currentTask.importedFrom) {
+        const importTarget = modelId
+          ? (store.models.find((m) => m.id === modelId) ?? store.getSelectedModel())?.providerId
+          : currentTask.driver;
+        const continuesClaude =
+          currentTask.importedFrom === 'claude-code' && (importTarget || 'claude') === 'claude';
+        if (currentTask.importedFrom && !continuesClaude) {
           try {
             const store = useOrchestratorStore.getState();
             const desired = modelId

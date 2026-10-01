@@ -164,6 +164,7 @@ type SessionStartInput struct {
 	Model      string         `json:"model,omitempty"`
 	Permission PermissionMode `json:"permissionMode,omitempty"`
 	Resume     string         `json:"resume,omitempty"`
+	Fork       bool           `json:"fork,omitempty"`
 	Options    ModelOptions   `json:"options,omitempty"`
 	// PlanOnly denies the session every tool. The orchestrator delegates rather
 	// than works, and without this it explores the repo instead of answering.

@@ -1,419 +1,88 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { ScrollArea } from '../common/ScrollArea';
+import React from 'react';
+import { X, ArrowUpRight } from 'lucide-react';
 import { WallpaperState } from './useWallpaper';
 import { DefaultModels } from './useDefaultModels';
-import { isCustom } from './wallpapers';
 import { useTheme } from '../../themes';
-import { ProvidersSection } from './ProvidersSection';
-import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
-import { useClaudeUpdate } from '../orchestrator/useClaudeUpdate';
-import { RemoteAccessSection } from './RemoteAccessSection';
-import { BackgroundSection } from './BackgroundSection';
-import { GetUserPreference, SetUserPreference } from '../../../wailsjs/go/main/App';
+import { ThemePicker, ToggleRow, SectionLabel, useGeneralToggles } from './SettingsParts';
 
 export interface SettingsPanelProps {
   wallpaper: WallpaperState;
   defaultModels: DefaultModels;
   onClose: () => void;
+  onOpenAll?: () => void;
   className?: string;
 }
 
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({
-  wallpaper,
-  defaultModels,
-  onClose,
-  className = '',
-}) => {
-  const { currentTheme, themeId, availableThemes, setTheme } = useTheme();
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ wallpaper, onClose, onOpenAll, className = '' }) => {
+  const { currentTheme } = useTheme();
   const isLight = currentTheme.id === 'light' || currentTheme.id === 'white';
-  const claudeUpdate = useClaudeUpdate();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const autoStartAgents = useOrchestratorStore((s) => s.autoStartAgents);
-  const setAutoStartAgents = useOrchestratorStore((s) => s.setAutoStartAgents);
-  const autoApprovePermissions = useOrchestratorStore((s) => s.autoApprovePermissions);
-  const setAutoApprovePermissions = useOrchestratorStore((s) => s.setAutoApprovePermissions);
-  const interfaceSounds = useOrchestratorStore((s) => s.interfaceSounds);
-  const setInterfaceSounds = useOrchestratorStore((s) => s.setInterfaceSounds);
-  const showProjectFavicons = useOrchestratorStore((s) => s.showProjectFavicons);
-  const setShowProjectFavicons = useOrchestratorStore((s) => s.setShowProjectFavicons);
-
-  const [gpuAcceleration, setGpuAcceleration] = useState<boolean>(true);
-  const [hasChangedGpu, setHasChangedGpu] = useState<boolean>(false);
-
-  useEffect(() => {
-    GetUserPreference('disable_gpu_acceleration')
-      .then((val) => {
-        if (val === 'true') {
-          setGpuAcceleration(false);
-        } else {
-          setGpuAcceleration(true);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to read GPU acceleration preference:', err);
-      });
-  }, []);
-
-  const handleToggleGpu = () => {
-    const nextVal = !gpuAcceleration;
-    setGpuAcceleration(nextVal);
-    setHasChangedGpu(true);
-    void SetUserPreference('disable_gpu_acceleration', nextVal ? 'false' : 'true');
-  };
-
-  const handleFiles = (files: FileList | null) => {
-    const file = files?.[0];
-    if (file) void wallpaper.upload(file);
-    if (fileRef.current) fileRef.current.value = '';
-  };
+  const toggles = useGeneralToggles();
+  const fg = isLight ? 'text-black/90' : 'text-white';
 
   return (
-    <div className={`w-full h-full flex flex-col select-none ${className}`}>
-      <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="material-symbols-rounded text-[18px] text-white/80 leading-none">
-            settings
-          </span>
-          <span className="text-[13px] font-semibold font-['Geist'] text-white tracking-tight">
-            Settings
-          </span>
-        </div>
+    <div className={`w-full h-full flex flex-col select-none font-['Geist'] ${className}`}>
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-2 shrink-0">
+        <span className={`text-[13px] font-semibold tracking-tight ${fg}`}>Settings</span>
         <button
           type="button"
           title="Close"
           onClick={onClose}
-          className="w-[24px] h-[24px] rounded-full hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white"
+          className={`w-[26px] h-[26px] rounded-full active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer ${
+            isLight ? 'hover:bg-black/[0.06] text-black/45 hover:text-black' : 'hover:bg-white/10 text-white/45 hover:text-white'
+          }`}
         >
-          <X size={16} strokeWidth={1.75} />
+          <X size={15} strokeWidth={1.9} />
         </button>
       </div>
 
-      <ScrollArea maxHeight={460} className="px-4 pb-4 flex flex-col gap-2.5">
-        {defaultModels.entries.length > 0 && (
-          <ProvidersSection defaultModels={defaultModels} claudeUpdate={claudeUpdate} isLight={isLight} />
-        )}
+      <div className="flex-1 min-h-0 px-4 flex flex-col gap-2.5">
+        <SectionLabel isLight={isLight}>Theme</SectionLabel>
+        <ThemePicker isLight={isLight} />
 
-        {/* Themes: Dark, Light, Glass */}
-        <div className="flex items-baseline justify-between gap-2 px-0.5 pt-0.5">
-          <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
-            Theme
-          </span>
-        </div>
+        <SectionLabel isLight={isLight}>Quick</SectionLabel>
+        <ToggleRow title="Auto-approve permissions" on={toggles.autoApprove.on} onChange={toggles.autoApprove.toggle} isLight={isLight} />
+        <ToggleRow title="Interface sounds" on={toggles.sounds.on} onChange={toggles.sounds.toggle} isLight={isLight} />
 
-        <div className="grid grid-cols-3 gap-2">
-          {availableThemes.map((t) => {
-            const isSelected = t.id === themeId;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTheme(t.id)}
-                className={`py-2 px-2.5 rounded-[10px] flex items-center justify-between transition-all duration-150 cursor-pointer active:scale-95 ${
-                  isSelected
-                    ? isLight
-                      ? 'bg-black/10 text-black shadow-sm border border-black/10'
-                      : 'bg-white/20 text-white shadow-sm'
-                    : isLight
-                      ? 'bg-black/[0.04] hover:bg-black/[0.07] text-black/70'
-                      : 'bg-white/[0.05] hover:bg-white/[0.09] text-white/70'
-                }`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className="w-3.5 h-3.5 rounded-full shrink-0 shadow-inner"
-                    style={{ background: t.previewGradient }}
-                  />
-                  <span className={`text-[12px] font-medium font-['Geist'] tracking-tight truncate ${
-                    isLight ? 'text-[#030303]' : 'text-white/95'
-                  }`}>
-                    {t.name}
-                  </span>
-                </div>
-                {isSelected && (
-                  <span className={`material-symbols-rounded text-[13px] leading-none shrink-0 ml-1 ${
-                    isLight ? 'text-black' : 'text-white'
-                  }`}>
-                    check
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Auto-start agents Toggle */}
-        <div className={`flex items-center justify-between p-2.5 rounded-[10px] ${
-          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
-        }`}>
-          <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
-            isLight ? 'text-[#030303]' : 'text-white/90'
-          }`}>
-            Auto-start agents
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={autoStartAgents}
-            onClick={() => setAutoStartAgents(!autoStartAgents)}
-            className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer ${
-              autoStartAgents
-                ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
-                : isLight ? 'bg-black/15' : 'bg-white/15'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
-                autoStartAgents
-                  ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
-                  : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* Auto-approve permissions Toggle */}
-        <div className={`flex items-center justify-between p-2.5 rounded-[10px] ${
-          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
-        }`}>
-          <div className="flex flex-col">
-            <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
-              isLight ? 'text-[#030303]' : 'text-white/90'
-            }`}>
-              Auto-approve permissions
-            </span>
-            <span className={`text-[10px] font-['Geist'] tracking-tight leading-snug ${
-              isLight ? 'text-black/50' : 'text-white/40'
-            }`}>
-              Bypass prompts for folders & commands
-            </span>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={autoApprovePermissions}
-            onClick={() => setAutoApprovePermissions(!autoApprovePermissions)}
-            className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ml-2 ${
-              autoApprovePermissions
-                ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
-                : isLight ? 'bg-black/15' : 'bg-white/15'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
-                autoApprovePermissions
-                  ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
-                  : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
-              }`}
-            />
-          </button>
-        </div>
-
-        <div className={`flex items-center justify-between p-2.5 rounded-[10px] ${
-          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
-        }`}>
-          <div className="flex flex-col">
-            <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
-              isLight ? 'text-[#030303]' : 'text-white/90'
-            }`}>
-              Interface sounds
-            </span>
-            <span className={`text-[10px] font-['Geist'] tracking-tight leading-snug ${
-              isLight ? 'text-black/50' : 'text-white/40'
-            }`}>
-              Chime when an agent finishes a task
-            </span>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={interfaceSounds}
-            data-cuelume-toggle
-            onClick={() => setInterfaceSounds(!interfaceSounds)}
-            className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ml-2 ${
-              interfaceSounds
-                ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
-                : isLight ? 'bg-black/15' : 'bg-white/15'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
-                interfaceSounds
-                  ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
-                  : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
-              }`}
-            />
-          </button>
-        </div>
-
-        <div className={`flex items-center justify-between p-2.5 rounded-[10px] ${
-          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
-        }`}>
-          <div className="flex flex-col">
-            <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
-              isLight ? 'text-[#030303]' : 'text-white/90'
-            }`}>
-              Project favicons
-            </span>
-            <span className={`text-[10px] font-['Geist'] tracking-tight leading-snug ${
-              isLight ? 'text-black/50' : 'text-white/40'
-            }`}>
-              Show each app's icon instead of a folder
-            </span>
-          </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={showProjectFavicons}
-            onClick={() => setShowProjectFavicons(!showProjectFavicons)}
-            className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ml-2 ${
-              showProjectFavicons
-                ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
-                : isLight ? 'bg-black/15' : 'bg-white/15'
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
-                showProjectFavicons
-                  ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
-                  : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
-              }`}
-            />
-          </button>
-        </div>
-
-        {/* GPU Hardware Acceleration Toggle */}
-        <div className={`flex flex-col gap-1.5 p-2.5 rounded-[10px] ${
-          isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col">
-              <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${
-                isLight ? 'text-[#030303]' : 'text-white/90'
-              }`}>
-                GPU Hardware Acceleration
-              </span>
-              <span className={`text-[10px] font-['Geist'] tracking-tight leading-snug ${
-                isLight ? 'text-black/50' : 'text-white/40'
-              }`}>
-                Accelerates window rendering. Turn off if experiencing GPU crashes.
-              </span>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={gpuAcceleration}
-              onClick={handleToggleGpu}
-              className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-out cursor-pointer shrink-0 ml-2 ${
-                gpuAcceleration
-                  ? isLight ? 'bg-[#007AFF]' : 'bg-white/90'
-                  : isLight ? 'bg-black/15' : 'bg-white/15'
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full transition-transform duration-200 ease-out ${
-                  gpuAcceleration
-                    ? isLight ? 'translate-x-4 bg-white shadow-sm' : 'translate-x-4 bg-black shadow-sm'
-                    : isLight ? 'translate-x-0 bg-white shadow-sm' : 'translate-x-0 bg-white/60'
-                }`}
-              />
-            </button>
-          </div>
-          {hasChangedGpu && (
-            <div className={`text-[10px] font-medium font-['Geist'] px-2 py-1 rounded-[6px] ${
-              isLight ? 'bg-amber-500/15 text-amber-900 border border-amber-500/20' : 'bg-amber-500/20 text-amber-200 border border-amber-500/30'
-            }`}>
-              Restart Orchestrator for change to take effect.
-            </div>
-          )}
-        </div>
-
-        <BackgroundSection isLight={isLight} />
-
-        <div className="flex items-baseline justify-between gap-2 px-0.5">
-          <span className={`text-[10px] font-semibold font-['Geist'] tracking-tight uppercase ${
-            isLight ? 'text-black/45' : 'text-white/45'
-          }`}>
-            Wallpaper
-          </span>
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className={`text-[11px] font-medium font-['Geist'] tracking-tight transition-colors cursor-pointer ${
-              isLight ? 'text-black/60 hover:text-black' : 'text-white/60 hover:text-white'
-            }`}
-          >
-            Upload
-          </button>
-        </div>
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => handleFiles(event.target.files)}
-        />
-
-        {wallpaper.error && (
-          <div className="px-3 py-2 rounded-[9px] bg-amber-500/10 border border-amber-400/25">
-            <span className="text-[11px] font-medium font-['Geist'] text-amber-100/90 leading-relaxed">
-              {wallpaper.error}
-            </span>
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-2">
-          {wallpaper.wallpapers.map((item) => {
-            const isSelected = wallpaper.selected?.id === item.id;
-            return (
-              <div key={item.id} className="relative group">
+        {wallpaper.wallpapers.length > 0 && (
+          <>
+            <SectionLabel isLight={isLight}>Wallpaper</SectionLabel>
+            <div className="grid grid-cols-4 gap-1.5">
+              {wallpaper.wallpapers.slice(0, 4).map((item) => (
                 <button
+                  key={item.id}
                   type="button"
                   title={item.label}
                   onClick={() => wallpaper.select(item.id)}
-                  className={`w-full aspect-[16/10] rounded-[9px] overflow-hidden transition-all duration-150 cursor-pointer active:scale-95 ${
-                    isSelected
-                      ? isLight ? 'ring-2 ring-inset ring-black/80' : 'ring-2 ring-inset ring-white/80'
-                      : isLight ? 'ring-1 ring-inset ring-black/15 hover:ring-black/40' : 'ring-1 ring-inset ring-white/15 hover:ring-white/40'
+                  className={`aspect-[16/10] rounded-[8px] overflow-hidden cursor-pointer active:scale-95 transition-all duration-150 ${
+                    wallpaper.selected?.id === item.id
+                      ? isLight
+                        ? 'ring-2 ring-inset ring-black/80'
+                        : 'ring-2 ring-inset ring-white/80'
+                      : isLight
+                        ? 'ring-1 ring-inset ring-black/15'
+                        : 'ring-1 ring-inset ring-white/15'
                   }`}
                 >
-                  <img
-                    src={item.url}
-                    alt={item.label}
-                    loading="lazy"
-                    draggable={false}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={item.url} alt="" loading="lazy" draggable={false} className="w-full h-full object-cover" />
                 </button>
-
-                {isCustom(item.id) && (
-                  <button
-                    type="button"
-                    title="Remove"
-                    onClick={() => wallpaper.remove(item.id)}
-                    className="absolute top-1 right-1 w-[18px] h-[18px] rounded-full bg-black/60 hover:bg-rose-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-150 cursor-pointer"
-                  >
-                    <span className="material-symbols-rounded text-[12px] text-white leading-none">
-                      close
-                    </span>
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {wallpaper.wallpapers.length === 0 && (
-          <p className="text-[12px] font-['Geist'] text-white/45 leading-relaxed">
-            No wallpapers bundled yet. Upload one, or drop images named
-            <span className="font-mono text-white/60"> wallpaper1.png</span> through
-            <span className="font-mono text-white/60"> wallpaper6.png</span> into
-            <span className="font-mono text-white/60"> src/assets/wallpapers/</span>.
-          </p>
+              ))}
+            </div>
+          </>
         )}
-        <RemoteAccessSection />
-      </ScrollArea>
+      </div>
+
+      <div className="p-3 shrink-0">
+        <button
+          type="button"
+          onClick={onOpenAll}
+          className={`w-full h-[38px] rounded-[12px] flex items-center justify-center gap-1.5 text-[12.5px] font-medium tracking-tight transition-all duration-150 cursor-pointer active:scale-[0.98] ${
+            isLight ? 'bg-black/[0.06] hover:bg-black/[0.1] text-black/85' : 'bg-white/[0.08] hover:bg-white/[0.13] text-white/90'
+          }`}
+        >
+          All settings
+          <ArrowUpRight size={14} strokeWidth={2} />
+        </button>
+      </div>
     </div>
   );
 };

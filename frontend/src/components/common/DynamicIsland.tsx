@@ -1,8 +1,8 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProjectsState, Project } from '../orchestrator/useProjects';
 import { DynamicIslandWaveform } from './DynamicIslandWaveform';
-import { ScrollArea } from './ScrollArea';
+import { ClaudeChatsView, ProjectChatsView, ProjectsView, islandTone } from './IslandLists';
 import { history, session, claudeimport } from '../../../wailsjs/go/models';
 import claudeLogo from '../../assets/logo/claude-icon-logo.png';
 import antigravityLogo from '../../assets/logo/antigravity-icon-logo.png';
@@ -44,6 +44,7 @@ export interface DynamicIslandProps {
   activeWorkspaceId?: string | null;
   onOpenHistory?: (workspaceId: string, threadId?: string) => void;
   onDeleteHistory?: (workspaceId: string, threadId?: string) => void;
+  onSetChatArchived?: (workspaceId: string, threadId: string, archived: boolean) => void;
   onTerminateAgent?: (threadId: string) => void;
   onRefreshHistory?: () => void;
   onNewChat?: () => void;
@@ -108,13 +109,6 @@ function relativeTime(at: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-// Shorten file path
-function shortenPath(path: string): string {
-  const home = path.match(/^([a-zA-Z]:\\Users\\[^\\]+|\/(?:home|Users)\/[^/]+)/);
-  const trimmed = home ? `~${path.slice(home[0].length)}` : path;
-  return trimmed.length > 30 ? `…${trimmed.slice(-29)}` : trimmed;
-}
-
 export interface ChatHistoryItem {
   id: string;
   workspaceId: string;
@@ -125,6 +119,7 @@ export interface ChatHistoryItem {
   drivers?: string[];
   models?: string[];
   updatedAt: number;
+  archived?: boolean;
 }
 
 export interface ChatHistoryGroup {
@@ -189,7 +184,12 @@ export function groupChatHistoryItems(items: ChatHistoryItem[]): ChatHistoryGrou
   return groups;
 }
 
-export function extractChatHistoryItems(entries: history.Meta[], projectPath?: string): ChatHistoryItem[] {
+export function extractChatHistoryItems(
+  entries: history.Meta[],
+  projectPath?: string,
+  options: { archived?: 'exclude' | 'only' | 'include' } = {},
+): ChatHistoryItem[] {
+  const mode = options.archived ?? 'exclude';
   const items: ChatHistoryItem[] = [];
   const metas = projectPath
     ? (entries || []).filter((h) => matchesProject(h, projectPath))
@@ -223,6 +223,7 @@ export function extractChatHistoryItems(entries: history.Meta[], projectPath?: s
         drivers: ['orchestrator'],
         models: ['Orchestrator'],
         updatedAt: meta.workspace?.updatedAt || meta.workspace?.createdAt || 0,
+        archived: Boolean(meta.workspace?.archived),
       });
     } else {
       for (const rootId of order) {
@@ -283,12 +284,15 @@ export function extractChatHistoryItems(entries: history.Meta[], projectPath?: s
             meta.workspace?.updatedAt ||
             meta.workspace?.createdAt ||
             0,
+          archived: Boolean(meta.workspace?.archived) || groupTasks.every((gt: any) => gt.archived),
         });
       }
     }
   }
 
-  return items.sort((a, b) => b.updatedAt - a.updatedAt);
+  return items
+    .filter((item) => (mode === 'include' ? true : mode === 'only' ? item.archived : !item.archived))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export function formatModelBadge(model?: string, driver?: string): string {
@@ -446,7 +450,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   historyEntries = [],
   activeWorkspaceId,
   onOpenHistory,
-  onDeleteHistory,
+  onSetChatArchived,
   onRefreshHistory,
   onNewChat,
   claudeSessions = [],
@@ -460,12 +464,19 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   // Mode: 'idle' (compact), 'projects' (expanded project picker), 'project-chats' (project's past chats), 'claude-chats' (native Claude Code chats), 'usage' (expanded usage card)
   const [mode, setMode] = useState<'idle' | 'projects' | 'project-chats' | 'claude-chats' | 'usage'>('idle');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  // Project list arrangement: native drag from the row handle, dropped into a
-  // gap position. The confirm id arms the inline remove confirmation.
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [dropGap, setDropGap] = useState<number | null>(null);
-  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const islandRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [contentHeight, setContentHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const node = contentRef.current;
+    if (!node) return;
+    const update = () => setContentHeight(Math.ceil(node.getBoundingClientRect().height));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (mode === 'projects' || mode === 'project-chats') {
@@ -476,6 +487,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   const { currentTheme } = useTheme();
   const isLight = currentTheme.id === 'light' || currentTheme.id === 'white';
   const isGlass = currentTheme.id === 'glass';
+  const tone = useMemo(() => islandTone(isLight), [isLight]);
   const selectedProviderId = useOrchestratorStore((s) => s.selectedProviderId);
   const selectedModelId = useOrchestratorStore((s) => s.selectedModelId);
 
@@ -498,7 +510,26 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
 
   // Only chats the user opened and wrote in: agent-spawned runs and AI side
   // tasks never appear here.
-  const handClaudeChats = (claudeSessions ?? []).filter((s) => !s.agentRun);
+  const handClaudeChats = useMemo(() => (claudeSessions ?? []).filter((s) => !s.agentRun), [claudeSessions]);
+
+  const chatCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const project of projects?.projects ?? []) {
+      counts[project.id] = extractChatHistoryItems(historyEntries || [], project.path).length;
+    }
+    return counts;
+  }, [projects?.projects, historyEntries]);
+
+  const runningThreadIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const task of activeTasks) {
+      if (!task.isBusy) continue;
+      ids.add(task.threadId);
+      const root = task.threadId.split('-cont-')[0];
+      ids.add(root);
+    }
+    return ids;
+  }, [activeTasks]);
 
   // Identify model vendor from selectedProviderId, selectedModelId, activeTask or usageReport
   const driverName = useMemo<'claude' | 'codex' | 'antigravity' | 'opencode'>(() => {
@@ -630,24 +661,25 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     mass: 0.8,
   };
 
-  // Dimensions based on mode
+  const isListMode = mode === 'project-chats' || mode === 'claude-chats' || mode === 'projects';
   const targetWidth =
     mode === 'project-chats' || mode === 'claude-chats'
-      ? 360
+      ? 372
       : mode === 'projects'
-      ? 330
+      ? 348
       : mode === 'usage'
       ? 315
       : notification
       ? 320
       : 275;
-  const targetHeight =
-    mode === 'project-chats' || mode === 'claude-chats' || mode === 'projects'
-      ? 'auto'
-      : mode === 'usage'
-        ? 180
-        : 36;
-  const targetRadius = mode === 'idle' ? 18 : 24;
+  const targetHeight = isListMode ? Math.max(contentHeight, 60) : mode === 'usage' ? 180 : 36;
+  const targetRadius = mode === 'idle' ? 18 : 26;
+  const viewMotion = {
+    initial: { opacity: 0, y: -6, filter: 'blur(4px)' },
+    animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
+    exit: { opacity: 0, y: -4, filter: 'blur(4px)', transition: { duration: 0.1 } },
+    transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const },
+  };
 
   // SVG Ring values for 20px circle (r=8 -> circum=50.26)
   const ringCircumference = 50.26;
@@ -686,7 +718,8 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
           : '0 16px 40px rgba(0, 0, 0, 0.85), 0 4px 12px rgba(0, 0, 0, 0.6)',
       }}
     >
-      <AnimatePresence mode="wait">
+      <div ref={contentRef} className="w-full" style={{ height: isListMode ? 'auto' : '100%' }}>
+      <AnimatePresence mode="wait" initial={false}>
         {/* ===================================================================
             1. COMPACT IDLE STATE (Notification or Two clickable zones)
             =================================================================== */}
@@ -842,598 +875,77 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
           </motion.div>
         )}
 
-        {/* ===================================================================
-            2. EXPANDED PROJECTS PICKER (Only projects show)
-            =================================================================== */}
         {mode === 'projects' && (
-          <motion.div
-            key="projects-view"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.15 }}
-            className="flex flex-col w-full h-full p-3.5 justify-between"
-          >
-            <div className="flex items-center justify-between pb-2 mb-1">
-              <span className="text-[12px] font-semibold text-white/90 font-['Geist'] tracking-tight">
-                Projects
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  title="Add project folder"
-                  disabled={projects?.isChoosing}
-                  onClick={() => {
-                    void projects?.choose();
-                    setMode('idle');
-                  }}
-                  className={`w-5 h-5 rounded-full ${
-                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
-                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer disabled:opacity-40`}
-                >
-                  <span className="material-symbols-rounded text-[14px] leading-none">add</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode('idle')}
-                  className={`w-5 h-5 rounded-full ${
-                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
-                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
-                >
-                  <span className="material-symbols-rounded text-[14px] leading-none">close</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Projects List */}
-            <ScrollArea className="flex-1 pr-1" maxHeight={210}>
-              {projects?.projects.length === 0 ? (
-                <div className="py-6 text-center text-[11.5px] text-white/40 font-['Geist']">
-                  No projects added yet
-                </div>
-              ) : (
-                <div className="flex flex-col gap-0.5">
-                  {projects?.projects.map((project: Project, index: number) => {
-                    const isActive = project.id === projects.active?.id;
-                    const projectChats = extractChatHistoryItems(historyEntries || [], project.path);
-                    const confirming = confirmRemoveId === project.id;
-
-                    // Gap position from the pointer: upper half drops before
-                    // this row, lower half after it.
-                    const gapFromEvent = (e: React.DragEvent) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      return e.clientY > rect.top + rect.height / 2 ? index + 1 : index;
-                    };
-                    const commitDrop = (gap: number) => {
-                      const ids = (projects?.projects ?? []).map((p) => p.id);
-                      const from = ids.indexOf(dragId ?? '');
-                      if (from < 0) return;
-                      const to = from < gap ? gap - 1 : gap;
-                      if (to !== from) void projects?.move(dragId as string, to);
-                    };
-                    const endDrag = () => {
-                      setDragId(null);
-                      setDropGap(null);
-                    };
-
-                    return (
-                      <React.Fragment key={project.id}>
-                        {dragId && dropGap === index && (
-                          <div className="h-[2px] mx-3 rounded-full bg-[#007AFF]" aria-hidden />
-                        )}
-                        <div
-                          onDragOver={(e) => {
-                            if (!dragId) return;
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                            setDropGap(gapFromEvent(e));
-                          }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            commitDrop(gapFromEvent(e));
-                            endDrag();
-                          }}
-                          className={`group flex items-stretch justify-between rounded-[10px] transition-colors overflow-hidden ${
-                            dragId === project.id ? 'opacity-40' : ''
-                          } ${
-                            isActive
-                              ? isLight
-                                ? 'bg-black/[0.08]'
-                                : 'bg-white/[0.12]'
-                              : isLight
-                              ? 'hover:bg-black/[0.04]'
-                              : 'hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          {/* Drag handle: the only grab point, so selecting and
-                              confirming never start a drag by accident. */}
-                          <span
-                            draggable
-                            title="Drag to reorder"
-                            aria-label={`Reorder ${project.name}`}
-                            onDragStart={(e) => {
-                              e.dataTransfer.effectAllowed = 'move';
-                              e.dataTransfer.setData('text/plain', project.id);
-                              setDragId(project.id);
-                              setConfirmRemoveId(null);
-                            }}
-                            onDragEnd={endDrag}
-                            className={`flex items-center pl-1.5 pr-0.5 cursor-grab active:cursor-grabbing shrink-0 ${
-                              isLight ? 'text-black/30 hover:text-black/60' : 'text-white/25 hover:text-white/60'
-                            } transition-colors`}
-                          >
-                            <span className="material-symbols-rounded text-[15px] leading-none">
-                              drag_indicator
-                            </span>
-                          </span>
-
-                          {confirming ? (
-                            <motion.div
-                              key="confirm"
-                              initial={{ opacity: 0, x: 6 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.15 }}
-                              className="flex-1 min-w-0 flex items-center gap-2 pl-1 pr-2 py-1.5"
-                            >
-                              <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
-                                Remove {project.name}?
-                              </span>
-                              <span className="flex-1" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setConfirmRemoveId(null);
-                                  void projects.remove(project.id);
-                                }}
-                                className="h-[24px] px-3 rounded-full bg-rose-500/85 hover:bg-rose-500 text-white text-[11.5px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer shrink-0"
-                              >
-                                Remove
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setConfirmRemoveId(null)}
-                                className={`h-[24px] px-3 rounded-full text-[11.5px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer shrink-0 ${
-                                  isLight
-                                    ? 'bg-black/[0.06] hover:bg-black/[0.1] text-black/80'
-                                    : 'bg-white/[0.08] hover:bg-white/[0.14] text-white/80'
-                                }`}
-                              >
-                                Keep
-                              </button>
-                            </motion.div>
-                          ) : (
-                            <>
-                              {/* Left Region: Select project */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  void projects.select(project.id);
-                                  setMode('idle');
-                                }}
-                                className="flex-1 min-w-0 flex items-center gap-2 pl-1 pr-1 py-1.5 text-left cursor-pointer transition-colors"
-                              >
-                                <ProjectGlyph
-                                  projectId={project.id}
-                                  size={15}
-                                  glyph={
-                                    <span className="material-symbols-rounded text-[15px] text-white/60 leading-none shrink-0">
-                                      folder
-                                    </span>
-                                  }
-                                />
-                                <div className="flex flex-col min-w-0">
-                                  <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
-                                    {project.name}
-                                  </span>
-                                  <span
-                                    className="text-[10px] font-mono text-[#8E8E93] truncate leading-[13px]"
-                                    title={project.path}
-                                  >
-                                    {shortenPath(project.path)}
-                                  </span>
-                                </div>
-                              </button>
-
-                              {/* Right Region: Remove (arms confirmation) + open chats */}
-                              <div className="flex items-stretch self-stretch shrink-0">
-                                {projects.projects.length > 1 && (
-                                  <button
-                                    type="button"
-                                    title="Remove"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setConfirmRemoveId(project.id);
-                                    }}
-                                    className={`w-6 self-stretch ${
-                                      isLight
-                                        ? 'hover:bg-black/10 text-black/40 hover:text-black'
-                                        : 'hover:bg-white/10 text-white/40 hover:text-white'
-                                    } opacity-0 group-hover:opacity-100 focus:opacity-100 flex items-center justify-center transition-all cursor-pointer`}
-                                  >
-                                    <span className="material-symbols-rounded text-[13px] leading-none">close</span>
-                                  </button>
-                                )}
-
-                                <button
-                                  type="button"
-                                  title={`View ${projectChats.length} chat${projectChats.length === 1 ? '' : 's'} for ${project.name}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedProject(project);
-                                    setMode('project-chats');
-                                  }}
-                                  className={`flex items-center justify-center gap-1.5 px-3.5 self-stretch ${
-                                    isLight
-                                      ? 'hover:bg-black/10 text-black/60 hover:text-black active:bg-black/15'
-                                      : 'hover:bg-white/12 text-white/60 hover:text-white active:bg-white/18'
-                                  } transition-all cursor-pointer`}
-                                >
-                                  <span className="text-[11px] font-mono tabular-nums text-white/70 font-medium">
-                                    {projectChats.length}
-                                  </span>
-                                  <span className="material-symbols-rounded text-[15px] leading-none text-white/50 group-hover:text-white/80 transition-colors">
-                                    chevron_right
-                                  </span>
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </React.Fragment>
-                    );
-                  })}
-                  {dragId && dropGap === (projects?.projects.length ?? 0) && (
-                    <div className="h-[2px] mx-3 rounded-full bg-[#007AFF]" aria-hidden />
-                  )}
-
-                  {/* Native Claude Code chats, listed directly with no import step. */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onRefreshClaude?.();
-                      setMode('claude-chats');
-                    }}
-                    className={`flex items-center gap-2 pl-1 pr-1 py-1.5 text-left cursor-pointer rounded-[10px] transition-colors ${
-                      isLight ? 'hover:bg-black/[0.04]' : 'hover:bg-white/[0.06]'
-                    }`}
-                  >
-                    {providerIcon('claude', isLight) ? (
-                      <img
-                        src={providerIcon('claude', isLight)}
-                        alt=""
-                        draggable={false}
-                        className="w-[18px] h-[18px] object-contain shrink-0 rounded-[4px]"
-                      />
-                    ) : (
-                      <span className="material-symbols-rounded text-[15px] text-white/60 leading-none shrink-0">
-                        forum
-                      </span>
-                    )}
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <span className="text-[12px] font-medium text-white tracking-tight truncate leading-[14px]">
-                        Claude Code
-                      </span>
-                      <span className="text-[10px] font-mono text-[#8E8E93] truncate leading-[13px]">
-                        Chats from the Claude CLI
-                      </span>
-                    </div>
-                    {handClaudeChats.length > 0 && (
-                      <span className="text-[11px] font-mono tabular-nums text-white/70 font-medium shrink-0">
-                        {handClaudeChats.length}
-                      </span>
-                    )}
-                    <span className="material-symbols-rounded text-[15px] leading-none text-white/50 shrink-0">
-                      chevron_right
-                    </span>
-                  </button>
-                </div>
-              )}
-            </ScrollArea>
+          <motion.div key="projects-view" {...viewMotion} className="w-full">
+            <ProjectsView
+              tone={tone}
+              projects={projects}
+              chatCounts={chatCounts}
+              claudeCount={handClaudeChats.length}
+              onClose={() => setMode('idle')}
+              onPicked={() => setMode('idle')}
+              onOpenProjectChats={(project) => {
+                setSelectedProject(project);
+                setMode('project-chats');
+              }}
+              onOpenClaude={() => {
+                onRefreshClaude?.();
+                setMode('claude-chats');
+              }}
+            />
           </motion.div>
         )}
 
-        {/* ===================================================================
-            2.5 EXPANDED PROJECT CHATS (Chats for selected project)
-            =================================================================== */}
         {mode === 'project-chats' && selectedProject && (
-          <motion.div
-            key="project-chats-view"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.15 }}
-            className="flex flex-col w-full h-full p-3.5 justify-between"
-          >
-            {/* Header: Back to projects + Project name + Close */}
-            <div className="flex items-center justify-between pb-1 mb-1">
-              <button
-                type="button"
-                onClick={() => setMode('projects')}
-                className={`flex items-center gap-1 text-[11.5px] font-medium ${
-                  isLight ? 'text-black/60 hover:text-black' : 'text-white/60 hover:text-white'
-                } cursor-pointer transition-colors`}
-              >
-                <span className="material-symbols-rounded text-[15px] leading-none">arrow_back</span>
-                <span>Projects</span>
-              </button>
-
-              <span className="text-[12px] font-semibold text-white/90 font-['Geist'] tracking-tight truncate max-w-[150px]">
-                {selectedProject.name}
-              </span>
-
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  title={`New chat in ${selectedProject.name}`}
-                  onClick={() => {
-                    void (async () => {
-                      // The selected folder must be durable before a fresh session
-                      // can be opened. Otherwise the first prompt can inherit the
-                      // app's launch directory instead of this project.
-                      if (selectedProject.id !== projects?.active?.id) {
-                        await projects?.select(selectedProject.id);
-                      }
-                      onNewChat?.();
-                    })();
-                    setMode('idle');
-                  }}
-                  className={`w-5 h-5 rounded-full ${
-                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
-                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
-                >
-                  <span className="material-symbols-rounded text-[14px] leading-none">add</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMode('idle')}
-                  className={`w-5 h-5 rounded-full ${
-                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
-                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
-                >
-                  <span className="material-symbols-rounded text-[14px] leading-none">close</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Chat Sessions List */}
-            <ScrollArea className="flex-1 pr-1" maxHeight={205}>
-              {(() => {
-                const projectChats = extractChatHistoryItems(historyEntries || [], selectedProject.path);
-
-                if (projectChats.length === 0) {
-                  return (
-                    <div className="py-8 text-center text-[11.5px] text-white/40 font-['Geist']">
-                      No previous chats for this project
-                    </div>
-                  );
+          <motion.div key="project-chats-view" {...viewMotion} className="w-full">
+            <ProjectChatsView
+              tone={tone}
+              project={selectedProject}
+              groups={groupChatHistoryItems(extractChatHistoryItems(historyEntries || [], selectedProject.path))}
+              archived={extractChatHistoryItems(historyEntries || [], selectedProject.path, { archived: 'only' })}
+              runningThreadIds={runningThreadIds}
+              renderIcon={(chat) => renderOverlappingChatIcons(chat, isLight)}
+              subtitle={formatChatSubtitle}
+              onBack={() => setMode('projects')}
+              onClose={() => setMode('idle')}
+              onNewChat={() => {
+                void (async () => {
+                  if (selectedProject.id !== projects?.active?.id) {
+                    await projects?.select(selectedProject.id);
+                  }
+                  onNewChat?.();
+                })();
+                setMode('idle');
+              }}
+              onOpen={(chat) => {
+                if (selectedProject.id !== projects?.active?.id) {
+                  void projects?.select(selectedProject.id);
                 }
-
-                const groups = groupChatHistoryItems(projectChats);
-
-                return (
-                  <div className="flex flex-col gap-2.5">
-                    {groups.map((group) => (
-                      <div key={group.label} className="flex flex-col gap-0.5">
-                        <div className="flex items-center justify-between px-2 pt-1 pb-0.5 select-none">
-                          <span
-                            className={`text-[9.5px] font-semibold tracking-wider uppercase font-['Geist'] ${
-                              isLight ? 'text-black/45' : 'text-white/40'
-                            }`}
-                          >
-                            {group.label}
-                          </span>
-                          <span
-                            className={`text-[9.5px] font-mono tabular-nums ${
-                              isLight ? 'text-black/35' : 'text-white/30'
-                            }`}
-                          >
-                            {group.chats.length}
-                          </span>
-                        </div>
-                        {group.chats.map((chat) => {
-                          const runningTask = activeTasks?.find(
-                            (t) =>
-                              (t.threadId === chat.threadId ||
-                                (chat.threadId && t.threadId.startsWith(chat.threadId))) &&
-                              t.isBusy,
-                          );
-                          const isRunning = Boolean(runningTask);
-
-                          return (
-                            <div
-                              key={chat.id}
-                              onClick={() => {
-                                if (selectedProject.id !== projects?.active?.id) {
-                                  void projects?.select(selectedProject.id);
-                                }
-                                onOpenHistory?.(chat.workspaceId, chat.threadId);
-                                setMode('idle');
-                              }}
-                              className={`group flex items-center justify-between px-2.5 py-1.5 rounded-[10px] transition-colors cursor-pointer ${
-                                isRunning
-                                  ? isLight
-                                    ? 'bg-emerald-500/[0.08]'
-                                    : 'bg-emerald-500/[0.12]'
-                                  : isLight
-                                  ? 'hover:bg-black/[0.04]'
-                                  : 'hover:bg-white/[0.06]'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                {renderOverlappingChatIcons(chat, isLight)}
-                                <div className="flex flex-col min-w-0">
-                                  <span
-                                    className={`text-[12px] font-medium tracking-tight truncate leading-[14px] ${
-                                      isLight ? 'text-black/90' : 'text-white'
-                                    }`}
-                                  >
-                                    {chat.title}
-                                  </span>
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    {isRunning && (
-                                      <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-400 font-['Geist'] shrink-0">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse inline-block" />
-                                        Running…
-                                      </span>
-                                    )}
-                                    <span
-                                      className={`text-[10px] truncate leading-[13px] ${
-                                        isLight ? 'text-black/45' : 'text-white/40'
-                                      }`}
-                                    >
-                                      {isRunning ? `· ${formatChatSubtitle(chat)}` : formatChatSubtitle(chat)}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  type="button"
-                                  title="Delete chat"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    onDeleteHistory?.(chat.workspaceId, chat.threadId);
-                                  }}
-                                  className={`w-5 h-5 rounded-full hover:bg-rose-500/20 opacity-0 group-hover:opacity-100 flex items-center justify-center ${
-                                    isLight ? 'text-black/40 hover:text-rose-600' : 'text-white/40 hover:text-rose-200'
-                                  } transition-all cursor-pointer`}
-                                >
-                                  <span className="material-symbols-rounded text-[13px] leading-none">delete</span>
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </ScrollArea>
+                if (chat.archived) onSetChatArchived?.(chat.workspaceId, chat.threadId, false);
+                onOpenHistory?.(chat.workspaceId, chat.threadId);
+                setMode('idle');
+              }}
+              onSetArchived={(chat, archived) => onSetChatArchived?.(chat.workspaceId, chat.threadId, archived)}
+            />
           </motion.div>
         )}
 
-        {/* ===================================================================
-            2.6 NATIVE CLAUDE CODE CHATS (straight from the Claude CLI)
-            =================================================================== */}
         {mode === 'claude-chats' && (
-          <motion.div
-            key="claude-chats-view"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ duration: 0.15 }}
-            className="flex flex-col w-full h-full p-3.5 justify-between"
-          >
-            {/* Header: Back to projects + Claude Code + Close */}
-            <div className="flex items-center justify-between pb-1 mb-1">
-              <button
-                type="button"
-                onClick={() => setMode('projects')}
-                className={`flex items-center gap-1 text-[11.5px] font-medium ${
-                  isLight ? 'text-black/60 hover:text-black' : 'text-white/60 hover:text-white'
-                } cursor-pointer transition-colors`}
-              >
-                <span className="material-symbols-rounded text-[15px] leading-none">arrow_back</span>
-                <span>Projects</span>
-              </button>
-
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-white/90 font-['Geist'] tracking-tight truncate max-w-[150px]">
-                {providerIcon('claude', isLight) ? (
-                  <img
-                    src={providerIcon('claude', isLight)}
-                    alt=""
-                    draggable={false}
-                    className="w-[14px] h-[14px] object-contain shrink-0 rounded-[3px]"
-                  />
-                ) : null}
-                Claude Code
-              </span>
-
-              <button
-                type="button"
-                onClick={() => setMode('idle')}
-                className={`w-5 h-5 rounded-full ${
-                  isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
-                } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
-              >
-                <span className="material-symbols-rounded text-[14px] leading-none">close</span>
-              </button>
-            </div>
-
-            {/* Chats straight from the CLI: one click opens, no import step. */}
-            <ScrollArea className="flex-1 pr-1" maxHeight={250}>
-              {claudeError ? (
-                <div className="mx-1 mb-2 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
-                  <span className="text-[11px] font-medium font-['Geist'] text-red-200/90 leading-relaxed">
-                    {claudeError}
-                  </span>
-                </div>
-              ) : null}
-              {claudeLoading && claudeSessions.length === 0 ? (
-                <div className="py-8 text-center text-[11.5px] text-white/40 font-['Geist']">
-                  Reading Claude chats…
-                </div>
-              ) : (() => {
-                const rows = handClaudeChats;
-                if (rows.length === 0) {
-                  return (
-                    <div className="py-8 text-center text-[11.5px] text-white/40 font-['Geist']">
-                      No Claude Code chats on this machine yet
-                    </div>
-                  );
-                }
-                return (
-                  <div className="flex flex-col gap-0.5">
-                    {rows.map((s) => {
-                      const folder = (s.cwd || '').replace(/\\/g, '/').split('/').filter(Boolean).pop();
-                      return (
-                        <button
-                          key={s.filePath}
-                          type="button"
-                          disabled={claudeImporting}
-                          onClick={() => {
-                            onImportClaudeSession?.(s.filePath);
-                            setMode('idle');
-                          }}
-                          className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-[10px] text-left transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default ${
-                            isLight ? 'hover:bg-black/[0.04]' : 'hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          <span
-                            className={`material-symbols-rounded text-[16px] leading-none shrink-0 ${
-                              isLight ? 'text-black/45' : 'text-white/50'
-                            }`}
-                          >
-                            forum
-                          </span>
-                          <span className="flex flex-col min-w-0 flex-1">
-                            <span
-                              className={`text-[12px] font-medium tracking-tight truncate leading-[14px] ${
-                                isLight ? 'text-black/90' : 'text-white'
-                              }`}
-                            >
-                              {s.title || 'Untitled chat'}
-                            </span>
-                            <span
-                              className={`text-[10px] truncate leading-[13px] ${
-                                isLight ? 'text-black/45' : 'text-white/40'
-                              }`}
-                            >
-                              {[relativeTime(s.updatedAt), folder].filter(Boolean).join(' · ')}
-                            </span>
-                          </span>
-                          <span className="material-symbols-rounded text-[15px] leading-none text-white/50 shrink-0">
-                            chevron_right
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </ScrollArea>
+          <motion.div key="claude-chats-view" {...viewMotion} className="w-full">
+            <ClaudeChatsView
+              tone={tone}
+              sessions={handClaudeChats}
+              loading={claudeLoading}
+              importing={claudeImporting}
+              error={claudeError}
+              relativeTime={relativeTime}
+              onBack={() => setMode('projects')}
+              onClose={() => setMode('idle')}
+              onOpen={(session) => {
+                onImportClaudeSession?.(session.filePath);
+                setMode('idle');
+              }}
+            />
           </motion.div>
         )}
 
@@ -1542,6 +1054,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </motion.div>
   );
 };

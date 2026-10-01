@@ -5,6 +5,7 @@ import {
   SaveAttachment,
 } from '../../../wailsjs/go/main/App';
 import { attachments as models, domain } from '../../../wailsjs/go/models';
+import { CHAT_REF_MIME, ChatDragPayload, chatRefPath } from './chatDrag';
 
 export type Attachment = models.Attachment;
 
@@ -26,6 +27,7 @@ export interface AttachmentsState {
   release: () => void;
   /** The refs a turn is sent with. */
   toRefs: () => domain.FileRef[];
+  addChat: (chat: ChatDragPayload) => void;
 }
 
 // Reads a File as base64. The bridge takes strings, so raw bytes would cross as
@@ -91,12 +93,21 @@ export function useAttachments(): AttachmentsState {
     setItems((previous) => previous.filter((item) => item.id !== id));
     // Only files Composer staged are deleted; the backend leaves the user's own
     // files alone.
-    void DiscardAttachment(id);
+    if (!id.startsWith('chat:')) void DiscardAttachment(id);
+  }, []);
+
+  const addChat = useCallback((chat: ChatDragPayload) => {
+    const id = `chat:${chat.workspaceId}/${chat.threadId}`;
+    setItems((previous) =>
+      previous.some((item) => item.id === id)
+        ? previous
+        : [...previous, models.Attachment.createFrom({ id, name: chat.title, path: chatRefPath(chat), mime: CHAT_REF_MIME, size: 0 })],
+    );
   }, []);
 
   const clear = useCallback(() => {
     setItems((previous) => {
-      for (const item of previous) void DiscardAttachment(item.id);
+      for (const item of previous) if (!item.id.startsWith('chat:')) void DiscardAttachment(item.id);
       return [];
     });
     setError(null);
@@ -112,7 +123,7 @@ export function useAttachments(): AttachmentsState {
     [items],
   );
 
-  return { items, error, isBusy, browse, accept, remove, clear, release, toRefs };
+  return { items, error, isBusy, browse, accept, remove, clear, release, toRefs, addChat };
 }
 
 /**

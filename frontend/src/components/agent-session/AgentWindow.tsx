@@ -455,6 +455,7 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
                 <AgentSessionFeed
                   blocks={streamBlocks}
                   threadId={id}
+                  isWorking={isWorking}
                   onApprovePlan={onApprovePlan}
                   onAnswerQuestion={onAnswerQuestion}
                   onSkipQuestion={onSkipQuestion}

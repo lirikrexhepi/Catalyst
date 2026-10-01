@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 import { onRuntimeEvents } from '../agent-session/runtimeEvents';
 import {
-  DeleteHistory,
+  SetChatArchived,
   ListHistory,
   LoadHistory,
   NewChat,
@@ -53,6 +53,7 @@ export interface HistoryState {
   open: (workspaceId: string) => Promise<void>;
   resume: (workspaceId: string) => Promise<void>;
   remove: (workspaceId: string, threadId?: string) => Promise<void>;
+  setArchived: (workspaceId: string, threadId: string | undefined, archived: boolean) => Promise<void>;
   /** Ends every running agent and starts a fresh orchestrator conversation. */
   newChat: () => Promise<void>;
   close: () => void;
@@ -251,21 +252,21 @@ export function useHistory(isOpen: boolean, onCleared?: () => void): HistoryStat
     [],
   );
 
-  const remove = useCallback(
-    async (workspaceId: string, threadId?: string) => {
+  const setArchived = useCallback(
+    async (workspaceId: string, threadId: string | undefined, archived: boolean) => {
       try {
-        if (threadId && (window as any)?.go?.main?.App?.DeleteTaskHistory) {
-          await (window as any).go.main.App.DeleteTaskHistory(workspaceId, threadId);
-        } else {
-          await DeleteHistory(workspaceId);
-        }
-        setRestored((previous) => (previous?.workspaceId === workspaceId ? null : previous));
+        await SetChatArchived(workspaceId, threadId ?? '', archived);
         await refresh();
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       }
     },
     [refresh],
+  );
+
+  const remove = useCallback(
+    (workspaceId: string, threadId?: string) => setArchived(workspaceId, threadId, true),
+    [setArchived],
   );
 
   const close = useCallback(() => {
@@ -298,6 +299,7 @@ export function useHistory(isOpen: boolean, onCleared?: () => void): HistoryStat
     open,
     resume,
     remove,
+    setArchived,
     newChat,
     close,
   };

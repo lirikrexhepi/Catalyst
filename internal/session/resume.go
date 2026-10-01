@@ -23,6 +23,7 @@ type ResumeRequest struct {
 	ProviderSessionID string `json:"providerSessionId,omitempty"`
 	// Permission is the mode the task originally ran with.
 	Permission domain.PermissionMode `json:"permission,omitempty"`
+	Fork       bool                  `json:"fork,omitempty"`
 }
 
 // TaskPermission returns the mode a task should run with. Tasks recorded
@@ -102,6 +103,7 @@ func (s *Spawner) resumeOne(ctx context.Context, request ResumeRequest) ResumeOu
 		Options:    request.Options,
 		Permission: TaskPermission(request.Permission),
 		Resume:     request.ProviderSessionID,
+		Fork:       request.Fork,
 	}
 
 	if request.ProviderSessionID != "" {

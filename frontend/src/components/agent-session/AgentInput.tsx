@@ -7,6 +7,7 @@ import { useTransitionMount } from '../common/useTransitionMount';
 import { SmoothTextarea } from '../common/SmoothTextarea';
 import { AttachmentStrip } from '../common/AttachmentStrip';
 import { AttachmentsState, filesFromTransfer, useAttachments } from '../common/useAttachments';
+import { readChatDrag } from '../common/chatDrag';
 import { domain } from '../../../wailsjs/go/models';
 import { ThinkingEffort, ThinkingMode } from '../orchestrator/types';
 
@@ -159,6 +160,12 @@ export const AgentInput: React.FC<AgentInputProps> = ({
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    const chat = readChatDrag(e.dataTransfer);
+    if (chat) {
+      e.preventDefault();
+      attachments.addChat(chat);
+      return;
+    }
     const files = filesFromTransfer(e.dataTransfer);
     if (files.length === 0) return;
     e.preventDefault();

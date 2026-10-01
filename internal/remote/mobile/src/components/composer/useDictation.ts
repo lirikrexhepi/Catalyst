@@ -34,6 +34,7 @@ export function useDictation(onText: (text: string) => void) {
   const [draft, setDraft] = useState('')
   const active = useRef<Recognition | null>(null)
   const latest = useRef(onText)
+  const activity = useRef(0)
   latest.current = onText
   const supported = typeof window !== 'undefined' && recognitionCtor() !== null
 
@@ -47,6 +48,8 @@ export function useDictation(onText: (text: string) => void) {
     rec.continuous = true
     rec.interimResults = true
     rec.onresult = (event) => {
+      if (active.current !== rec) return
+      activity.current = performance.now()
       let interim = ''
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
@@ -74,5 +77,13 @@ export function useDictation(onText: (text: string) => void) {
     else start()
   }
 
-  return { supported, listening, draft, toggle }
+  const cancel = () => {
+    const rec = active.current
+    active.current = null
+    rec?.abort()
+    setListening(false)
+    setDraft('')
+  }
+
+  return { supported, listening, draft, toggle, cancel, activity }
 }

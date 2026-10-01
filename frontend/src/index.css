@@ -113,16 +113,14 @@ body,
 
 /* Markdown Inline Code Chip - Warm Amber / Yellowish matching Antigravity */
 .markdown-inline-code {
-  color: #f6c177;
-  background-color: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.9);
+  background-color: rgba(255, 255, 255, 0.07);
 }
 
 [data-theme='light'] .markdown-inline-code,
 [data-theme='white'] .markdown-inline-code {
-  color: #b45309;
-  background-color: rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.82);
+  background-color: rgba(0, 0, 0, 0.055);
 }
 
 /* Horizontal tab strips scroll but must not show a bar: the rail is only a few
