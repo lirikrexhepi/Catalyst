@@ -15,7 +15,7 @@ export const WorkingHeader = React.memo(function WorkingHeader({ startedAt }: { 
     return () => window.clearInterval(id);
   }, []);
   return (
-    <div className="flex flex-col gap-2 font-['Geist']">
+    <div className="flex flex-col gap-2 font-(family-name:--app-font)">
       <span className="text-[12.5px] tracking-tight leading-[18px] text-current/45 tabular-nums">
         Working for {formatElapsed((now - startedAt) / 1000)}
       </span>
@@ -28,7 +28,7 @@ export function WorkedFor({ seconds, children }: { seconds: number | null; child
   const [open, setOpen] = useState(false);
   const label = seconds !== null && seconds >= 1 ? `Worked for ${formatElapsed(seconds)}` : 'Worked';
   return (
-    <div className="flex flex-col gap-2 font-['Geist']">
+    <div className="flex flex-col gap-2 font-(family-name:--app-font)">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -87,7 +87,7 @@ export const ChangesCard = React.memo(function ChangesCard({ edits }: { edits: E
   const additions = edits.reduce((sum, edit) => sum + (edit.additions ?? 0), 0);
   const deletions = edits.reduce((sum, edit) => sum + (edit.deletions ?? 0), 0);
   return (
-    <div className="rounded-[14px] border border-current/[0.08] overflow-hidden font-['Geist']">
+    <div className="rounded-[14px] border border-current/[0.08] overflow-hidden font-(family-name:--app-font)">
       <div className="flex items-center gap-2 px-3 py-2 text-[12px] tracking-tight text-current/50">
         <span>
           {edits.length} {edits.length === 1 ? 'file' : 'files'} changed

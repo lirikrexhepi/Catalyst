@@ -76,7 +76,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           <span className="material-symbols-rounded text-[18px] text-white/80 leading-none">
             speed
           </span>
-          <span className="text-[13px] font-semibold font-['Geist'] text-white tracking-tight">
+          <span className="text-[13px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
             Usage
           </span>
         </div>
@@ -92,7 +92,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
 
       {error && (
         <div className="mx-4 mb-3 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
-          <span className="text-[11px] font-medium font-['Geist'] text-red-200/90 leading-relaxed">
+          <span className="text-[11px] font-medium font-(family-name:--app-font) text-red-200/90 leading-relaxed">
             {error}
           </span>
         </div>
@@ -100,7 +100,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
 
       {empty && (
         <div className="px-4 pb-5 pt-1">
-          <p className="text-[12px] font-['Geist'] text-white/45 leading-relaxed">
+          <p className="text-[12px] font-(family-name:--app-font) text-white/45 leading-relaxed">
             Reading your plan usage…
           </p>
         </div>
@@ -108,7 +108,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
 
       {spendDrivers.length > 0 && (
         <div className="mx-4 mb-4 flex flex-col gap-2 shrink-0">
-          <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase px-0.5">
+          <span className="text-[10px] font-semibold font-(family-name:--app-font) text-white/45 tracking-tight uppercase px-0.5">
             This run
           </span>
           {spendDrivers.map((driver) => (
@@ -117,16 +117,16 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
               className="p-3 rounded-[12px] bg-white/[0.05] border border-white/[0.09] flex flex-col gap-1.5"
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[11px] font-medium font-['Geist'] text-white/70 tracking-tight">
+                <span className="text-[11px] font-medium font-(family-name:--app-font) text-white/70 tracking-tight">
                   {usageName(driver)}
                 </span>
                 {(driver.costUsd ?? 0) > 0 && (
-                  <span className="text-[11px] font-semibold font-['Geist'] text-white/90 tabular-nums">
+                  <span className="text-[11px] font-semibold font-(family-name:--app-font) text-white/90 tabular-nums">
                     ${driver.costUsd.toFixed(2)}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-3 text-[10px] font-['Geist'] text-white/45 tracking-tight tabular-nums">
+              <div className="flex items-center gap-3 text-[10px] font-(family-name:--app-font) text-white/45 tracking-tight tabular-nums">
                 <span title="Input tokens">↓ {compactTokens(driver.inputTokens ?? 0)}</span>
                 <span title="Output tokens">↑ {compactTokens(driver.outputTokens ?? 0)}</span>
                 {(driver.cacheReadTokens ?? 0) > 0 && (
@@ -151,13 +151,13 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
               className="p-3 rounded-[12px] bg-white/[0.05] border border-white/[0.09] flex flex-col gap-2.5"
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
+                <span className="text-[10px] font-semibold font-(family-name:--app-font) text-white/45 tracking-tight uppercase">
                   {usageName(driver)} plan
                 </span>
                 {!!driver.limitsFetchedAt && (
                   <span
                     title="Fetched from your subscription while the panel is open. If the account cannot be reached, the CLI's own cached figures are shown instead and this stamp reports how old they are."
-                    className={`text-[9px] font-['Geist'] tracking-tight ${
+                    className={`text-[9px] font-(family-name:--app-font) tracking-tight ${
                       isStale(driver.limitsFetchedAt) ? 'text-amber-300/60' : 'text-white/30'
                     }`}
                   >
@@ -176,7 +176,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           {quotaIssues.map(({ key, name, message }) => (
             <span
               key={`quota-error-${key}`}
-              className="text-[10px] font-['Geist'] text-white/35 tracking-tight leading-relaxed px-0.5"
+              className="text-[10px] font-(family-name:--app-font) text-white/35 tracking-tight leading-relaxed px-0.5"
             >
               {name}: {message}
             </span>

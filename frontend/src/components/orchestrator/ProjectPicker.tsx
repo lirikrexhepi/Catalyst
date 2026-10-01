@@ -58,7 +58,7 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
       }}
     >
       {projects.length === 0 ? (
-        <div className={`px-2.5 py-3 text-[12px] font-['Geist'] leading-[1.5] ${isLight ? 'text-black/55' : 'text-white/55'}`}>
+        <div className={`px-2.5 py-3 text-[12px] font-(family-name:--app-font) leading-[1.5] ${isLight ? 'text-black/55' : 'text-white/55'}`}>
           No projects yet. Add one so agents start in your code.
         </div>
       ) : (
@@ -110,7 +110,7 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
                 />
                 <span className="flex flex-col min-w-0 gap-[1px]">
                   <span
-                    className={`text-[12.5px] font-['Geist'] tracking-tight truncate leading-[15px] ${
+                    className={`text-[12.5px] font-(family-name:--app-font) tracking-tight truncate leading-[15px] ${
                       isActive
                         ? isLight
                           ? 'text-[#030303] font-medium'
@@ -123,7 +123,7 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
                     {project.name}
                   </span>
                   <span
-                    className={`text-[10px] font-['Geist'] truncate leading-[13px] ${
+                    className={`text-[10px] font-(family-name:--app-font) truncate leading-[13px] ${
                       project.missing
                         ? 'text-amber-600'
                         : isLight
@@ -182,7 +182,7 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
       <span className="material-symbols-rounded text-[16px] leading-none">
         {isChoosing ? 'hourglass_top' : 'create_new_folder'}
       </span>
-      <span className="text-[12.5px] font-medium font-['Geist'] tracking-tight">
+      <span className="text-[12.5px] font-medium font-(family-name:--app-font) tracking-tight">
         {isChoosing ? 'Choosing…' : 'Add project…'}
       </span>
     </button>

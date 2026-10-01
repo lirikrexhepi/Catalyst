@@ -382,11 +382,11 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
               />
 
               <div className="flex items-baseline gap-1.5 min-w-0 truncate">
-                <span className={`text-[13px] font-semibold font-['Geist'] tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
+                <span className={`text-[13px] font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
                   {title}
                 </span>
                 {subtitle && (
-                  <span className={`text-[11px] font-medium font-['Geist'] tracking-tight truncate hidden sm:inline ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+                  <span className={`text-[11px] font-medium font-(family-name:--app-font) tracking-tight truncate hidden sm:inline ${isLight ? 'text-black/45' : 'text-white/40'}`}>
                     · {subtitle}
                   </span>
                 )}
@@ -466,7 +466,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
                     <OrbitLoader size={13} />
                     <TextShimmer
                       duration={1.5}
-                      className="text-[12px] font-medium font-['Geist'] tracking-tight"
+                      className="text-[12px] font-medium font-(family-name:--app-font) tracking-tight"
                     >
                       Thinking
                     </TextShimmer>

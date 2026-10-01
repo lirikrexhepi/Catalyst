@@ -133,7 +133,7 @@ export const OrchestratorCard: React.FC<OrchestratorCardProps> = ({
               }`}
             />
             <span
-              className={`text-[13px] font-medium font-['Geist'] tracking-tight select-none leading-none ${
+              className={`text-[13px] font-medium font-(family-name:--app-font) tracking-tight select-none leading-none ${
                 isLight ? 'text-[#030303]' : 'text-white/95'
               }`}
             >
@@ -165,7 +165,7 @@ export const OrchestratorCard: React.FC<OrchestratorCardProps> = ({
                   <OrbitLoader size={13} />
                   <TextShimmer
                     duration={1.5}
-                    className="text-[12px] font-medium font-['Geist'] tracking-tight"
+                    className="text-[12px] font-medium font-(family-name:--app-font) tracking-tight"
                   >
                     Thinking
                   </TextShimmer>
@@ -174,7 +174,7 @@ export const OrchestratorCard: React.FC<OrchestratorCardProps> = ({
 
               {error && (
                 <div className="mt-3 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
-                  <span className="text-[12px] font-medium font-['Geist'] text-red-200/90 leading-relaxed">
+                  <span className="text-[12px] font-medium font-(family-name:--app-font) text-red-200/90 leading-relaxed">
                     {error}
                   </span>
                 </div>
@@ -185,7 +185,7 @@ export const OrchestratorCard: React.FC<OrchestratorCardProps> = ({
               <OrbitLoader size={15} />
               <TextShimmer
                 duration={1.5}
-                className="text-[13px] font-medium font-['Geist'] tracking-tight"
+                className="text-[13px] font-medium font-(family-name:--app-font) tracking-tight"
               >
                 Thinking
               </TextShimmer>

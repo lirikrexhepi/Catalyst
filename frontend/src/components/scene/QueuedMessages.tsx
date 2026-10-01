@@ -36,7 +36,7 @@ export const QueuedMessages: React.FC<QueuedMessagesProps> = ({
 
   return (
     <div
-      className={`w-full max-w-[740px] rounded-[16px] glass-card border border-white/20 p-2.5 text-white font-['Geist'] select-none flex flex-col gap-1.5 transition-all duration-200 pointer-events-auto shadow-2xl ${className}`}
+      className={`w-full max-w-[740px] rounded-[16px] glass-card border border-white/20 p-2.5 text-white font-(family-name:--app-font) select-none flex flex-col gap-1.5 transition-all duration-200 pointer-events-auto shadow-2xl ${className}`}
       style={{
         boxShadow:
           '0 12px 32px rgba(0, 0, 0, 0.45), inset 0 0.5px 0.5px rgba(255, 255, 255, 0.35)',

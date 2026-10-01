@@ -95,7 +95,7 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
             draggable={false}
           />
         )}
-        <span className="text-[13px] font-medium text-white font-['Geist'] tracking-tight truncate">
+        <span className="text-[13px] font-medium text-white font-(family-name:--app-font) tracking-tight truncate">
           {model.name}
         </span>
       </div>
@@ -113,7 +113,7 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
                 e.stopPropagation();
                 handleSelectEffort(lvl);
               }}
-              className={`relative z-10 h-[30px] rounded-[8px] text-[12px] font-['Geist'] flex items-center justify-center cursor-pointer active:scale-95 border transition-all ${
+              className={`relative z-10 h-[30px] rounded-[8px] text-[12px] font-(family-name:--app-font) flex items-center justify-center cursor-pointer active:scale-95 border transition-all ${
                 isSelected
                   ? 'text-white font-medium border-transparent'
                   : 'text-white/70 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.06]'
@@ -148,7 +148,7 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
                 e.stopPropagation();
                 handleSelectMode('normal');
               }}
-              className={`relative z-10 flex-1 h-full rounded-[7px] text-[12px] font-['Geist'] flex items-center justify-center transition-colors duration-150 cursor-pointer ${
+              className={`relative z-10 flex-1 h-full rounded-[7px] text-[12px] font-(family-name:--app-font) flex items-center justify-center transition-colors duration-150 cursor-pointer ${
                 settings.mode === 'normal'
                   ? 'text-white font-medium'
                   : 'text-white/60 hover:text-white/80 font-normal'
@@ -174,7 +174,7 @@ export const EffortPicker: React.FC<EffortPickerProps> = ({
                 e.stopPropagation();
                 handleSelectMode('thinking');
               }}
-              className={`relative z-10 flex-1 h-full rounded-[7px] text-[12px] font-['Geist'] flex items-center justify-center transition-colors duration-150 cursor-pointer ${
+              className={`relative z-10 flex-1 h-full rounded-[7px] text-[12px] font-(family-name:--app-font) flex items-center justify-center transition-colors duration-150 cursor-pointer ${
                 settings.mode === 'thinking'
                   ? 'text-white font-medium'
                   : 'text-white/60 hover:text-white/80 font-normal'

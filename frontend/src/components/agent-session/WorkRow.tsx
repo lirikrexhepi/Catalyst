@@ -68,7 +68,7 @@ function WorkRowImpl({
   const text = target ? `${label} ${target}` : label;
 
   return (
-    <div className="flex flex-col min-w-0 font-['Geist']">
+    <div className="flex flex-col min-w-0 font-(family-name:--app-font)">
       <button
         type="button"
         disabled={!expandable}

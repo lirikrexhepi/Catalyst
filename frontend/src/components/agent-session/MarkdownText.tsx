@@ -58,7 +58,7 @@ const PreBlock: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
         <span className="material-symbols-rounded text-[13px] leading-none">
           {copied ? 'check' : 'content_copy'}
         </span>
-        <span className="text-[10px] font-['Geist'] font-medium leading-none">
+        <span className="text-[10px] font-(family-name:--app-font) font-medium leading-none">
           {copied ? 'Copied' : 'Copy'}
         </span>
       </button>

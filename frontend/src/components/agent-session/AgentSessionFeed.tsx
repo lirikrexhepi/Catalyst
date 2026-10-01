@@ -115,7 +115,7 @@ const FeedBlock = React.memo(function FeedBlock({
           );
         }
         return (
-          <div className={`text-[12.5px] font-normal font-['Geist'] ${tone} leading-relaxed pl-0.5 select-text`}>
+          <div className={`text-[12.5px] font-normal font-(family-name:--app-font) ${tone} leading-relaxed pl-0.5 select-text`}>
             {plan.proseBefore && <MarkdownText content={plan.proseBefore} />}
             <InlinePlanCard
               tasks={plan.tasks}
@@ -138,7 +138,7 @@ const FeedBlock = React.memo(function FeedBlock({
         );
       }
       return (
-        <div className={`text-[12.5px] font-normal font-['Geist'] ${tone} leading-relaxed pl-0.5 select-text`}>
+        <div className={`text-[12.5px] font-normal font-(family-name:--app-font) ${tone} leading-relaxed pl-0.5 select-text`}>
           <MarkdownText content={block.content} />
           {cursor}
           {stamp}

@@ -300,7 +300,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                   : 'Ask a follow up…'
           }
           caretColor={isLight ? '#030303' : 'rgba(255, 255, 255, 0.95)'}
-          textClassName={`w-full text-[13.5px] font-normal font-['Geist'] tracking-tight leading-[20px] block ${
+          textClassName={`w-full text-[13.5px] font-normal font-(family-name:--app-font) tracking-tight leading-[20px] block ${
             isLight ? 'text-[#030303]' : 'text-white/90'
           }`}
           className={`flex-1 min-w-0 ${isScrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
@@ -354,11 +354,11 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 draggable={false}
               />
             )}
-            <span className={`text-[13px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[130px] truncate`}>
+            <span className={`text-[13px] font-medium font-(family-name:--app-font) tracking-tight select-none leading-none max-w-[130px] truncate`}>
               {currentModel?.name || (isLoadingProviders ? 'Detecting CLIs…' : 'No CLI found')}
             </span>
             {accountName && (
-              <span className={`text-[11px] font-medium font-['Geist'] tracking-tight select-none leading-none max-w-[80px] truncate ${
+              <span className={`text-[11px] font-medium font-(family-name:--app-font) tracking-tight select-none leading-none max-w-[80px] truncate ${
                 isLight ? 'text-black/45' : 'text-white/45'
               }`}>
                 {accountName}
@@ -600,7 +600,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 }`}
               >
                 {(projects?.projects ?? []).length === 0 && (
-                  <div className={`px-2.5 py-2 text-[12px] font-['Geist'] ${isLight ? 'text-black/50' : 'text-white/50'}`}>
+                  <div className={`px-2.5 py-2 text-[12px] font-(family-name:--app-font) ${isLight ? 'text-black/50' : 'text-white/50'}`}>
                     No projects yet
                   </div>
                 )}
@@ -628,7 +628,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                       <span className="material-symbols-rounded text-[15px] leading-none shrink-0 opacity-60">
                         folder
                       </span>
-                      <span className="flex-1 min-w-0 text-[12.5px] font-medium font-['Geist'] tracking-tight truncate">
+                      <span className="flex-1 min-w-0 text-[12.5px] font-medium font-(family-name:--app-font) tracking-tight truncate">
                         {project.name}
                       </span>
                       {selected && (

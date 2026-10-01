@@ -181,7 +181,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
             <span className="material-symbols-rounded text-[17px] text-white/80 leading-none">
               account_tree
             </span>
-            <span className="text-[12.5px] font-semibold font-['Geist'] text-white tracking-tight">
+            <span className="text-[12.5px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
               Changes
             </span>
 
@@ -196,7 +196,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                     type="button"
                     title={`${lane.path}${lane.branch ? ` · ${lane.branch}` : ''}`}
                     onClick={() => git.selectLane(lane.path)}
-                    className={`h-[24px] pl-2 pr-2 rounded-[8px] flex items-center gap-1.5 text-[11.5px] font-medium font-['Geist'] tracking-tight transition-all duration-150 cursor-pointer shrink-0 max-w-[170px] ${
+                    className={`h-[24px] pl-2 pr-2 rounded-[8px] flex items-center gap-1.5 text-[11.5px] font-medium font-(family-name:--app-font) tracking-tight transition-all duration-150 cursor-pointer shrink-0 max-w-[170px] ${
                       active
                         ? 'bg-white/[0.14] text-white'
                         : 'text-white/50 hover:text-white/85 hover:bg-white/[0.07]'
@@ -228,7 +228,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
 
           {git.error && (
             <div className="px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25 shrink-0">
-              <span className="text-[11px] font-medium font-['Geist'] text-red-200/90">
+              <span className="text-[11px] font-medium font-(family-name:--app-font) text-red-200/90">
                 {git.error}
               </span>
             </div>
@@ -239,16 +239,16 @@ export const GitWindow: React.FC<GitWindowProps> = ({
               <span className="material-symbols-rounded text-[13px] leading-none text-white/35">
                 fork_right
               </span>
-              <span className="text-[11px] font-['Geist'] text-white/60 tracking-tight truncate max-w-[220px]">
+              <span className="text-[11px] font-(family-name:--app-font) text-white/60 tracking-tight truncate max-w-[220px]">
                 {activeLane.branch || 'detached'}
               </span>
               {!!activeLane.base && !activeLane.isMain && (
-                <span className="text-[10.5px] font-['Geist'] text-white/30 tracking-tight truncate">
+                <span className="text-[10.5px] font-(family-name:--app-font) text-white/30 tracking-tight truncate">
                   from {activeLane.base}
                 </span>
               )}
               {activeLane.ahead > 0 && (
-                <span className="text-[10.5px] font-['Geist'] text-emerald-300/70 tabular-nums">
+                <span className="text-[10.5px] font-(family-name:--app-font) text-emerald-300/70 tabular-nums">
                   {activeLane.ahead} ahead
                 </span>
               )}
@@ -279,7 +279,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
 
           {confirmRemoval === activeLane?.path && activeLane && (
             <div className="px-3 py-2.5 rounded-[10px] bg-rose-500/10 border border-rose-400/25 shrink-0 flex flex-col gap-2">
-              <span className="text-[11.5px] font-['Geist'] text-rose-100/90 leading-relaxed">
+              <span className="text-[11.5px] font-(family-name:--app-font) text-rose-100/90 leading-relaxed">
                 Remove the worktree at {activeLane.path}?
                 {activeLane.ahead > 0 &&
                   ` It has ${activeLane.ahead} commit${activeLane.ahead === 1 ? '' : 's'} not on ${activeLane.base || 'the base branch'}, which stay on the branch.`}
@@ -290,14 +290,14 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                 <button
                   type="button"
                   onClick={() => void removeLane(activeLane, false)}
-                  className="h-[24px] px-2.5 rounded-[7px] bg-white/10 hover:bg-white/20 text-[11px] font-medium font-['Geist'] transition-all cursor-pointer"
+                  className="h-[24px] px-2.5 rounded-[7px] bg-white/10 hover:bg-white/20 text-[11px] font-medium font-(family-name:--app-font) transition-all cursor-pointer"
                 >
                   Remove
                 </button>
                 <button
                   type="button"
                   onClick={() => void removeLane(activeLane, true)}
-                  className="h-[24px] px-2.5 rounded-[7px] bg-rose-500/25 hover:bg-rose-500/40 text-[11px] font-medium font-['Geist'] text-rose-100 transition-all cursor-pointer"
+                  className="h-[24px] px-2.5 rounded-[7px] bg-rose-500/25 hover:bg-rose-500/40 text-[11px] font-medium font-(family-name:--app-font) text-rose-100 transition-all cursor-pointer"
                 >
                   Force remove
                 </button>
@@ -307,7 +307,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                     setConfirmRemoval(null);
                     setNotice(null);
                   }}
-                  className="h-[24px] px-2.5 rounded-[7px] hover:bg-white/10 text-[11px] font-medium font-['Geist'] text-white/60 transition-all cursor-pointer"
+                  className="h-[24px] px-2.5 rounded-[7px] hover:bg-white/10 text-[11px] font-medium font-(family-name:--app-font) text-white/60 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -323,7 +323,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                 <button
                   type="button"
                   onClick={() => git.selectView({ kind: 'changes' })}
-                  className={`h-[22px] px-2 rounded-[6px] text-[11px] font-medium font-['Geist'] transition-all cursor-pointer ${
+                  className={`h-[22px] px-2 rounded-[6px] text-[11px] font-medium font-(family-name:--app-font) transition-all cursor-pointer ${
                     view.kind === 'changes'
                       ? 'bg-white/[0.14] text-white'
                       : 'text-white/45 hover:text-white/85'
@@ -336,7 +336,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                   onClick={() =>
                     commits[0] && git.selectView({ kind: 'commit', sha: commits[0].sha })
                   }
-                  className={`h-[22px] px-2 rounded-[6px] text-[11px] font-medium font-['Geist'] transition-all cursor-pointer ${
+                  className={`h-[22px] px-2 rounded-[6px] text-[11px] font-medium font-(family-name:--app-font) transition-all cursor-pointer ${
                     view.kind === 'commit'
                       ? 'bg-white/[0.14] text-white'
                       : 'text-white/45 hover:text-white/85'
@@ -349,7 +349,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
               <div className="flex-1 min-h-0 overflow-y-auto">
                 {view.kind === 'changes' ? (
                   files.length === 0 ? (
-                    <p className="p-3 text-[11.5px] font-['Geist'] text-white/35 leading-relaxed">
+                    <p className="p-3 text-[11.5px] font-(family-name:--app-font) text-white/35 leading-relaxed">
                       {activeLane?.error
                         ? activeLane.error
                         : 'No uncommitted changes in this checkout.'}
@@ -374,17 +374,17 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                             {badge.mark}
                           </span>
                           <span className="flex flex-col min-w-0 flex-1">
-                            <span className="text-[11.5px] font-['Geist'] text-white/85 tracking-tight truncate">
+                            <span className="text-[11.5px] font-(family-name:--app-font) text-white/85 tracking-tight truncate">
                               {fileName(file.path)}
                             </span>
                             {!!folder && (
-                              <span className="text-[10px] font-['Geist'] text-white/30 truncate">
+                              <span className="text-[10px] font-(family-name:--app-font) text-white/30 truncate">
                                 {folder}
                               </span>
                             )}
                           </span>
                           {file.staged && (
-                            <span className="text-[9px] font-['Geist'] text-sky-300/70 shrink-0 uppercase tracking-wide">
+                            <span className="text-[9px] font-(family-name:--app-font) text-sky-300/70 shrink-0 uppercase tracking-wide">
                               staged
                             </span>
                           )}
@@ -393,7 +393,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                     })
                   )
                 ) : commits.length === 0 ? (
-                  <p className="p-3 text-[11.5px] font-['Geist'] text-white/35">
+                  <p className="p-3 text-[11.5px] font-(family-name:--app-font) text-white/35">
                     No commits on this branch yet.
                   </p>
                 ) : (
@@ -417,14 +417,14 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                           }`}
                         />
                         <span
-                          className={`text-[11.5px] font-['Geist'] tracking-tight truncate ${
+                          className={`text-[11.5px] font-(family-name:--app-font) tracking-tight truncate ${
                             commit.onBase ? 'text-white/45' : 'text-white/90'
                           }`}
                         >
                           {commit.subject}
                         </span>
                       </span>
-                      <span className="text-[10px] font-['Geist'] text-white/30 truncate pl-3">
+                      <span className="text-[10px] font-(family-name:--app-font) text-white/30 truncate pl-3">
                         {commit.short} · {commit.author} · {whenAgo(commit.at)}
                       </span>
                     </button>
@@ -450,7 +450,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
           </div>
 
           {notice && (
-            <span className="shrink-0 text-[10.5px] font-['Geist'] text-white/45 px-0.5 truncate">
+            <span className="shrink-0 text-[10.5px] font-(family-name:--app-font) text-white/45 px-0.5 truncate">
               {notice}
             </span>
           )}

@@ -189,7 +189,7 @@ const UserChatBubbleImpl: React.FC<UserChatBubbleProps> = ({
   return (
     <>
       <div className={`self-end flex flex-col items-end gap-1 max-w-[80%] ${className}`}>
-        <div className="w-full rounded-[18px] bg-[#007AFF] px-4 py-2.5 text-[12.5px] font-['Geist'] text-white shadow-[0_4px_14px_rgba(0,122,255,0.35)] leading-relaxed select-text font-medium break-words">
+        <div className="w-full rounded-[18px] bg-[#007AFF] px-4 py-2.5 text-[12.5px] font-(family-name:--app-font) text-white shadow-[0_4px_14px_rgba(0,122,255,0.35)] leading-relaxed select-text font-medium break-words">
           {/* Attached images/files rendered at the TOP */}
           {files.length > 0 && (
             <div className={`flex flex-wrap gap-2 ${cleanText ? 'mb-2.5' : ''}`}>
@@ -211,7 +211,7 @@ const UserChatBubbleImpl: React.FC<UserChatBubbleProps> = ({
 
         {/* Timestamp & copy action */}
         {(formattedTime || cleanText || files.length > 0) && (
-          <div className="flex items-center gap-1.5 px-1 text-[10.5px] text-white/40 font-['Geist'] select-none">
+          <div className="flex items-center gap-1.5 px-1 text-[10.5px] text-white/40 font-(family-name:--app-font) select-none">
             {formattedTime && (
               <span
                 title={timestamp ? new Date(timestamp).toLocaleString() : undefined}
@@ -249,7 +249,7 @@ const UserChatBubbleImpl: React.FC<UserChatBubbleProps> = ({
                 onClick={(e) => e.stopPropagation()}
                 draggable={false}
               />
-              <div className="mt-3 text-xs text-white/80 font-['Geist'] bg-black/60 backdrop-blur px-3.5 py-1.5 rounded-full border border-white/15 max-w-[80vw] truncate">
+              <div className="mt-3 text-xs text-white/80 font-(family-name:--app-font) bg-black/60 backdrop-blur px-3.5 py-1.5 rounded-full border border-white/15 max-w-[80vw] truncate">
                 {openedImage.name}
               </div>
               <button

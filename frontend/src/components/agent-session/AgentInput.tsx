@@ -223,7 +223,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             caretColor="rgba(255, 255, 255, 0.95)"
-            textClassName="w-full text-[11.5px] font-medium font-['Geist'] text-white tracking-tight leading-[20px] block"
+            textClassName="w-full text-[11.5px] font-medium font-(family-name:--app-font) text-white tracking-tight leading-[20px] block"
             className={isScrollable ? 'overflow-y-auto custom-scrollbar' : 'overflow-hidden'}
             placeholderClassName="text-white/40"
             style={{
@@ -269,7 +269,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
                 draggable={false}
               />
             )}
-            <span className="text-[11.5px] font-medium font-['Geist'] text-white tracking-tight leading-none">
+            <span className="text-[11.5px] font-medium font-(family-name:--app-font) text-white tracking-tight leading-none">
               {currentModel?.name || 'Select Model'}
             </span>
             <span

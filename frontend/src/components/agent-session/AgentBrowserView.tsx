@@ -255,7 +255,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
               onChange={(e) => setInputUrl(e.target.value)}
               onKeyDown={handleInputKeyDown}
               onFocus={(e) => e.target.select()}
-              className="w-full bg-transparent text-[12px] font-medium font-['Geist'] text-white placeholder:text-white/40 focus:outline-none tracking-tight select-text"
+              className="w-full bg-transparent text-[12px] font-medium font-(family-name:--app-font) text-white placeholder:text-white/40 focus:outline-none tracking-tight select-text"
             />
             {isLoading && (
               <span className="w-2 h-2 rounded-full border border-white/60 border-t-transparent animate-spin shrink-0" />
@@ -291,7 +291,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                 : 'Live Always: WebGL renders continuously in background (Click to enable Power Save)'
             }
             onClick={() => setAutoPauseBackground((prev) => !prev)}
-            className={`h-[24px] px-2 rounded-[6px] flex items-center gap-1 text-[11px] font-medium font-['Geist'] transition-all cursor-pointer border ${
+            className={`h-[24px] px-2 rounded-[6px] flex items-center gap-1 text-[11px] font-medium font-(family-name:--app-font) transition-all cursor-pointer border ${
               autoPauseBackground
                 ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25'
                 : 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25'
@@ -307,7 +307,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
             type="button"
             title="Open in external browser (Chrome/Edge)"
             onClick={handleOpenExternal}
-            className="h-[24px] px-2 rounded-[6px] bg-white/[0.07] hover:bg-white/15 border border-white/10 active:scale-95 text-white/75 hover:text-white text-[11px] font-medium font-['Geist'] flex items-center gap-1 transition-all cursor-pointer"
+            className="h-[24px] px-2 rounded-[6px] bg-white/[0.07] hover:bg-white/15 border border-white/10 active:scale-95 text-white/75 hover:text-white text-[11px] font-medium font-(family-name:--app-font) flex items-center gap-1 transition-all cursor-pointer"
           >
             <span>Open</span>
             <span className="material-symbols-rounded text-[13px] leading-none">open_in_new</span>
@@ -360,7 +360,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span>3D Preview Paused • State Preserved</span>
                 </div>
-                <p className="text-[12px] font-medium font-['Geist'] text-white/50 max-w-xs mb-3 leading-relaxed">
+                <p className="text-[12px] font-medium font-(family-name:--app-font) text-white/50 max-w-xs mb-3 leading-relaxed">
                   WebGL rendering halted to maintain silky 120 FPS across your agent cards.
                 </p>
                 <div className="px-3.5 py-1.5 rounded-[8px] bg-white/[0.08] hover:bg-white/15 border border-white/15 text-white text-[12px] font-medium flex items-center gap-1.5 transition-all shadow-md group-hover:border-white/30">
@@ -396,10 +396,10 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                 <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3">
                   <span className="material-symbols-rounded text-white/60 text-xl">public_off</span>
                 </div>
-                <h4 className="text-[13.5px] font-semibold font-['Geist'] text-white/90 mb-1">
+                <h4 className="text-[13.5px] font-semibold font-(family-name:--app-font) text-white/90 mb-1">
                   Site embedding restricted
                 </h4>
-                <p className="text-[12px] text-white/50 max-w-sm mb-4 leading-relaxed font-['Geist']">
+                <p className="text-[12px] text-white/50 max-w-sm mb-4 leading-relaxed font-(family-name:--app-font)">
                   This site restricts iframe embedding for security reasons. You can view it directly in your browser.
                 </p>
                 <button
@@ -419,10 +419,10 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
             <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center mb-3.5 shadow-xl">
               <span className="material-symbols-rounded text-white/60 text-2xl">language</span>
             </div>
-            <h3 className="text-[15px] font-semibold font-['Geist'] text-white/90 tracking-tight mb-1">
+            <h3 className="text-[15px] font-semibold font-(family-name:--app-font) text-white/90 tracking-tight mb-1">
               Web Preview
             </h3>
-            <p className="text-[12px] font-medium font-['Geist'] text-white/45 max-w-xs mb-5 leading-relaxed">
+            <p className="text-[12px] font-medium font-(family-name:--app-font) text-white/45 max-w-xs mb-5 leading-relaxed">
               {primaryServer
                 ? `Dev server running on localhost:${primaryServer.port}`
                 : 'Start a dev server or enter an address above to preview.'}

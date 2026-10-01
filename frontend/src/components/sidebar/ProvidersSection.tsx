@@ -28,7 +28,7 @@ export const ProvidersSection: React.FC<ProvidersSectionProps> = ({
     <>
       {defaultModels.error && (
         <div className="px-3 py-2 rounded-[9px] bg-amber-500/10 border border-amber-400/25">
-          <span className="text-[11px] font-medium font-['Geist'] text-amber-100/90 leading-relaxed">
+          <span className="text-[11px] font-medium font-(family-name:--app-font) text-amber-100/90 leading-relaxed">
             {defaultModels.error}
           </span>
         </div>
@@ -54,17 +54,17 @@ export const ProvidersSection: React.FC<ProvidersSectionProps> = ({
       </div>
 
       {accounts.notice && (
-        <div className={`text-[10px] font-medium font-['Geist'] px-2 py-1 rounded-[6px] ${isLight ? 'bg-black/[0.05] text-black/70' : 'bg-white/[0.06] text-white/70'}`}>
+        <div className={`text-[10px] font-medium font-(family-name:--app-font) px-2 py-1 rounded-[6px] ${isLight ? 'bg-black/[0.05] text-black/70' : 'bg-white/[0.06] text-white/70'}`}>
           {accounts.notice}
         </div>
       )}
       {accounts.error && (
-        <div className={`text-[10px] font-medium font-['Geist'] px-2 py-1 rounded-[6px] ${isLight ? 'bg-red-500/10 text-red-800 border border-red-500/20' : 'bg-red-500/15 text-red-200 border border-red-500/25'}`}>
+        <div className={`text-[10px] font-medium font-(family-name:--app-font) px-2 py-1 rounded-[6px] ${isLight ? 'bg-red-500/10 text-red-800 border border-red-500/20' : 'bg-red-500/15 text-red-200 border border-red-500/25'}`}>
           {accounts.error}
         </div>
       )}
       {usage.error && (
-        <div className={`text-[10px] font-medium font-['Geist'] px-2 py-1 rounded-[6px] ${isLight ? 'bg-red-500/10 text-red-800 border border-red-500/20' : 'bg-red-500/15 text-red-200 border border-red-500/25'}`}>
+        <div className={`text-[10px] font-medium font-(family-name:--app-font) px-2 py-1 rounded-[6px] ${isLight ? 'bg-red-500/10 text-red-800 border border-red-500/20' : 'bg-red-500/15 text-red-200 border border-red-500/25'}`}>
           {usage.error}
         </div>
       )}

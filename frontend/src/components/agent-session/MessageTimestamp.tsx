@@ -64,7 +64,7 @@ export const MessageTimestamp: React.FC<MessageTimestampProps> = ({
 
   return (
     <div
-      className={`flex items-center gap-1.5 pt-1.5 text-[11px] font-['Geist'] text-white/40 select-none ${
+      className={`flex items-center gap-1.5 pt-1.5 text-[11px] font-(family-name:--app-font) text-white/40 select-none ${
         align === 'right' ? 'justify-end' : 'justify-start'
       } ${className}`}
     >

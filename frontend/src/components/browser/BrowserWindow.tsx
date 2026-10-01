@@ -251,7 +251,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
 
             <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto no-scrollbar">
               {browser.agents.length === 0 ? (
-                <span className="text-[12px] font-medium font-['Geist'] text-white/45 tracking-tight truncate">
+                <span className="text-[12px] font-medium font-(family-name:--app-font) text-white/45 tracking-tight truncate">
                   Browser
                 </span>
               ) : (
@@ -263,7 +263,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                       type="button"
                       title={agent.title}
                       onClick={() => browser.selectAgent(agent.threadId)}
-                      className={`h-[24px] pl-1.5 pr-2.5 rounded-[8px] flex items-center gap-1.5 text-[11.5px] font-medium font-['Geist'] tracking-tight transition-all duration-150 cursor-pointer shrink-0 max-w-[180px] ${
+                      className={`h-[24px] pl-1.5 pr-2.5 rounded-[8px] flex items-center gap-1.5 text-[11.5px] font-medium font-(family-name:--app-font) tracking-tight transition-all duration-150 cursor-pointer shrink-0 max-w-[180px] ${
                         isActive
                           ? 'bg-white/18 ring-1 ring-inset ring-white/20 text-white'
                           : 'text-white/50 hover:text-white/85 hover:bg-white/8'
@@ -320,7 +320,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                         : 'text-white/40 hover:text-white/70 hover:bg-white/6'
                     }`}
                   >
-                    <span className="text-[11px] font-['Geist'] tracking-tight truncate">
+                    <span className="text-[11px] font-(family-name:--app-font) tracking-tight truncate">
                       {tab.label || displayUrl(tab.url).replace(/^https?:\/\//, '') || 'New tab'}
                     </span>
                     <button
@@ -368,7 +368,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                 onMouseDown={(e) => e.stopPropagation()}
                 spellCheck={false}
                 placeholder="localhost:3000"
-                className="w-full h-[26px] px-2.5 rounded-[8px] bg-white/[0.07] border border-white/[0.1] focus:border-white/25 focus:bg-white/[0.1] outline-none text-[11.5px] font-['Geist'] text-white/90 placeholder:text-white/30 transition-all duration-150"
+                className="w-full h-[26px] px-2.5 rounded-[8px] bg-white/[0.07] border border-white/[0.1] focus:border-white/25 focus:bg-white/[0.1] outline-none text-[11.5px] font-(family-name:--app-font) text-white/90 placeholder:text-white/30 transition-all duration-150"
               />
             </form>
 
@@ -385,7 +385,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
 
           {browser.error && (
             <div className="px-2.5 py-1.5 rounded-[8px] bg-red-500/10 border border-red-400/25 shrink-0">
-              <span className="text-[10.5px] font-medium font-['Geist'] text-red-200/90">
+              <span className="text-[10.5px] font-medium font-(family-name:--app-font) text-red-200/90">
                 {browser.error}
               </span>
             </div>
@@ -401,7 +401,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                   <span className="material-symbols-rounded text-[26px] text-white/25 leading-none">
                     globe
                   </span>
-                  <span className="text-[12px] font-['Geist'] text-white/40 leading-relaxed">
+                  <span className="text-[12px] font-(family-name:--app-font) text-white/40 leading-relaxed">
                     No agent is serving a page yet. Once an agent starts a dev server it appears
                     here automatically.
                   </span>

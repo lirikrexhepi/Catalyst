@@ -153,7 +153,7 @@ const Tile: React.FC<TileProps> = ({ item, compact, onRemove, onOpen }) => {
         {iconFor(item.mime)}
       </span>
       <span
-        className={`font-['Geist'] font-medium tracking-tight truncate ${
+        className={`font-(family-name:--app-font) font-medium tracking-tight truncate ${
           compact ? 'text-[11px]' : 'text-[12px]'
         }`}
       >

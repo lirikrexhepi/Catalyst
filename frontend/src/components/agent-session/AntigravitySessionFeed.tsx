@@ -228,7 +228,7 @@ export const AntigravitySessionFeed: React.FC<AntigravitySessionFeedProps> = ({
 
                 <div className="flex items-center gap-2 pt-1 pl-1">
                   <OrbitLoader size={14} className="text-white/80" />
-                  <span className="text-[12px] font-medium font-['Geist'] text-white/70 tracking-tight select-none">
+                  <span className="text-[12px] font-medium font-(family-name:--app-font) text-white/70 tracking-tight select-none">
                     Working
                   </span>
                 </div>
@@ -243,7 +243,7 @@ export const AntigravitySessionFeed: React.FC<AntigravitySessionFeedProps> = ({
                   onClick={() => toggleTurnExpanded(turn.id)}
                   className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[6px] hover:bg-white/10 active:scale-95 transition-all duration-150 cursor-pointer self-start group text-left"
                 >
-                  <span className="text-[12px] font-medium font-['Geist'] text-white/60 group-hover:text-white/90 tracking-tight select-none leading-none">
+                  <span className="text-[12px] font-medium font-(family-name:--app-font) text-white/60 group-hover:text-white/90 tracking-tight select-none leading-none">
                     Worked for {duration}s
                   </span>
                   <span
@@ -351,7 +351,7 @@ export const AntigravitySessionFeed: React.FC<AntigravitySessionFeedProps> = ({
             {turn.textBlocks.map((block) => (
               <div
                 key={block.id}
-                className="text-[12px] font-medium font-['Geist'] text-white/90 leading-relaxed pl-0.5 select-text"
+                className="text-[12px] font-medium font-(family-name:--app-font) text-white/90 leading-relaxed pl-0.5 select-text"
               >
                 <MarkdownText content={block.content} />
                 {block.isStreaming && (

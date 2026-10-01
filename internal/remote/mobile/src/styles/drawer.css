@@ -69,3 +69,10 @@
 .dw-project .dot { width: 6px; height: 6px; background: var(--fg-2); }
 
 .dw-new, .dw-new svg { color: #fff; }
+
+.dw-group-toggle { width: 100%; gap: 8px; text-align: left; touch-action: manipulation; }
+.dw-group-toggle:active { opacity: 0.6; }
+.dw-group-icon { width: 18px; height: 18px; object-fit: contain; flex-shrink: 0; }
+.dw-group-count { margin-left: auto; font: 500 14px/1 var(--font); color: var(--text-3, rgba(255, 255, 255, 0.45)); font-variant-numeric: tabular-nums; }
+.dw-group-chev { color: var(--text-3, rgba(255, 255, 255, 0.45)); transition: transform 200ms var(--ease-out, ease); flex-shrink: 0; }
+.dw-group-chev.open { transform: rotate(90deg); }

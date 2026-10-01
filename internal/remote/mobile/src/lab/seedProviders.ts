@@ -76,6 +76,7 @@ localStorage.setItem(
       attention: i === 2 ? 'question' : '',
       lastActivity: now - i * 14_400_000,
       projectName: 'configurator',
+      source: i >= 4 && i <= 5 ? 'claude-code' : undefined,
     })),
   ),
 )

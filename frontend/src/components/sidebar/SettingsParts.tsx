@@ -5,6 +5,7 @@ import { useTheme } from '../../themes';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
 import { GetUserPreference, SetUserPreference } from '../../../wailsjs/go/main/App';
 import { BackgroundRows } from './BackgroundSection';
+import { addFontFiles, applyFont, currentFontChoice, FONT_PRESETS, fontStack, isFontAvailable, loadFontCss, removeFamily, storedFaces } from '../../fonts';
 
 export function Switch({ on, onChange, isLight, label }: { on: boolean; onChange: () => void; isLight: boolean; label: string }) {
   return (
@@ -270,6 +271,138 @@ export function WallpaperPicker({ wallpaper, isLight, columns = 3 }: { wallpaper
           );
         })}
       </div>
+    </div>
+  );
+}
+
+export function FontPicker({ isLight }: { isLight: boolean }) {
+  const [choice, setChoice] = useState(currentFontChoice);
+  const [custom, setCustom] = useState<string[]>([]);
+  const [available, setAvailable] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const refresh = async () => {
+    const faces = await storedFaces();
+    const presetFamilies = new Set(FONT_PRESETS.map((p) => p.family));
+    setCustom([...new Set(faces.map((f) => f.family))].filter((family) => !presetFamilies.has(family)));
+    await document.fonts.ready;
+    setAvailable({ Matter: isFontAvailable('Matter') });
+  };
+
+  useEffect(() => {
+    for (const preset of FONT_PRESETS) loadFontCss(preset.css);
+    void refresh();
+  }, []);
+
+  const pick = (next: string) => {
+    applyFont(next);
+    setChoice(next);
+  };
+
+  const upload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setError(null);
+    try {
+      const families = await addFontFiles(Array.from(files));
+      if (families.length === 0) {
+        setError('Choose .ttf, .otf or .woff2 files');
+        return;
+      }
+      await refresh();
+      const family = families[0];
+      const preset = FONT_PRESETS.find((p) => p.family === family);
+      pick(preset ? preset.id : `custom:${family}`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+    }
+  };
+
+  const tile = (active: boolean) =>
+    `relative h-[76px] rounded-[13px] flex flex-col items-start justify-between p-3 text-left transition-all duration-150 cursor-pointer active:scale-[0.97] ${
+      active
+        ? isLight
+          ? 'bg-black/[0.09] ring-1 ring-black/15'
+          : 'bg-white/[0.12] ring-1 ring-white/20'
+        : isLight
+          ? 'bg-black/[0.035] hover:bg-black/[0.06]'
+          : 'bg-white/[0.04] hover:bg-white/[0.07]'
+    }`;
+  const fg = isLight ? 'text-black/90' : 'text-white/90';
+  const sub = isLight ? 'text-black/45' : 'text-white/40';
+
+  return (
+    <div className="flex flex-col gap-2">
+      <SectionLabel
+        isLight={isLight}
+        action={
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className={`text-[11.5px] font-medium tracking-tight transition-colors cursor-pointer ${isLight ? 'text-black/60 hover:text-black' : 'text-white/55 hover:text-white'}`}
+          >
+            Upload font
+          </button>
+        }
+      >
+        Font
+      </SectionLabel>
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept=".ttf,.otf,.woff,.woff2"
+        className="hidden"
+        onChange={(event) => {
+          void upload(event.target.files);
+          event.target.value = '';
+        }}
+      />
+      <div className="grid grid-cols-3 gap-2">
+        {FONT_PRESETS.map((preset) => {
+          const missing = preset.id === 'matter' && available.Matter === false;
+          return (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => (missing ? fileRef.current?.click() : pick(preset.id))}
+              className={tile(choice === preset.id)}
+            >
+              <span className={`text-[22px] leading-none tracking-tight ${missing ? sub : fg}`} style={{ fontFamily: fontStack(preset.family) }}>
+                Aa
+              </span>
+              <span className="flex flex-col min-w-0">
+                <span className={`text-[11.5px] font-medium tracking-tight truncate ${fg}`}>{preset.label}</span>
+                {missing && <span className={`text-[10px] tracking-tight ${sub}`}>Upload its files</span>}
+              </span>
+            </button>
+          );
+        })}
+        {custom.map((family) => (
+          <div key={family} className="relative group">
+            <button type="button" onClick={() => pick(`custom:${family}`)} className={`w-full ${tile(choice === `custom:${family}`)}`}>
+              <span className={`text-[22px] leading-none tracking-tight ${fg}`} style={{ fontFamily: fontStack(family) }}>
+                Aa
+              </span>
+              <span className={`text-[11.5px] font-medium tracking-tight truncate ${fg}`}>{family}</span>
+            </button>
+            <button
+              type="button"
+              title="Remove font"
+              onClick={() => {
+                void removeFamily(family).then(() => {
+                  if (choice === `custom:${family}`) pick('geist');
+                  void refresh();
+                });
+              }}
+              className="absolute top-1.5 right-1.5 w-[20px] h-[20px] rounded-full bg-black/60 hover:bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-150 cursor-pointer"
+            >
+              <span className="material-symbols-rounded text-[12px] leading-none">close</span>
+            </button>
+          </div>
+        ))}
+      </div>
+      {error && <span className="text-[11px] text-red-300/90">{error}</span>}
     </div>
   );
 }

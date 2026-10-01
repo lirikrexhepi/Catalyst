@@ -66,7 +66,7 @@ export const DeckNavigationPill: React.FC<DeckNavigationPillProps> = ({
               <ChevronLeft size={14} />
             </button>
 
-            <span className={`text-[11px] font-medium font-['Geist'] tabular-nums select-none ${
+            <span className={`text-[11px] font-medium font-(family-name:--app-font) tabular-nums select-none ${
               isLight ? 'text-[#030303]/70' : 'text-white/70'
             }`}>
               {currentIndex + 1} / {totalCount}

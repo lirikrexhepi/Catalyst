@@ -8,7 +8,7 @@ import { ProvidersSection } from './ProvidersSection';
 import { RemoteAccessSection } from './RemoteAccessSection';
 import { useClaudeUpdate } from '../orchestrator/useClaudeUpdate';
 import { ScrollArea } from '../common/ScrollArea';
-import { GeneralSettings, SectionLabel, ThemePicker, WallpaperPicker } from './SettingsParts';
+import { FontPicker, GeneralSettings, SectionLabel, ThemePicker, WallpaperPicker } from './SettingsParts';
 
 type SectionId = 'general' | 'providers' | 'appearance' | 'remote';
 
@@ -56,7 +56,7 @@ export function SettingsWindow({
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.96, y: 8, opacity: 0, transition: { duration: 0.14 } }}
             transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.9 }}
-            className={`w-[min(880px,calc(100vw-120px))] h-[min(640px,calc(100vh-180px))] rounded-[28px] overflow-hidden flex font-['Geist'] select-none border ${
+            className={`w-[min(880px,calc(100vw-120px))] h-[min(640px,calc(100vh-180px))] rounded-[28px] overflow-hidden flex font-(family-name:--app-font) select-none border ${
               isLight ? 'border-black/10' : 'border-white/[0.08]'
             }`}
             style={{
@@ -137,6 +137,8 @@ export function SettingsWindow({
                       <>
                         <SectionLabel isLight={isLight}>Theme</SectionLabel>
                         <ThemePicker isLight={isLight} />
+                        <div className="h-2" />
+                        <FontPicker isLight={isLight} />
                         <div className="h-2" />
                         <WallpaperPicker wallpaper={wallpaper} isLight={isLight} columns={4} />
                       </>

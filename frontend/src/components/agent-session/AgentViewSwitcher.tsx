@@ -19,7 +19,7 @@ const DARK = {
   '--ma-rim': '#ffffff',
   '--ma-rim-hi': '0.55',
   '--ma-rim-lo': '0.06',
-  '--font': "'Geist', system-ui, sans-serif",
+  '--font': 'var(--app-font)',
 } as React.CSSProperties;
 
 const LIGHT = {
@@ -30,7 +30,7 @@ const LIGHT = {
   '--ma-rim-hi': '0.12',
   '--ma-rim-lo': '0.05',
   '--ma-shadow': '0.05',
-  '--font': "'Geist', system-ui, sans-serif",
+  '--font': 'var(--app-font)',
 } as React.CSSProperties;
 
 const pillIcon = (inner: string) =>

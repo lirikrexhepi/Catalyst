@@ -51,7 +51,7 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
 
   if (submitted) {
     return (
-      <div className={`flex items-center gap-2 min-w-0 py-[3px] text-[12.5px] tracking-tight leading-[18px] font-['Geist'] text-current/55 ${className}`}>
+      <div className={`flex items-center gap-2 min-w-0 py-[3px] text-[12.5px] tracking-tight leading-[18px] font-(family-name:--app-font) text-current/55 ${className}`}>
         <span className="w-[15px] flex items-center justify-center shrink-0">
           <span className="material-symbols-outlined text-[14px] leading-none">
             {submitted === 'Skipped' ? 'block' : 'check'}
@@ -102,7 +102,7 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
 
   return (
     <div
-      className={`rounded-[16px] bg-current/[0.045] border border-current/[0.07] p-1.5 font-['Geist'] text-current select-none ${className}`}
+      className={`rounded-[16px] bg-current/[0.045] border border-current/[0.07] p-1.5 font-(family-name:--app-font) text-current select-none ${className}`}
     >
       <div className="flex items-start justify-between gap-3 px-2.5 pt-2 pb-2.5">
         <span className="text-[13px] font-medium tracking-tight leading-[1.45]">{item.question}</span>

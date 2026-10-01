@@ -43,7 +43,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ wallpaper, onClose
   const fg = isLight ? 'text-black/90' : 'text-white';
 
   return (
-    <div className={`w-full h-full flex flex-col select-none font-['Geist'] ${className}`}>
+    <div className={`w-full h-full flex flex-col select-none font-(family-name:--app-font) ${className}`}>
       <div className="flex items-center justify-between px-4 pt-3.5 pb-1 shrink-0">
         <span className={`text-[13px] font-semibold tracking-tight ${fg}`}>Settings</span>
         <button

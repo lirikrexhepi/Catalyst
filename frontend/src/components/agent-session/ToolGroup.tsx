@@ -94,7 +94,7 @@ const ToolGroupImpl: React.FC<ToolGroupProps> = ({ items = [], defaultExpanded, 
 
   const label = `Used ${items.length} tools`;
   return (
-    <div className={`flex flex-col font-['Geist'] ${className}`}>
+    <div className={`flex flex-col font-(family-name:--app-font) ${className}`}>
       <button
         type="button"
         onClick={() => {

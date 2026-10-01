@@ -69,7 +69,7 @@ export const TaskModelPicker: React.FC<TaskModelPickerProps> = ({
             draggable={false}
           />
         )}
-        <span className="text-[11px] font-medium font-['Geist'] tracking-tight truncate">
+        <span className="text-[11px] font-medium font-(family-name:--app-font) tracking-tight truncate">
           {currentModel?.name || 'Select model'}
         </span>
         <span
@@ -163,7 +163,7 @@ export const TaskModelPicker: React.FC<TaskModelPickerProps> = ({
                           draggable={false}
                         />
                       )}
-                      <span className="text-[12px] font-['Geist'] tracking-tight truncate flex-1">
+                      <span className="text-[12px] font-(family-name:--app-font) tracking-tight truncate flex-1">
                         {model.name}
                       </span>
                       {isSelected && (

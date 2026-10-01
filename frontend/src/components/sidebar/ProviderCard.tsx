@@ -74,7 +74,7 @@ export const ProviderCard: React.FC<ProviderCardProps> = ({
   const update = provider.id === 'claude' ? claudeUpdate : null;
 
   return (
-    <div className={`flex flex-col rounded-[16px] font-['Geist'] ${isLight ? 'bg-black/[0.035]' : 'bg-white/[0.04]'}`}>
+    <div className={`flex flex-col rounded-[16px] font-(family-name:--app-font) ${isLight ? 'bg-black/[0.035]' : 'bg-white/[0.04]'}`}>
       <div className="flex items-center gap-2.5 px-3.5 pt-3 pb-2.5">
         <img
           src={providerIcon(provider.id, isLight) || provider.icon}

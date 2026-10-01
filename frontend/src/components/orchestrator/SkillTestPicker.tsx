@@ -90,7 +90,7 @@ export const SkillTestPicker: React.FC<SkillTestPickerProps> = ({ cwd, selected,
             role="dialog"
             aria-label="Skill test"
             style={{ position: 'fixed', bottom: anchor.bottom, right: anchor.right, zIndex: 1000 }}
-            className={`w-[300px] rounded-[22px] p-2 shadow-[0_12px_40px_rgba(0,0,0,0.35)] font-['Geist'] ${
+            className={`w-[300px] rounded-[22px] p-2 shadow-[0_12px_40px_rgba(0,0,0,0.35)] font-(family-name:--app-font) ${
               isLight ? 'bg-white border border-black/[0.08] text-[#030303]' : 'bg-[#1f1f1f] border border-white/[0.08] text-white'
             }`}
           >

@@ -742,11 +742,11 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,1)] shrink-0 animate-pulse" />
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[12px] font-semibold text-emerald-300 tracking-tight shrink-0 font-['Geist']">
+                <span className="text-[12px] font-semibold text-emerald-300 tracking-tight shrink-0 font-(family-name:--app-font)">
                   {notification.title}
                 </span>
                 {notification.subtitle && (
-                  <span className="text-[11px] text-white/60 truncate font-['Geist']">
+                  <span className="text-[11px] text-white/60 truncate font-(family-name:--app-font)">
                     · {notification.subtitle}
                   </span>
                 )}
@@ -760,7 +760,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                     e.stopPropagation();
                     notification.onAction?.();
                   }}
-                  className="h-[22px] px-2.5 mr-1 rounded-full bg-[#007AFF] hover:bg-[#0A84FF] text-white text-[11px] font-medium font-['Geist'] active:scale-95 transition-all cursor-pointer"
+                  className="h-[22px] px-2.5 mr-1 rounded-full bg-[#007AFF] hover:bg-[#0A84FF] text-white text-[11px] font-medium font-(family-name:--app-font) active:scale-95 transition-all cursor-pointer"
                 >
                   {notification.actionLabel}
                 </button>
@@ -868,7 +868,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 </div>
               </div>
 
-              <span className="text-[11px] font-semibold text-white/90 tabular-nums font-['Geist']">
+              <span className="text-[11px] font-semibold text-white/90 tabular-nums font-(family-name:--app-font)">
                 {sessionUsedPercent}%
               </span>
             </button>
@@ -967,7 +967,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 <div className="w-5 h-5 flex items-center justify-center">
                   {modelTheme.icon}
                 </div>
-                <span className="text-[13px] font-semibold text-white font-['Geist'] tracking-tight">
+                <span className="text-[13px] font-semibold text-white font-(family-name:--app-font) tracking-tight">
                   {modelTheme.name} Usage
                 </span>
               </div>
@@ -984,17 +984,17 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
 
             {!hasQuota ? (
               <div className="flex flex-col gap-1.5 my-1">
-                <div className="flex items-center justify-between text-[11px] font-['Geist']">
+                <div className="flex items-center justify-between text-[11px] font-(family-name:--app-font)">
                   <span className="text-white/60">This run</span>
                 </div>
-                <div className="flex items-center gap-3 text-[11px] font-['Geist'] text-white/80 tabular-nums">
+                <div className="flex items-center gap-3 text-[11px] font-(family-name:--app-font) text-white/80 tabular-nums">
                   <span>↓ {compactCount(driverData?.inputTokens ?? 0)} in</span>
                   <span>↑ {compactCount(driverData?.outputTokens ?? 0)} out</span>
                   {(driverData?.costUsd ?? 0) > 0 && (
                     <span>${(driverData?.costUsd ?? 0).toFixed(2)}</span>
                   )}
                 </div>
-                <span className="text-[10px] text-white/45 font-['Geist']">
+                <span className="text-[10px] text-white/45 font-(family-name:--app-font)">
                   No quota — sign in to OpenCode Go for limits
                 </span>
               </div>
@@ -1002,7 +1002,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               <>
                 {/* Current Session Limit (Matching Image 2) */}
                 <div className="flex flex-col gap-1.5 my-1">
-                  <div className="flex items-center justify-between text-[11px] font-['Geist']">
+                  <div className="flex items-center justify-between text-[11px] font-(family-name:--app-font)">
                     <span className="text-white/60">Current session</span>
                     <span className="text-[#8E8E93] text-[10px]">
                       {sessionLimit?.resetsAt ? formatResets(sessionLimit.resetsAt) : ''}
@@ -1020,14 +1020,14 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                     />
                   </div>
 
-                  <span className="text-[10px] text-white/80 font-medium font-['Geist']">
+                  <span className="text-[10px] text-white/80 font-medium font-(family-name:--app-font)">
                     {sessionUsedPercent}% Used
                   </span>
                 </div>
 
                 {/* All Models / Weekly Limit (Matching Image 2) */}
                 <div className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between text-[11px] font-['Geist']">
+                  <div className="flex items-center justify-between text-[11px] font-(family-name:--app-font)">
                     <span className="text-white/60">All models</span>
                     <span className="text-[#8E8E93] text-[10px]">
                       {weeklyLimit?.resetsAt ? formatResets(weeklyLimit.resetsAt) : ''}
@@ -1045,7 +1045,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                     />
                   </div>
 
-                  <span className="text-[10px] text-white/80 font-medium font-['Geist']">
+                  <span className="text-[10px] text-white/80 font-medium font-(family-name:--app-font)">
                     {weeklyUsedPercent}% Used
                   </span>
                 </div>

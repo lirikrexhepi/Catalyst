@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+:root {
+  --app-font: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
 html,
 body,
 #root {
@@ -9,7 +13,7 @@ body,
   padding: 0;
   overflow: hidden;
   user-select: none;
-  font-family: "Geist", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--app-font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

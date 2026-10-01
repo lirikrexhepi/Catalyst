@@ -140,7 +140,7 @@ export const CleanDropdown: React.FC<CleanDropdownProps> = ({
                 : 'bg-white/[0.06] hover:bg-white/[0.10] active:scale-95 border-white/[0.08] text-white/85 hover:text-white'
         }`}
       >
-        <span className="text-[11.5px] font-medium font-['Geist'] tracking-tight truncate flex-1">
+        <span className="text-[11.5px] font-medium font-(family-name:--app-font) tracking-tight truncate flex-1">
           {displayLabel}
         </span>
         <span
@@ -214,7 +214,7 @@ export const CleanDropdown: React.FC<CleanDropdownProps> = ({
                           onChange(option.value);
                           setIsOpen(false);
                         }}
-                        className={`w-full h-[28px] px-2 rounded-[7px] flex items-center justify-between text-left transition-colors cursor-pointer text-[11.5px] font-['Geist'] ${
+                        className={`w-full h-[28px] px-2 rounded-[7px] flex items-center justify-between text-left transition-colors cursor-pointer text-[11.5px] font-(family-name:--app-font) ${
                           isSelected
                             ? isLight
                               ? 'bg-black/10 text-black font-medium shadow-[inset_0_1px_0_rgba(0,0,0,0.05)]'

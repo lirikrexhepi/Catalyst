@@ -122,7 +122,7 @@ export const UsageRing: React.FC<UsageRingProps> = ({ used, logo, size = 26, isL
       </svg>
       {label !== undefined ? (
         <span
-          className={`relative font-['Geist'] font-semibold tabular-nums tracking-tight ${isLight ? 'text-black/80' : 'text-white/85'}`}
+          className={`relative font-(family-name:--app-font) font-semibold tabular-nums tracking-tight ${isLight ? 'text-black/80' : 'text-white/85'}`}
           style={{ fontSize: Math.max(9, Math.round(size * 0.27)) }}
         >
           {label}
@@ -143,10 +143,10 @@ export const QuotaBar: React.FC<{ limit: domain.RateLimit }> = ({ limit }) => {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="text-[11px] font-medium font-['Geist'] text-white/70 tracking-tight">
+        <span className="text-[11px] font-medium font-(family-name:--app-font) text-white/70 tracking-tight">
           {label}
         </span>
-        <span className="text-[11px] font-semibold font-['Geist'] text-white/90 tabular-nums">
+        <span className="text-[11px] font-semibold font-(family-name:--app-font) text-white/90 tabular-nums">
           {known ? `${used}%` : '—'}
         </span>
       </div>
@@ -160,7 +160,7 @@ export const QuotaBar: React.FC<{ limit: domain.RateLimit }> = ({ limit }) => {
         )}
       </div>
       {!!limit.resetsAt && (
-        <span className="text-[10px] font-['Geist'] text-white/35 tracking-tight">
+        <span className="text-[10px] font-(family-name:--app-font) text-white/35 tracking-tight">
           {until(limit.resetsAt)}
         </span>
       )}

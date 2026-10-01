@@ -77,7 +77,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
           <span className="material-symbols-outlined text-[18px] text-white/80 leading-none">
             account_tree
           </span>
-          <span className="text-[13px] font-semibold font-['Geist'] text-white tracking-tight">
+          <span className="text-[13px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
             Delegate {plan.tasks.length} task{plan.tasks.length === 1 ? '' : 's'}?
           </span>
         </div>
@@ -94,7 +94,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
             </span>
             <div className="min-w-0 flex-1 flex flex-col gap-1">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[12px] font-medium font-['Geist'] text-white/95 tracking-tight truncate">
+                <span className="text-[12px] font-medium font-(family-name:--app-font) text-white/95 tracking-tight truncate">
                   {task.title}
                 </span>
 
@@ -109,7 +109,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
                   onClose={() => setOpenPickerIndex(null)}
                 />
               </div>
-              <div className="text-[11px] font-['Geist'] text-white/50 leading-relaxed line-clamp-2 select-text">
+              <div className="text-[11px] font-(family-name:--app-font) text-white/50 leading-relaxed line-clamp-2 select-text">
                 {task.prompt}
               </div>
             </div>
@@ -139,7 +139,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
               </span>
             )}
           </span>
-          <span className="text-[11px] font-['Geist'] text-white/60 group-hover:text-white/85 tracking-tight">
+          <span className="text-[11px] font-(family-name:--app-font) text-white/60 group-hover:text-white/85 tracking-tight">
             Isolate each task in its own git worktree
           </span>
         </button>
@@ -149,14 +149,14 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
         <button
           type="button"
           onClick={() => onConfirm(useWorktree, modelIds)}
-          className="h-[28px] px-3.5 rounded-[8px] bg-white/90 hover:bg-white active:scale-95 text-[12px] font-semibold font-['Geist'] text-black tracking-tight transition-all duration-150 cursor-pointer shadow-sm"
+          className="h-[28px] px-3.5 rounded-[8px] bg-white/90 hover:bg-white active:scale-95 text-[12px] font-semibold font-(family-name:--app-font) text-black tracking-tight transition-all duration-150 cursor-pointer shadow-sm"
         >
           Start agents
         </button>
         <button
           type="button"
           onClick={onDismiss}
-          className="h-[28px] px-3.5 rounded-[8px] bg-white/8 hover:bg-white/15 active:scale-95 border border-white/12 text-[12px] font-medium font-['Geist'] text-white/70 hover:text-white tracking-tight transition-all duration-150 cursor-pointer"
+          className="h-[28px] px-3.5 rounded-[8px] bg-white/8 hover:bg-white/15 active:scale-95 border border-white/12 text-[12px] font-medium font-(family-name:--app-font) text-white/70 hover:text-white tracking-tight transition-all duration-150 cursor-pointer"
         >
           Not now
         </button>

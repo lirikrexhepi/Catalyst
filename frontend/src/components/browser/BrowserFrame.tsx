@@ -76,7 +76,7 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({ tab, onBlocked }) =>
           <span className="material-symbols-rounded text-[26px] text-white/25 leading-none">
             globe
           </span>
-          <span className="text-[12px] font-['Geist'] text-white/40 leading-relaxed">
+          <span className="text-[12px] font-(family-name:--app-font) text-white/40 leading-relaxed">
             Enter an address, or pick a detected port above.
           </span>
         </div>
@@ -114,17 +114,17 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({ tab, onBlocked }) =>
             <span className="material-symbols-rounded text-[26px] text-white/30 leading-none">
               public_off
             </span>
-            <span className="text-[12.5px] font-medium font-['Geist'] text-white/80 tracking-tight">
+            <span className="text-[12.5px] font-medium font-(family-name:--app-font) text-white/80 tracking-tight">
               This site refused to be embedded
             </span>
-            <span className="text-[11.5px] font-['Geist'] text-white/45 leading-relaxed">
+            <span className="text-[11.5px] font-(family-name:--app-font) text-white/45 leading-relaxed">
               It sends an <span className="font-mono text-white/60">X-Frame-Options</span> or
               frame-ancestors policy that blocks preview panes. Local dev servers are unaffected.
             </span>
             <button
               type="button"
               onClick={() => BrowserOpenURL(tab.url)}
-              className="mt-1 h-[26px] px-3 rounded-[8px] bg-white/10 hover:bg-white/18 active:scale-95 text-[11.5px] font-medium font-['Geist'] text-white/80 hover:text-white transition-all duration-150 cursor-pointer"
+              className="mt-1 h-[26px] px-3 rounded-[8px] bg-white/10 hover:bg-white/18 active:scale-95 text-[11.5px] font-medium font-(family-name:--app-font) text-white/80 hover:text-white transition-all duration-150 cursor-pointer"
             >
               Open in system browser
             </button>

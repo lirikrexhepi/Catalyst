@@ -82,6 +82,7 @@ export interface ServerMessage {
 export type ModelOptions = Record<string, unknown>
 
 export interface ThreadSummary {
+  source?: string
   threadId: string
   title: string
   kind: 'coordinator' | 'agent'

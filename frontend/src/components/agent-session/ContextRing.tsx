@@ -22,7 +22,7 @@ export const ContextRing: React.FC<{ usage?: ContextUsage; isLight?: boolean }> 
     : `${usage.tokens.toLocaleString()} context tokens used`;
 
   return (
-    <span title={title} className={`inline-flex items-center gap-1 shrink-0 text-[10.5px] font-medium font-['Geist'] tabular-nums ${tone}`}>
+    <span title={title} className={`inline-flex items-center gap-1 shrink-0 text-[10.5px] font-medium font-(family-name:--app-font) tabular-nums ${tone}`}>
       {ratio !== undefined && (
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeOpacity={0.22} strokeWidth={stroke} />

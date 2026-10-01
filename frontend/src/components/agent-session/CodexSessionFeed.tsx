@@ -60,7 +60,7 @@ export const CodexSessionFeed: React.FC<CodexSessionFeedProps> = ({
             return (
               <div
                 key={block.id}
-                className="text-[12.5px] font-normal font-['Geist'] text-white/90 leading-relaxed pl-0.5 select-text"
+                className="text-[12.5px] font-normal font-(family-name:--app-font) text-white/90 leading-relaxed pl-0.5 select-text"
               >
                 <MarkdownText content={block.content} />
                 {block.isStreaming && (

@@ -41,7 +41,7 @@ const PlanToolImpl: React.FC<PlanToolProps> = ({
 
   return (
     <div
-      className={`rounded-xl bg-current/[0.05] p-3 text-current max-w-full font-['Geist'] select-none flex flex-col gap-2 transition-all duration-150 border-0 shadow-none ${className}`}
+      className={`rounded-xl bg-current/[0.05] p-3 text-current max-w-full font-(family-name:--app-font) select-none flex flex-col gap-2 transition-all duration-150 border-0 shadow-none ${className}`}
     >
       <div
         onClick={() => setIsExpanded((prev) => !prev)}

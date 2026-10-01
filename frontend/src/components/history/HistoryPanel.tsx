@@ -66,7 +66,7 @@ const HistoryRow: React.FC<{
 
       <div className="min-w-0 flex-1 flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-[12px] font-medium font-['Geist'] text-white/95 tracking-tight truncate">
+          <span className="text-[12px] font-medium font-(family-name:--app-font) text-white/95 tracking-tight truncate">
             {chat.title}
           </span>
           {isBusy && (
@@ -76,7 +76,7 @@ const HistoryRow: React.FC<{
             </span>
           )}
         </div>
-        <span className="text-[10.5px] font-['Geist'] text-white/40 truncate">
+        <span className="text-[10.5px] font-(family-name:--app-font) text-white/40 truncate">
           {formatChatSubtitle(chat)}
         </span>
       </div>
@@ -123,11 +123,11 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
           <span className="material-symbols-rounded text-[18px] text-white/80 leading-none">
             history
           </span>
-          <span className="text-[13px] font-semibold font-['Geist'] text-white tracking-tight">
+          <span className="text-[13px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
             History
           </span>
           {chatItems.length > 0 && (
-            <span className="text-[11px] font-medium font-['Geist'] text-white/35 tabular-nums">
+            <span className="text-[11px] font-medium font-(family-name:--app-font) text-white/35 tabular-nums">
               {chatItems.length}
             </span>
           )}
@@ -176,7 +176,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
       {error && (
         <div className="mx-4 mb-2.5 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
-          <span className="text-[11px] font-medium font-['Geist'] text-red-200/90 leading-relaxed">
+          <span className="text-[11px] font-medium font-(family-name:--app-font) text-red-200/90 leading-relaxed">
             {error}
           </span>
         </div>
@@ -198,7 +198,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
               </span>
             </div>
           </div>
-          <span className="text-[9.5px] font-semibold font-['Geist'] text-emerald-300 bg-emerald-500/25 px-2 py-0.5 rounded-full border border-emerald-500/40 shrink-0">
+          <span className="text-[9.5px] font-semibold font-(family-name:--app-font) text-emerald-300 bg-emerald-500/25 px-2 py-0.5 rounded-full border border-emerald-500/40 shrink-0">
             Live Now
           </span>
         </div>
@@ -206,7 +206,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
 
       {chatItems.length === 0 ? (
         <div className="px-4 pb-5 pt-1">
-          <p className="text-[12px] font-['Geist'] text-white/45 leading-relaxed">
+          <p className="text-[12px] font-(family-name:--app-font) text-white/45 leading-relaxed">
             {isLoading
               ? 'Loading…'
               : 'No past sessions yet. Delegating work saves the conversation and every agent it starts.'}
@@ -217,7 +217,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
           {groupedItems.map((group) => (
             <div key={group.label} className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between px-1 pt-1 pb-0.5 select-none">
-                <span className="text-[10px] font-semibold tracking-wider uppercase font-['Geist'] text-white/40">
+                <span className="text-[10px] font-semibold tracking-wider uppercase font-(family-name:--app-font) text-white/40">
                   {group.label}
                 </span>
                 <span className="text-[9.5px] font-mono tabular-nums text-white/30">

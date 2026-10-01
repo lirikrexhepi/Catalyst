@@ -60,10 +60,10 @@ export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
         />
 
         <div className="min-w-0 flex flex-col">
-          <span className="text-[12.5px] font-medium font-['Geist'] text-white/95 tracking-tight truncate">
+          <span className="text-[12.5px] font-medium font-(family-name:--app-font) text-white/95 tracking-tight truncate">
             {session.title}
           </span>
-          <span className="text-[10.5px] font-['Geist'] text-white/40 truncate">
+          <span className="text-[10.5px] font-(family-name:--app-font) text-white/40 truncate">
             {isReplay
               ? `Replay · ${total} agent${total === 1 ? '' : 's'} · read-only`
               : `${liveCount} of ${total} agent${total === 1 ? '' : 's'} live`}
@@ -75,7 +75,7 @@ export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="h-[26px] px-2.5 rounded-[8px] bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/35 active:scale-95 text-[11px] font-medium font-['Geist'] text-emerald-200 tracking-tight transition-all duration-150 cursor-pointer flex items-center gap-1.5 mr-1"
+              className="h-[26px] px-2.5 rounded-[8px] bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/35 active:scale-95 text-[11px] font-medium font-(family-name:--app-font) text-emerald-200 tracking-tight transition-all duration-150 cursor-pointer flex items-center gap-1.5 mr-1"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Return to live session ({liveAgentCount})</span>
@@ -86,7 +86,7 @@ export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
               type="button"
               onClick={onResume}
               disabled={isResuming}
-              className="h-[26px] px-3 rounded-[8px] bg-white/90 hover:bg-white active:scale-95 disabled:opacity-50 disabled:cursor-default text-[11.5px] font-semibold font-['Geist'] text-black tracking-tight transition-all duration-150 cursor-pointer"
+              className="h-[26px] px-3 rounded-[8px] bg-white/90 hover:bg-white active:scale-95 disabled:opacity-50 disabled:cursor-default text-[11.5px] font-semibold font-(family-name:--app-font) text-black tracking-tight transition-all duration-150 cursor-pointer"
             >
               {isResuming ? 'Resuming…' : 'Resume session'}
             </button>
@@ -109,7 +109,7 @@ export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
           {notes.map((task) => (
             <span
               key={task.threadId}
-              className="text-[10.5px] font-['Geist'] text-amber-200/70 leading-relaxed"
+              className="text-[10.5px] font-(family-name:--app-font) text-amber-200/70 leading-relaxed"
             >
               {task.title}: {task.note}
             </span>

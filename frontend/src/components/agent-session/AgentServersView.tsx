@@ -45,7 +45,7 @@ export const AgentServersView: React.FC<AgentServersViewProps> = ({
       <div className="flex items-center justify-between pb-3 shrink-0">
         <div className="flex items-center gap-2">
           <Terminal size={16} className="text-white/80" />
-          <span className="text-[13px] font-semibold text-white font-['Geist'] tracking-tight">
+          <span className="text-[13px] font-semibold text-white font-(family-name:--app-font) tracking-tight">
             Dev Servers
           </span>
           {servers.length > 0 && (
@@ -62,10 +62,10 @@ export const AgentServersView: React.FC<AgentServersViewProps> = ({
           <div className="w-10 h-10 rounded-full bg-white/[0.04] flex items-center justify-center mb-3">
             <Terminal size={20} className="text-white/35" />
           </div>
-          <span className="text-[13px] font-medium text-white/80 font-['Geist'] mb-1">
+          <span className="text-[13px] font-medium text-white/80 font-(family-name:--app-font) mb-1">
             No servers running for this agent
           </span>
-          <p className="text-[11.5px] text-white/40 font-['Geist'] max-w-[280px] leading-relaxed">
+          <p className="text-[11.5px] text-white/40 font-(family-name:--app-font) max-w-[280px] leading-relaxed">
             When this agent launches a web server (e.g. Vite, Next.js, Node, Python), it will appear here with live port status and controls.
           </p>
         </div>
@@ -114,7 +114,7 @@ export const AgentServersView: React.FC<AgentServersViewProps> = ({
                       type="button"
                       title="Open in card web preview"
                       onClick={onPreview}
-                      className="flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-white/[0.08] hover:bg-white/[0.16] active:scale-95 text-white text-[11px] font-medium font-['Geist'] transition-all cursor-pointer"
+                      className="flex items-center gap-1 h-[26px] px-2.5 rounded-full bg-white/[0.08] hover:bg-white/[0.16] active:scale-95 text-white text-[11px] font-medium font-(family-name:--app-font) transition-all cursor-pointer"
                     >
                       <Globe size={11} className="shrink-0" />
                       <span>Preview</span>
@@ -126,7 +126,7 @@ export const AgentServersView: React.FC<AgentServersViewProps> = ({
                       type="button"
                       title="Stop server process"
                       onClick={() => onStopServer(server.pid)}
-                      className="flex items-center gap-1 h-[26px] px-2 rounded-full hover:bg-rose-500/20 active:scale-95 text-white/50 hover:text-rose-200 text-[11px] font-medium font-['Geist'] transition-all cursor-pointer"
+                      className="flex items-center gap-1 h-[26px] px-2 rounded-full hover:bg-rose-500/20 active:scale-95 text-white/50 hover:text-rose-200 text-[11px] font-medium font-(family-name:--app-font) transition-all cursor-pointer"
                     >
                       <Square size={10} className="shrink-0 fill-current" />
                       <span>Stop</span>

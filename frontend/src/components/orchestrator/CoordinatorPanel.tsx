@@ -75,7 +75,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
     >
       {/* Header strip: message count plus the collapse toggle. */}
       <div className="flex items-center justify-between px-3.5 pt-2.5 pb-1.5">
-        <span className="text-[11px] font-medium font-['Geist'] text-white/35 tracking-tight select-none">
+        <span className="text-[11px] font-medium font-(family-name:--app-font) text-white/35 tracking-tight select-none">
           {isBusy ? 'Working' : `${turnCount} message${turnCount === 1 ? '' : 's'}`}
         </span>
         <button
@@ -111,7 +111,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
         {isBusy && !hasLiveIndicator && (
           <div className="flex items-center gap-2 pt-3 pl-0.5">
             <OrbitLoader size={13} />
-            <TextShimmer duration={1.5} className="text-[12px] font-medium font-['Geist'] tracking-tight">
+            <TextShimmer duration={1.5} className="text-[12px] font-medium font-(family-name:--app-font) tracking-tight">
               Thinking
             </TextShimmer>
           </div>
@@ -119,7 +119,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
 
         {bannerError && (
           <div className="mt-3 px-3 py-2 rounded-[9px] bg-red-500/10 border border-red-400/25">
-            <span className="text-[12px] font-medium font-['Geist'] text-red-200/90 leading-relaxed">
+            <span className="text-[12px] font-medium font-(family-name:--app-font) text-red-200/90 leading-relaxed">
               {bannerError}
             </span>
           </div>

@@ -101,7 +101,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
   };
 
   const tabClass = (on: boolean) =>
-    `flex-1 py-1 rounded-[6px] text-[11px] font-medium font-['Geist'] text-center transition-all cursor-pointer ${
+    `flex-1 py-1 rounded-[6px] text-[11px] font-medium font-(family-name:--app-font) text-center transition-all cursor-pointer ${
       on ? 'bg-white/15 text-white shadow-sm font-semibold' : 'text-white/45 hover:text-white/80'
     }`;
 
@@ -147,7 +147,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
           </div>
 
           {changedFiles.length > 0 && (
-            <span className="text-[11px] font-medium font-['Geist'] text-white/45">
+            <span className="text-[11px] font-medium font-(family-name:--app-font) text-white/45">
               {changedFiles.length} changed file{changedFiles.length === 1 ? '' : 's'}
             </span>
           )}
@@ -159,7 +159,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
               type="button"
               title="Reveal in File Explorer"
               onClick={() => void git.reveal(matchingLane.path)}
-              className="h-[26px] px-2 rounded-[6px] bg-white/[0.05] hover:bg-white/10 active:scale-95 text-white/70 hover:text-white text-[11px] font-medium font-['Geist'] flex items-center gap-1 transition-all cursor-pointer"
+              className="h-[26px] px-2 rounded-[6px] bg-white/[0.05] hover:bg-white/10 active:scale-95 text-white/70 hover:text-white text-[11px] font-medium font-(family-name:--app-font) flex items-center gap-1 transition-all cursor-pointer"
             >
               <FolderOpen size={13} />
               <span>Reveal</span>
@@ -171,7 +171,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
               type="button"
               title="Copy Unified Diff"
               onClick={copyDiff}
-              className="h-[26px] px-2 rounded-[6px] bg-white/[0.05] hover:bg-white/10 active:scale-95 text-white/70 hover:text-white text-[11px] font-medium font-['Geist'] flex items-center gap-1 transition-all cursor-pointer"
+              className="h-[26px] px-2 rounded-[6px] bg-white/[0.05] hover:bg-white/10 active:scale-95 text-white/70 hover:text-white text-[11px] font-medium font-(family-name:--app-font) flex items-center gap-1 transition-all cursor-pointer"
             >
               {copiedNotice ? (
                 <>
@@ -241,10 +241,10 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
                   <div className="w-9 h-9 rounded-xl bg-white/[0.05] flex items-center justify-center mb-2">
                     <GitBranch size={16} className="text-white/35" />
                   </div>
-                  <span className="text-[12px] font-medium text-white/50 font-['Geist'] mb-0.5">
+                  <span className="text-[12px] font-medium text-white/50 font-(family-name:--app-font) mb-0.5">
                     Working tree clean
                   </span>
-                  <span className="text-[10.5px] text-white/35 font-['Geist'] max-w-[160px]">
+                  <span className="text-[10.5px] text-white/35 font-(family-name:--app-font) max-w-[160px]">
                     No uncommitted changes in this agent worktree.
                   </span>
                 </div>
@@ -274,7 +274,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
                         {badge.mark}
                       </span>
                       <div className="flex-1 min-w-0 truncate">
-                        <div className="text-[12px] font-medium font-['Geist'] truncate">{name}</div>
+                        <div className="text-[12px] font-medium font-(family-name:--app-font) truncate">{name}</div>
                         {dir && (
                           <div className="text-[10px] text-white/35 font-mono truncate">{dir}</div>
                         )}
@@ -301,7 +301,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
                       <span>{c.short}</span>
                       <span>{c.author}</span>
                     </div>
-                    <div className="text-[12px] font-medium font-['Geist'] truncate">
+                    <div className="text-[12px] font-medium font-(family-name:--app-font) truncate">
                       {c.subject}
                     </div>
                   </button>
@@ -316,14 +316,14 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
           {leftTab === 'files' ? (
             !treeFile || !treeRoot ? (
               <div className="flex-1 min-h-0 grid place-items-center p-6">
-                <p className="text-[12px] font-['Geist'] text-white/35 text-center">
+                <p className="text-[12px] font-(family-name:--app-font) text-white/35 text-center">
                   Select a file to open it. Changed files open on their diff.
                 </p>
               </div>
             ) : (
               <>
                 <div className="flex items-center gap-2 px-3 py-1.5 border-b border-white/[0.07] shrink-0">
-                  <span className="text-[11.5px] font-medium font-['Geist'] text-white/80 tracking-tight truncate flex-1 min-w-0">
+                  <span className="text-[11.5px] font-medium font-(family-name:--app-font) text-white/80 tracking-tight truncate flex-1 min-w-0">
                     {treeFile}
                   </span>
                   {treeHasDiff && (
@@ -333,7 +333,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
                           key={mode}
                           type="button"
                           onClick={() => setTreeMode(mode)}
-                          className={`h-[20px] px-2 rounded-[5px] text-[10.5px] font-medium font-['Geist'] transition-all cursor-pointer ${
+                          className={`h-[20px] px-2 rounded-[5px] text-[10.5px] font-medium font-(family-name:--app-font) transition-all cursor-pointer ${
                             treeMode === mode ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white/80'
                           }`}
                         >
@@ -352,7 +352,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({
                   />
                 ) : treeStatus === 'deleted' ? (
                   <div className="flex-1 min-h-0 grid place-items-center">
-                    <p className="text-[12px] font-['Geist'] text-white/40">This file was deleted.</p>
+                    <p className="text-[12px] font-(family-name:--app-font) text-white/40">This file was deleted.</p>
                   </div>
                 ) : (
                   <FilePreview root={treeRoot} path={treeFile} />

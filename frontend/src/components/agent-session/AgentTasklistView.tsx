@@ -112,7 +112,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
 
   return (
     <div
-      className={`flex flex-col h-full w-full select-none font-['Geist'] text-white ${className}`}
+      className={`flex flex-col h-full w-full select-none font-(family-name:--app-font) text-white ${className}`}
       style={style}
     >
       {/* Header with Progress & Filter Tabs */}

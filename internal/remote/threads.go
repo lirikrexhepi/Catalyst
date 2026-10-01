@@ -90,6 +90,7 @@ type ThreadSummary struct {
 	Preview       string              `json:"preview,omitempty"`
 	// Attention is "approval" or "question" while the agent waits on the user.
 	Attention string `json:"attention,omitempty"`
+	Source    string `json:"source,omitempty"`
 }
 
 // summarize derives live status from a transcript tail.
@@ -240,6 +241,7 @@ func (s *Server) threadSummaries() []ThreadSummary {
 				if row.Title == "" {
 					row.Title = firstNonEmpty(task.Title, meta.Workspace.Title, "Chat")
 				}
+				row.Source = meta.Workspace.ImportedFrom
 				merged := append([]domain.DriverKind{}, task.Drivers...)
 				for _, d := range row.Drivers {
 					merged = append(merged, domain.DriverKind(d))

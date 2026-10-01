@@ -18,7 +18,7 @@ export const RemoteAccessSection: React.FC = () => {
       <div className="flex items-center justify-between px-0.5">
         <div className="flex items-center gap-2">
           <Smartphone size={16} strokeWidth={1.75} className={isLive ? 'text-[#38bdf8]' : muted} />
-          <span className={`text-[12px] font-medium font-['Geist'] tracking-tight ${strong}`}>Phone access</span>
+          <span className={`text-[12px] font-medium font-(family-name:--app-font) tracking-tight ${strong}`}>Phone access</span>
         </div>
         <button
           type="button"

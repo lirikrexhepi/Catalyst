@@ -55,10 +55,10 @@ const FileDiff: React.FC<{ diff: domain.DiffFile; showHeader: boolean }> = ({
   <div className="flex flex-col">
     {showHeader && (
       <div className="sticky top-0 z-10 flex items-baseline gap-2 px-3 py-1.5 bg-[#15171c]/95 border-b border-white/[0.07] backdrop-blur-sm">
-        <span className="text-[11.5px] font-medium font-['Geist'] text-white/80 tracking-tight truncate">
+        <span className="text-[11.5px] font-medium font-(family-name:--app-font) text-white/80 tracking-tight truncate">
           {diff.oldPath ? `${diff.oldPath} → ${diff.path}` : diff.path}
         </span>
-        <span className="text-[10.5px] font-['Geist'] tabular-nums shrink-0 ml-auto">
+        <span className="text-[10.5px] font-(family-name:--app-font) tabular-nums shrink-0 ml-auto">
           <span className="text-emerald-300/80">+{diff.insertions}</span>{' '}
           <span className="text-rose-300/80">−{diff.deletions}</span>
         </span>
@@ -66,7 +66,7 @@ const FileDiff: React.FC<{ diff: domain.DiffFile; showHeader: boolean }> = ({
     )}
 
     {diff.binary ? (
-      <p className="px-3 py-3 text-[12px] font-['Geist'] text-white/40">Binary file — no preview.</p>
+      <p className="px-3 py-3 text-[12px] font-(family-name:--app-font) text-white/40">Binary file — no preview.</p>
     ) : (
       (diff.hunks ?? []).map((hunk, index) => (
         <div key={`${diff.path}-${index}`} className="flex flex-col">
@@ -81,13 +81,13 @@ const FileDiff: React.FC<{ diff: domain.DiffFile; showHeader: boolean }> = ({
     )}
 
     {diff.truncated && (
-      <p className="px-3 py-2 text-[11px] font-['Geist'] text-amber-300/70">
+      <p className="px-3 py-2 text-[11px] font-(family-name:--app-font) text-amber-300/70">
         Diff truncated — the file is too large to show in full.
       </p>
     )}
 
     {!diff.binary && !diff.truncated && (diff.hunks?.length ?? 0) === 0 && (
-      <p className="px-3 py-3 text-[12px] font-['Geist'] text-white/40">
+      <p className="px-3 py-3 text-[12px] font-(family-name:--app-font) text-white/40">
         No textual changes — this may be a mode or permission change.
       </p>
     )}
@@ -99,7 +99,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ diffs, isLoading, error, pla
   if (error) {
     return (
       <div className="flex-1 min-h-0 grid place-items-center p-6">
-        <p className="text-[12px] font-['Geist'] text-red-200/80 text-center leading-relaxed max-w-[320px]">
+        <p className="text-[12px] font-(family-name:--app-font) text-red-200/80 text-center leading-relaxed max-w-[320px]">
           {error}
         </p>
       </div>
@@ -109,7 +109,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ diffs, isLoading, error, pla
   if (isLoading && diffs.length === 0) {
     return (
       <div className="flex-1 min-h-0 grid place-items-center">
-        <p className="text-[12px] font-['Geist'] text-white/35">Loading diff…</p>
+        <p className="text-[12px] font-(family-name:--app-font) text-white/35">Loading diff…</p>
       </div>
     );
   }
@@ -117,7 +117,7 @@ export const DiffView: React.FC<DiffViewProps> = ({ diffs, isLoading, error, pla
   if (diffs.length === 0) {
     return (
       <div className="flex-1 min-h-0 grid place-items-center p-6">
-        <p className="text-[12px] font-['Geist'] text-white/35 text-center">{placeholder}</p>
+        <p className="text-[12px] font-(family-name:--app-font) text-white/35 text-center">{placeholder}</p>
       </div>
     );
   }

@@ -46,7 +46,7 @@ const Row = memo<RowProps>(({ entry, depth, open, selected, status, onClick }) =
         draggable={false}
         className={`w-[16px] h-[16px] shrink-0 ${entry.ignored ? 'opacity-50' : ''}`}
       />
-      <span className={`flex-1 min-w-0 truncate text-[12px] font-['Geist'] tracking-tight ${nameTone}`}>
+      <span className={`flex-1 min-w-0 truncate text-[12px] font-(family-name:--app-font) tracking-tight ${nameTone}`}>
         {entry.name}
       </span>
       {style &&
@@ -89,7 +89,7 @@ export const FileTree: React.FC<FileTreeProps> = ({ tree, selected, onSelect }) 
           rows.push(
             <div
               key={`${entry.path}/…`}
-              className="h-[22px] flex items-center text-[11px] text-white/30 font-['Geist']"
+              className="h-[22px] flex items-center text-[11px] text-white/30 font-(family-name:--app-font)"
               style={{ paddingLeft: 22 + (depth + 1) * INDENT }}
             >
               Loading…
@@ -103,11 +103,11 @@ export const FileTree: React.FC<FileTreeProps> = ({ tree, selected, onSelect }) 
   walk('', 0);
 
   if (tree.error && rows.length === 0) {
-    return <p className="p-3 text-[11.5px] font-['Geist'] text-red-200/80 leading-relaxed">{tree.error}</p>;
+    return <p className="p-3 text-[11.5px] font-(family-name:--app-font) text-red-200/80 leading-relaxed">{tree.error}</p>;
   }
   if (rows.length === 0) {
     return (
-      <p className="p-3 text-[11.5px] font-['Geist'] text-white/35">
+      <p className="p-3 text-[11.5px] font-(family-name:--app-font) text-white/35">
         {loading.size > 0 ? 'Loading files…' : 'This folder is empty.'}
       </p>
     );

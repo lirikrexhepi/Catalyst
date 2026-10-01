@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FolderGit2, MessageCirclePlus, Plus, Settings } from 'lucide-react'
+import { ChevronRight, FolderGit2, MessageCirclePlus, Plus, Settings } from 'lucide-react'
+import { providerIcon } from '../components/providerIcons'
 import { api } from '../api'
 import AddProjectSheet from './AddProjectSheet'
 import { useStore } from '../store'
@@ -15,6 +16,7 @@ import { ProjectIcon } from '../components/ProjectIcon'
 import { useHiddenChats } from '../hiddenChats'
 
 const DAY = 86_400_000
+const CLAUDE_OPEN_KEY = 'orchestrator_drawer_claude_open'
 
 function bucket(at?: number): string {
   if (!at) return 'Older'
@@ -61,10 +63,23 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
     return () => window.removeEventListener('focus', loadProjects)
   }, [loadProjects])
 
+  const [claudeOpen, setClaudeOpen] = useState(() => readLocal<boolean>(CLAUDE_OPEN_KEY, true))
+  const toggleClaude = () =>
+    setClaudeOpen((open) => {
+      writeLocal(CLAUDE_OPEN_KEY, !open)
+      return !open
+    })
+
+  const claudeChats = useMemo(
+    () =>
+      summaries.filter((t) => t.source === 'claude-code' && t.kind !== 'coordinator' && !hidden.has(t.threadId) && !(t.busy || t.attention)),
+    [summaries, hidden],
+  )
+
   const groups = useMemo(() => {
     const chats = summaries.filter((t) => t.kind !== 'coordinator' && !hidden.has(t.threadId))
     const active = chats.filter((t) => t.busy || t.attention)
-    const rest = chats.filter((t) => !(t.busy || t.attention))
+    const rest = chats.filter((t) => !(t.busy || t.attention) && t.source !== 'claude-code')
     const out: Array<[string, ThreadSummary[]]> = []
     if (active.length) out.push(['Active', active])
     for (const t of rest) {
@@ -117,7 +132,22 @@ export default function Drawer({ current, project, go, openProject }: DrawerProp
             ))}
           </section>
         ))}
-        {loaded && groups.length === 0 ? <div className="dw-empty">No chats yet. Start one and it shows up here.</div> : null}
+        {claudeChats.length > 0 ? (
+          <section className="dw-section">
+            <button className="dw-group dw-group-toggle" onClick={toggleClaude} aria-expanded={claudeOpen}>
+              <img src={providerIcon('claude-code')} alt="" className="dw-group-icon" />
+              <span>Claude Code</span>
+              <span className="dw-group-count">{claudeChats.length}</span>
+              <ChevronRight size={18} strokeWidth={ICON_STROKE} className={claudeOpen ? 'dw-group-chev open' : 'dw-group-chev'} aria-hidden />
+            </button>
+            {claudeOpen
+              ? claudeChats.map((t) => (
+                  <ChatRow key={t.threadId} thread={t} current={current === t.threadId} onOpen={go} onActions={setActing} />
+                ))
+              : null}
+          </section>
+        ) : null}
+        {loaded && groups.length === 0 && claudeChats.length === 0 ? <div className="dw-empty">No chats yet. Start one and it shows up here.</div> : null}
       </div>
       <div className="dw-foot">
         <GlassPill as="button" width={100} height={44} fill="#00417F" className="dw-new" onClick={() => go(null)}>

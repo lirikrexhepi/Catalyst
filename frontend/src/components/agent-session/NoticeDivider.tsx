@@ -71,7 +71,7 @@ const NoticeDividerImpl: React.FC<NoticeDividerProps> = ({ label, icon, classNam
             swap_horiz
           </span>
         )}
-        <span className="text-[11px] font-medium font-['Geist'] text-white/55 tracking-tight whitespace-nowrap">
+        <span className="text-[11px] font-medium font-(family-name:--app-font) text-white/55 tracking-tight whitespace-nowrap">
           {label}
         </span>
       </span>

@@ -61,7 +61,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
 
   return (
     <div
-      className={`rounded-xl bg-current/[0.05] p-3.5 text-current max-w-full font-['Geist'] select-none flex flex-col gap-2.5 transition-all duration-200 border-0 shadow-none ${className}`}
+      className={`rounded-xl bg-current/[0.05] p-3.5 text-current max-w-full font-(family-name:--app-font) select-none flex flex-col gap-2.5 transition-all duration-200 border-0 shadow-none ${className}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

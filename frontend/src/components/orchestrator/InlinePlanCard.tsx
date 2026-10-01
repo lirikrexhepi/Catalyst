@@ -103,7 +103,7 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
   if (isDismissed) {
     return (
       <div
-        className={`my-2 py-2 px-3 rounded-[10px] border text-[11px] font-['Geist'] text-current/40 flex items-center justify-between transition-colors ${
+        className={`my-2 py-2 px-3 rounded-[10px] border text-[11px] font-(family-name:--app-font) text-current/40 flex items-center justify-between transition-colors ${
           isLight ? 'bg-black/[0.02] border-black/[0.05]' : 'bg-white/[0.02] border-white/[0.05]'
         } ${className}`}
       >
@@ -143,7 +143,7 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
                     {index + 1}.
                   </span>
                 )}
-                <span className="text-[12.5px] font-medium font-['Geist'] text-current tracking-tight truncate">
+                <span className="text-[12.5px] font-medium font-(family-name:--app-font) text-current tracking-tight truncate">
                   {task.title}
                 </span>
                 {task.action === 'message' && (
@@ -168,7 +168,7 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
             </div>
 
             {task.prompt && (
-              <div className="text-[11.5px] font-['Geist'] text-current/60 leading-relaxed select-text pr-2">
+              <div className="text-[11.5px] font-(family-name:--app-font) text-current/60 leading-relaxed select-text pr-2">
                 {task.prompt}
               </div>
             )}
@@ -190,7 +190,7 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
               type="button"
               disabled={isStreaming}
               onClick={handleConfirm}
-              className={`h-[26px] px-2.5 rounded-[7px] text-[11.5px] font-medium font-['Geist'] tracking-tight transition-all duration-150 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 ${
+              className={`h-[26px] px-2.5 rounded-[7px] text-[11.5px] font-medium font-(family-name:--app-font) tracking-tight transition-all duration-150 cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5 ${
                 isLight
                   ? 'bg-[#030303] text-white hover:bg-black/90'
                   : 'bg-white text-black hover:bg-white/90'
@@ -218,13 +218,13 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
             <button
               type="button"
               onClick={handleDismiss}
-              className="text-[11.5px] font-['Geist'] text-current/40 hover:text-current/80 transition-colors cursor-pointer px-1 py-0.5 active:scale-95"
+              className="text-[11.5px] font-(family-name:--app-font) text-current/40 hover:text-current/80 transition-colors cursor-pointer px-1 py-0.5 active:scale-95"
             >
               Dismiss
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 text-[11px] font-medium font-['Geist'] text-emerald-400">
+          <div className="flex items-center gap-1.5 text-[11px] font-medium font-(family-name:--app-font) text-emerald-400">
             <span className="material-symbols-outlined text-[13px] leading-none">
               check_circle
             </span>
@@ -254,7 +254,7 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
                 </span>
               )}
             </span>
-            <span className="text-[10.5px] font-['Geist'] text-current/60 group-hover:text-current/90 tracking-tight">
+            <span className="text-[10.5px] font-(family-name:--app-font) text-current/60 group-hover:text-current/90 tracking-tight">
               Worktree isolation
             </span>
           </button>

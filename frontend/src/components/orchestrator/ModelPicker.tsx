@@ -18,7 +18,7 @@ interface AccountRowProps {
 
 const AccountRow: React.FC<AccountRowProps> = ({ accounts, selectedId, onSelect, isLight }) => (
   <div className="flex flex-col gap-1 pt-0.5">
-    <span className={`px-1 text-[10px] font-semibold font-['Geist'] tracking-tight uppercase ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+    <span className={`px-1 text-[10px] font-semibold font-(family-name:--app-font) tracking-tight uppercase ${isLight ? 'text-black/40' : 'text-white/40'}`}>
       Account
     </span>
     <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Account">
@@ -34,7 +34,7 @@ const AccountRow: React.FC<AccountRowProps> = ({ accounts, selectedId, onSelect,
               event.stopPropagation();
               onSelect(account.id);
             }}
-            className={`h-[26px] max-w-full px-2.5 rounded-[8px] border text-[12px] font-medium font-['Geist'] tracking-tight truncate transition-all duration-150 cursor-pointer active:scale-[0.97] ${
+            className={`h-[26px] max-w-full px-2.5 rounded-[8px] border text-[12px] font-medium font-(family-name:--app-font) tracking-tight truncate transition-all duration-150 cursor-pointer active:scale-[0.97] ${
               selected
                 ? 'bg-white/[0.12] border-white/[0.10] text-white'
                 : 'border-transparent text-white/60 hover:text-white hover:bg-white/[0.06]'
@@ -100,7 +100,7 @@ const ModelRows: React.FC<ModelRowsProps> = ({
             draggable={false}
           />
         )}
-        <span className="text-[13px] font-medium font-['Geist'] tracking-tight truncate">
+        <span className="text-[13px] font-medium font-(family-name:--app-font) tracking-tight truncate">
           {model.name}
         </span>
       </button>
@@ -268,7 +268,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
           })}
         </div>
       ) : (
-        <div className="py-2 text-center text-[11px] text-white/40 font-['Geist']">
+        <div className="py-2 text-center text-[11px] text-white/40 font-(family-name:--app-font)">
           No providers enabled
         </div>
       )}
