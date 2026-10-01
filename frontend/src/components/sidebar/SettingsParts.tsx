@@ -4,6 +4,7 @@ import { isCustom } from './wallpapers';
 import { useTheme } from '../../themes';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
 import { GetUserPreference, SetUserPreference } from '../../../wailsjs/go/main/App';
+import { BackgroundRows } from './BackgroundSection';
 
 export function Switch({ on, onChange, isLight, label }: { on: boolean; onChange: () => void; isLight: boolean; label: string }) {
   return (
@@ -29,37 +30,6 @@ export function Switch({ on, onChange, isLight, label }: { on: boolean; onChange
         }`}
       />
     </button>
-  );
-}
-
-export function ToggleRow({
-  title,
-  hint,
-  on,
-  onChange,
-  isLight,
-  children,
-}: {
-  title: string;
-  hint?: string;
-  on: boolean;
-  onChange: () => void;
-  isLight: boolean;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className={`flex flex-col gap-1.5 px-3 py-2.5 rounded-[12px] ${isLight ? 'bg-black/[0.04]' : 'bg-white/[0.04]'}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col min-w-0">
-          <span className={`text-[12.5px] font-medium tracking-tight ${isLight ? 'text-black/90' : 'text-white/90'}`}>{title}</span>
-          {hint && (
-            <span className={`text-[11px] tracking-tight leading-snug ${isLight ? 'text-black/50' : 'text-white/40'}`}>{hint}</span>
-          )}
-        </div>
-        <Switch on={on} onChange={onChange} isLight={isLight} label={title} />
-      </div>
-      {children}
-    </div>
   );
 }
 
@@ -120,6 +90,50 @@ export function useGeneralToggles() {
   };
 }
 
+export function SettingsGroup({ title, isLight, children }: { title?: string; isLight: boolean; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {title && (
+        <span className={`px-1 text-[11px] font-medium tracking-tight ${isLight ? 'text-black/45' : 'text-white/40'}`}>{title}</span>
+      )}
+      <div
+        className={`flex flex-col rounded-[14px] overflow-hidden divide-y ${
+          isLight ? 'bg-black/[0.035] divide-black/[0.06]' : 'bg-white/[0.04] divide-white/[0.06]'
+        }`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+export function SettingsRow({
+  title,
+  hint,
+  isLight,
+  control,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  isLight: boolean;
+  control?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5 px-3.5 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col min-w-0 gap-0.5">
+          <span className={`text-[12.5px] font-medium tracking-tight ${isLight ? 'text-black/90' : 'text-white/90'}`}>{title}</span>
+          {hint && <span className={`text-[11px] tracking-tight leading-snug ${isLight ? 'text-black/45' : 'text-white/40'}`}>{hint}</span>}
+        </div>
+        {control}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function GeneralSettings({ isLight }: { isLight: boolean }) {
   const toggles = useGeneralToggles();
   const [gpu, setGpu] = useState(true);
@@ -132,45 +146,57 @@ export function GeneralSettings({ isLight }: { isLight: boolean }) {
   }, []);
 
   return (
-    <div className="flex flex-col gap-2">
-      <ToggleRow title="Auto-start agents" on={toggles.autoStart.on} onChange={toggles.autoStart.toggle} isLight={isLight} />
-      <ToggleRow
-        title="Auto-approve permissions"
-        hint="Skip prompts for folders and commands"
-        on={toggles.autoApprove.on}
-        onChange={toggles.autoApprove.toggle}
-        isLight={isLight}
-      />
-      <ToggleRow
-        title="Interface sounds"
-        hint="Chime when an agent finishes"
-        on={toggles.sounds.on}
-        onChange={toggles.sounds.toggle}
-        isLight={isLight}
-      />
-      <ToggleRow
-        title="Project favicons"
-        hint="Show each app's icon instead of a folder"
-        on={toggles.favicons.on}
-        onChange={toggles.favicons.toggle}
-        isLight={isLight}
-      />
-      <ToggleRow
-        title="GPU acceleration"
-        hint="Turn off if the window crashes or flickers"
-        on={gpu}
-        onChange={() => {
-          const next = !gpu;
-          setGpu(next);
-          setGpuChanged(true);
-          void SetUserPreference('disable_gpu_acceleration', next ? 'false' : 'true');
-        }}
-        isLight={isLight}
-      >
-        {gpuChanged && (
-          <span className={`text-[11px] ${isLight ? 'text-amber-800' : 'text-amber-200/90'}`}>Restart Orchestrator to apply.</span>
-        )}
-      </ToggleRow>
+    <div className="flex flex-col gap-5">
+      <SettingsGroup title="Agents" isLight={isLight}>
+        <SettingsRow
+          title="Auto-start agents"
+          isLight={isLight}
+          control={<Switch on={toggles.autoStart.on} onChange={toggles.autoStart.toggle} isLight={isLight} label="Auto-start agents" />}
+        />
+        <SettingsRow
+          title="Auto-approve permissions"
+          hint="Skip prompts for folders and commands"
+          isLight={isLight}
+          control={<Switch on={toggles.autoApprove.on} onChange={toggles.autoApprove.toggle} isLight={isLight} label="Auto-approve permissions" />}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="Interface" isLight={isLight}>
+        <SettingsRow
+          title="Interface sounds"
+          hint="Chime when an agent finishes"
+          isLight={isLight}
+          control={<Switch on={toggles.sounds.on} onChange={toggles.sounds.toggle} isLight={isLight} label="Interface sounds" />}
+        />
+        <SettingsRow
+          title="Project favicons"
+          hint="Show each app's icon instead of a folder"
+          isLight={isLight}
+          control={<Switch on={toggles.favicons.on} onChange={toggles.favicons.toggle} isLight={isLight} label="Project favicons" />}
+        />
+      </SettingsGroup>
+
+      <SettingsGroup title="Startup and system" isLight={isLight}>
+        <BackgroundRows isLight={isLight} />
+        <SettingsRow
+          title="GPU acceleration"
+          hint={gpuChanged ? 'Restart Orchestrator to apply' : 'Turn off if the window crashes or flickers'}
+          isLight={isLight}
+          control={
+            <Switch
+              on={gpu}
+              onChange={() => {
+                const next = !gpu;
+                setGpu(next);
+                setGpuChanged(true);
+                void SetUserPreference('disable_gpu_acceleration', next ? 'false' : 'true');
+              }}
+              isLight={isLight}
+              label="GPU acceleration"
+            />
+          }
+        />
+      </SettingsGroup>
     </div>
   );
 }

@@ -8,6 +8,27 @@ export interface SmoothScrollOptions {
   enabled?: boolean;
 }
 
+const active = new Set<Lenis>();
+let frame = 0;
+
+function tick(time: number) {
+  for (const lenis of active) lenis.raf(time);
+  frame = active.size > 0 ? requestAnimationFrame(tick) : 0;
+}
+
+function track(lenis: Lenis) {
+  active.add(lenis);
+  if (!frame) frame = requestAnimationFrame(tick);
+}
+
+function untrack(lenis: Lenis) {
+  active.delete(lenis);
+  if (active.size === 0 && frame) {
+    cancelAnimationFrame(frame);
+    frame = 0;
+  }
+}
+
 /**
  * Attaches Lenis smooth gliding scroll to a scrollable container matching
  * the Valhalla project configuration (duration: 1.3, quintic exponential easing, smoothWheel: true).
@@ -40,15 +61,10 @@ export function useSmoothScroll<T extends HTMLElement = HTMLDivElement>(
 
     lenisRef.current = lenis;
 
-    let rafId: number;
-    function raf(time: number) {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
-    }
-    rafId = requestAnimationFrame(raf);
+    track(lenis);
 
     return () => {
-      cancelAnimationFrame(rafId);
+      untrack(lenis);
       lenis.destroy();
       lenisRef.current = null;
     };

@@ -16,7 +16,7 @@ import { InlinePlanCard } from '../orchestrator/InlinePlanCard';
 import { extractPlanFromText } from '../orchestrator/extractPlan';
 import { MessageTimestamp } from './MessageTimestamp';
 import { RespondToApproval, RespondToQuestion } from '../../../wailsjs/go/main/App';
-import { buildFeedSegments } from './feedTurns';
+import { buildFeedSegments, FeedSegment } from './feedTurns';
 import { ChangesCard, WorkedFor, WorkingHeader } from './TurnParts';
 
 export interface AgentSessionFeedProps {
@@ -354,9 +354,7 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
     return out;
   };
 
-  return (
-    <div className={`flex flex-col gap-3.5 ${className}`}>
-      {segments.map((segment) => {
+  const renderSegment = (segment: FeedSegment) => {
         switch (segment.kind) {
           case 'block':
             return <React.Fragment key={segment.key}>{renderBlock(segment.block)}</React.Fragment>;
@@ -379,7 +377,15 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
           default:
             return null;
         }
-      })}
+  };
+
+  return (
+    <div className={`flex flex-col gap-3.5 ${className}`}>
+      {segments.map((segment) => (
+        <div key={segment.key} className="feed-segment">
+          {renderSegment(segment)}
+        </div>
+      ))}
     </div>
   );
 };

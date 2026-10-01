@@ -3,7 +3,8 @@ import { X, ArrowUpRight } from 'lucide-react';
 import { WallpaperState } from './useWallpaper';
 import { DefaultModels } from './useDefaultModels';
 import { useTheme } from '../../themes';
-import { ThemePicker, ToggleRow, SectionLabel, useGeneralToggles } from './SettingsParts';
+import { useRemoteAccess } from './useRemoteAccess';
+import { SectionLabel, SettingsGroup, SettingsRow, Switch, ThemePicker, useGeneralToggles } from './SettingsParts';
 
 export interface SettingsPanelProps {
   wallpaper: WallpaperState;
@@ -11,6 +12,28 @@ export interface SettingsPanelProps {
   onClose: () => void;
   onOpenAll?: () => void;
   className?: string;
+}
+
+function PhoneAccessRow({ isLight }: { isLight: boolean }) {
+  const { info, loading, toggle } = useRemoteAccess(true);
+  const live = Boolean(info?.enabled);
+  const hint = !live
+    ? 'Off'
+    : info?.error
+      ? "Couldn't connect"
+      : info?.connecting || info?.downloading || !info?.bestUrl
+        ? 'Connecting…'
+        : info.activeClients > 0
+          ? `${info.activeClients} connected`
+          : 'Ready to pair';
+  return (
+    <SettingsRow
+      title="Phone access"
+      hint={hint}
+      isLight={isLight}
+      control={<Switch on={live} onChange={() => !loading && void toggle(!live)} isLight={isLight} label="Phone access" />}
+    />
+  );
 }
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ wallpaper, onClose, onOpenAll, className = '' }) => {
@@ -21,7 +44,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ wallpaper, onClose
 
   return (
     <div className={`w-full h-full flex flex-col select-none font-['Geist'] ${className}`}>
-      <div className="flex items-center justify-between px-4 pt-3.5 pb-2 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-3.5 pb-1 shrink-0">
         <span className={`text-[13px] font-semibold tracking-tight ${fg}`}>Settings</span>
         <button
           type="button"
@@ -35,16 +58,28 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ wallpaper, onClose
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 px-4 flex flex-col gap-2.5">
-        <SectionLabel isLight={isLight}>Theme</SectionLabel>
-        <ThemePicker isLight={isLight} />
+      <div className="flex-1 min-h-0 px-4 pt-1 flex flex-col gap-3 overflow-y-auto">
+        <div className="flex flex-col gap-1.5">
+          <SectionLabel isLight={isLight}>Theme</SectionLabel>
+          <ThemePicker isLight={isLight} />
+        </div>
 
-        <SectionLabel isLight={isLight}>Quick</SectionLabel>
-        <ToggleRow title="Auto-approve permissions" on={toggles.autoApprove.on} onChange={toggles.autoApprove.toggle} isLight={isLight} />
-        <ToggleRow title="Interface sounds" on={toggles.sounds.on} onChange={toggles.sounds.toggle} isLight={isLight} />
+        <SettingsGroup title="Quick" isLight={isLight}>
+          <SettingsRow
+            title="Auto-approve permissions"
+            isLight={isLight}
+            control={<Switch on={toggles.autoApprove.on} onChange={toggles.autoApprove.toggle} isLight={isLight} label="Auto-approve permissions" />}
+          />
+          <SettingsRow
+            title="Interface sounds"
+            isLight={isLight}
+            control={<Switch on={toggles.sounds.on} onChange={toggles.sounds.toggle} isLight={isLight} label="Interface sounds" />}
+          />
+          <PhoneAccessRow isLight={isLight} />
+        </SettingsGroup>
 
         {wallpaper.wallpapers.length > 0 && (
-          <>
+          <div className="flex flex-col gap-1.5">
             <SectionLabel isLight={isLight}>Wallpaper</SectionLabel>
             <div className="grid grid-cols-4 gap-1.5">
               {wallpaper.wallpapers.slice(0, 4).map((item) => (
@@ -53,7 +88,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ wallpaper, onClose
                   type="button"
                   title={item.label}
                   onClick={() => wallpaper.select(item.id)}
-                  className={`aspect-[16/10] rounded-[8px] overflow-hidden cursor-pointer active:scale-95 transition-all duration-150 ${
+                  className={`aspect-[16/10] rounded-[9px] overflow-hidden cursor-pointer active:scale-95 transition-all duration-150 ${
                     wallpaper.selected?.id === item.id
                       ? isLight
                         ? 'ring-2 ring-inset ring-black/80'
@@ -67,7 +102,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ wallpaper, onClose
                 </button>
               ))}
             </div>
-          </>
+          </div>
         )}
       </div>
 

@@ -6,7 +6,6 @@ import { DefaultModels } from './useDefaultModels';
 import { useTheme } from '../../themes';
 import { ProvidersSection } from './ProvidersSection';
 import { RemoteAccessSection } from './RemoteAccessSection';
-import { BackgroundSection } from './BackgroundSection';
 import { useClaudeUpdate } from '../orchestrator/useClaudeUpdate';
 import { ScrollArea } from '../common/ScrollArea';
 import { GeneralSettings, SectionLabel, ThemePicker, WallpaperPicker } from './SettingsParts';
@@ -53,9 +52,9 @@ export function SettingsWindow({
           style={{ backgroundColor: isLight ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.35)' }}
         >
           <motion.div
-            initial={{ scale: 0.94, y: 14, opacity: 0, filter: 'blur(6px)' }}
-            animate={{ scale: 1, y: 0, opacity: 1, filter: 'blur(0px)' }}
-            exit={{ scale: 0.96, y: 8, opacity: 0, filter: 'blur(4px)', transition: { duration: 0.14 } }}
+            initial={{ scale: 0.94, y: 14, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            exit={{ scale: 0.96, y: 8, opacity: 0, transition: { duration: 0.14 } }}
             transition={{ type: 'spring', stiffness: 380, damping: 32, mass: 0.9 }}
             className={`w-[min(880px,calc(100vw-120px))] h-[min(640px,calc(100vh-180px))] rounded-[28px] overflow-hidden flex font-['Geist'] select-none border ${
               isLight ? 'border-black/10' : 'border-white/[0.08]'
@@ -138,7 +137,7 @@ export function SettingsWindow({
                       <>
                         <SectionLabel isLight={isLight}>Theme</SectionLabel>
                         <ThemePicker isLight={isLight} />
-                        <BackgroundSection isLight={isLight} />
+                        <div className="h-2" />
                         <WallpaperPicker wallpaper={wallpaper} isLight={isLight} columns={4} />
                       </>
                     )}

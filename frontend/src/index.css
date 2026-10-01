@@ -858,3 +858,8 @@ body,
 }
 
 
+
+.feed-segment {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 90px;
+}

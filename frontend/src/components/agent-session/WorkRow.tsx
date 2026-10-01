@@ -1,7 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { TextShimmer } from './TextShimmer';
 
 export function Collapse({ open, children }: { open: boolean; children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(open);
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setMounted(false), 260);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+  const show = open || mounted;
   return (
     <div
       className="grid transition-[grid-template-rows,opacity] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]"
@@ -11,7 +21,7 @@ export function Collapse({ open, children }: { open: boolean; children: React.Re
         pointerEvents: open ? 'auto' : 'none',
       }}
     >
-      <div className="overflow-hidden min-w-0">{children}</div>
+      <div className="overflow-hidden min-w-0">{show ? children : null}</div>
     </div>
   );
 }

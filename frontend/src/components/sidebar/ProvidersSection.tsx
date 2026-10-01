@@ -26,15 +26,6 @@ export const ProvidersSection: React.FC<ProvidersSectionProps> = ({
 
   return (
     <>
-      <div className="flex items-baseline justify-between gap-2 px-0.5 pt-1.5">
-        <span className="text-[10px] font-semibold font-['Geist'] text-white/45 tracking-tight uppercase">
-          Providers
-        </span>
-        <span className="text-[10px] font-['Geist'] text-white/25 tracking-tight">
-          toggle to enable
-        </span>
-      </div>
-
       {defaultModels.error && (
         <div className="px-3 py-2 rounded-[9px] bg-amber-500/10 border border-amber-400/25">
           <span className="text-[11px] font-medium font-['Geist'] text-amber-100/90 leading-relaxed">
@@ -43,7 +34,7 @@ export const ProvidersSection: React.FC<ProvidersSectionProps> = ({
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2.5">
         {defaultModels.entries.map((entry) => {
           const snapshot = accounts.snapshots.find((s) => s.driver === entry.provider.id);
           const driverUsage = (usage.report?.drivers ?? []).filter((d) => d.driver === entry.provider.id);

@@ -87,7 +87,7 @@ function formatDuration(ms: number): string {
  * Sleek, non-draggable physical card matching Felix Haas (Lovable) design.
  * Adapts to Deck (focused carousel) and Grid (Exposé overview) modes.
  */
-export const AgentWindow: React.FC<AgentWindowProps> = ({
+const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   id,
   title = 'Agent',
   subtitle,
@@ -550,6 +550,49 @@ export const AgentWindow: React.FC<AgentWindowProps> = ({
       </LiquidGlass>
     </div>
   );
+};
+
+function sameServers(a?: servers.Server[], b?: servers.Server[]) {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((server, i) => server.pid === b[i].pid && server.port === b[i].port);
+}
+
+function sameProps(prev: AgentWindowProps, next: AgentWindowProps) {
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)]) as Set<keyof AgentWindowProps>;
+  for (const key of keys) {
+    const a = prev[key];
+    const b = next[key];
+    if (typeof a === 'function' && typeof b === 'function') continue;
+    if (key === 'detectedServers') {
+      if (!sameServers(a as servers.Server[] | undefined, b as servers.Server[] | undefined)) return false;
+      continue;
+    }
+    if (!Object.is(a, b)) return false;
+  }
+  return true;
+}
+
+const MemoAgentWindow = React.memo(AgentWindowImpl, sameProps);
+
+export const AgentWindow: React.FC<AgentWindowProps> = (props) => {
+  const latest = React.useRef(props);
+  latest.current = props;
+  const proxies = React.useRef(new Map<string, (...args: unknown[]) => unknown>());
+  const stable = {} as Record<string, unknown>;
+  for (const [key, value] of Object.entries(props)) {
+    if (typeof value !== 'function') {
+      stable[key] = value;
+      continue;
+    }
+    let proxy = proxies.current.get(key);
+    if (!proxy) {
+      proxy = (...args: unknown[]) => (latest.current as unknown as Record<string, (...a: unknown[]) => unknown>)[key]?.(...args);
+      proxies.current.set(key, proxy);
+    }
+    stable[key] = proxy;
+  }
+  return <MemoAgentWindow {...(stable as unknown as AgentWindowProps)} />;
 };
 
 export default AgentWindow;

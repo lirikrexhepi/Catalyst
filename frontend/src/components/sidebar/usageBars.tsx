@@ -90,11 +90,12 @@ export interface UsageRingProps {
   logo?: string;
   size?: number;
   isLight?: boolean;
+  label?: string;
 }
 
 /** Compact quota ring: progress arc around the provider logo, mirroring the
  *  island's model usage ring. The % itself sits beside the ring. */
-export const UsageRing: React.FC<UsageRingProps> = ({ used, logo, size = 26, isLight }) => {
+export const UsageRing: React.FC<UsageRingProps> = ({ used, logo, size = 26, isLight, label }) => {
   const r = 8;
   const circumference = 2 * Math.PI * r;
   const known = typeof used === 'number';
@@ -119,7 +120,14 @@ export const UsageRing: React.FC<UsageRingProps> = ({ used, logo, size = 26, isL
           />
         )}
       </svg>
-      {logo ? (
+      {label !== undefined ? (
+        <span
+          className={`relative font-['Geist'] font-semibold tabular-nums tracking-tight ${isLight ? 'text-black/80' : 'text-white/85'}`}
+          style={{ fontSize: Math.max(9, Math.round(size * 0.27)) }}
+        >
+          {label}
+        </span>
+      ) : logo ? (
         <img src={logo} alt="" draggable={false} className="object-contain" style={{ width: logoSize, height: logoSize }} />
       ) : null}
     </span>

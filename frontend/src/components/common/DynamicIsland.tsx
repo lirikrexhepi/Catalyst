@@ -675,9 +675,9 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   const targetHeight = isListMode ? Math.max(contentHeight, 60) : mode === 'usage' ? 180 : 36;
   const targetRadius = mode === 'idle' ? 18 : 26;
   const viewMotion = {
-    initial: { opacity: 0, y: -6, filter: 'blur(4px)' },
-    animate: { opacity: 1, y: 0, filter: 'blur(0px)' },
-    exit: { opacity: 0, y: -4, filter: 'blur(4px)', transition: { duration: 0.1 } },
+    initial: { opacity: 0, y: -6 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -4, transition: { duration: 0.1 } },
     transition: { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const },
   };
 

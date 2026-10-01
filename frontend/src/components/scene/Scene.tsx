@@ -107,6 +107,9 @@ function computeGridSlots(count: number, stageW: number, stageH: number): GridSl
   return slots;
 }
 
+const DECK_SPRING = 'linear(0, 0.019, 0.0678, 0.1365, 0.217, 0.303, 0.3899, 0.4744, 0.5541, 0.6274, 0.6936, 0.7522, 0.8033, 0.8471, 0.8842, 0.915, 0.9402, 0.9605, 0.9765, 0.9889, 0.9982, 1.0049, 1.0096, 1.0127, 1.0144, 1.0151, 1.0151, 1.0145, 1.0136, 1.0124, 1.0112, 1.0098, 1.0085, 1.0073, 1.0061, 1.0051, 1.0041, 1.0033, 1.0026, 1.002, 1)';
+const DECK_MS = 640;
+
 export const Scene: React.FC<SceneProps> = ({ children }) => {
   // Apple Dynamic Island Notification State
   const [islandNotification, setIslandNotification] = useState<DynamicIslandNotification | null>(null);
@@ -221,18 +224,30 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     if (animTimerRef.current) clearTimeout(animTimerRef.current);
     animTimerRef.current = setTimeout(() => {
       setIsAnimating(false);
-    }, 480);
+    }, DECK_MS);
     return () => {
       if (animTimerRef.current) clearTimeout(animTimerRef.current);
     };
   }, [viewMode, activeCardIndex]);
 
   useEffect(() => {
+    let frame = 0;
     const onResize = () => {
-      setWindowSize({ width: window.innerWidth, height: window.innerHeight });
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        setWindowSize((prev) =>
+          prev.width === window.innerWidth && prev.height === window.innerHeight
+            ? prev
+            : { width: window.innerWidth, height: window.innerHeight },
+        );
+      });
     };
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, []);
 
   // Card mode: 'chat', 'tasklist', 'browser', 'servers', or 'changes' (per agent card)
@@ -913,7 +928,8 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
               const cardHalf = currentCardMode === 'chat' ? Math.round(thisCardSize.width / 2) : (MODE_HALF_WIDTH[currentCardMode] || 340);
               // Precise offset so adjacent card peeks neatly with a consistent gap,
               // regardless of whether center or side card is 680px, 950px, 1100px, or 1240px:
-              const peekX = Math.round(centerHalf + cardHalf * 0.92 + 28);
+              const sideScale = cardHalf > 460 ? 0.86 : 0.92;
+              const peekX = Math.round(centerHalf + cardHalf * sideScale + 32);
 
               if (viewMode === 'deck') {
                 const yBase =
@@ -932,18 +948,18 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                   zIndex = 30;
                   isInteractive = true;
                 } else if (isPeekingLeft) {
-                  transform = `translate3d(-${peekX}px, ${yBase - pushUpOffset}px, 0) scale(0.92)`;
-                  opacity = 0.65;
+                  transform = `translate3d(-${peekX}px, ${yBase - pushUpOffset}px, 0) scale(${sideScale})`;
+                  opacity = 0.6;
                   zIndex = 20;
                   isInteractive = true;
                 } else if (isPeekingRight) {
-                  transform = `translate3d(${peekX}px, ${yBase - pushUpOffset}px, 0) scale(0.92)`;
-                  opacity = 0.65;
+                  transform = `translate3d(${peekX}px, ${yBase - pushUpOffset}px, 0) scale(${sideScale})`;
+                  opacity = 0.6;
                   zIndex = 20;
                   isInteractive = true;
                 } else {
-                  const farX = Math.round(peekX * 1.5);
-                  transform = `translate3d(${offset < 0 ? -farX : farX}px, ${-28 - pushUpOffset}px, 0) scale(0.85)`;
+                  const farX = Math.round(peekX * 1.45);
+                  transform = `translate3d(${offset < 0 ? -farX : farX}px, ${yBase - pushUpOffset}px, 0) scale(0.8)`;
                   opacity = 0;
                   zIndex = 10;
                   isInteractive = false;
@@ -1053,9 +1069,10 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                     zIndex,
                     transformOrigin: 'center center',
                     transformStyle: 'flat',
+                    contentVisibility: viewMode === 'deck' && Math.abs(offset) >= 3 ? 'hidden' : undefined,
                     transition: isResizingCard
                       ? 'transform 120ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease, width 120ms cubic-bezier(0.16, 1, 0.3, 1), height 120ms cubic-bezier(0.16, 1, 0.3, 1), max-height 120ms cubic-bezier(0.16, 1, 0.3, 1)'
-                      : 'transform 480ms cubic-bezier(0.25, 1, 0.5, 1), opacity 380ms cubic-bezier(0.25, 1, 0.5, 1), width 260ms cubic-bezier(0.16, 1, 0.3, 1), height 260ms cubic-bezier(0.16, 1, 0.3, 1), max-height 260ms cubic-bezier(0.16, 1, 0.3, 1)',
+                      : `transform ${DECK_MS}ms ${DECK_SPRING}, opacity 300ms cubic-bezier(0.22, 1, 0.36, 1), width 420ms ${DECK_SPRING}, height 420ms ${DECK_SPRING}, max-height 420ms ${DECK_SPRING}`,
                   } as React.CSSProperties}
                 >
                   <div
@@ -1081,7 +1098,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                     modelId={task.model}
                     streamBlocks={task.blocks}
                     isFocused={viewMode === 'deck' ? isCenter : false}
-                    isAnimating={isAnimating}
+                    isAnimating={currentCardMode === 'browser' ? isAnimating : false}
                     mode={viewMode === 'deck' ? 'deck' : 'grid'}
                     cardMode={currentCardMode}
                     onCardModeChange={(m) =>
@@ -1279,7 +1296,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
             }}
             animate={{
               width: 380,
-              height: 430,
+              height: 470,
               borderRadius: 24,
               y: 0,
               opacity: 1,
@@ -1348,7 +1365,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                 ease: [0.16, 1, 0.3, 1],
               }}
               style={{ transformOrigin: 'left center' }}
-              className="w-[380px] h-[430px] flex flex-col shrink-0"
+              className="w-[380px] h-[470px] flex flex-col shrink-0"
             >
               <SettingsPanel
                 wallpaper={wallpaper}
