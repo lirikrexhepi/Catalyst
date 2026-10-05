@@ -849,16 +849,16 @@ body,
     transform: scale(1);
   }
   25% {
-    transform: scale(1.022);
+    transform: scale(1.007);
   }
   50% {
-    transform: scale(0.992);
+    transform: scale(1);
   }
   75% {
-    transform: scale(1.016);
+    transform: scale(1.005);
   }
 }
 
 .animate-size-pulse {
-  animation: size-pulse 460ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: size-pulse 1000ms cubic-bezier(0.45, 0, 0.25, 1);
 }

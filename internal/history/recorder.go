@@ -284,6 +284,28 @@ func (r *Recorder) UpdateTaskState(threadID string, state domain.TaskState, summ
 	r.mu.Unlock()
 }
 
+func (r *Recorder) touchTask(workspaceID, threadID string, at int64) {
+	if at <= 0 {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	meta, ok := r.metas[workspaceID]
+	if !ok {
+		return
+	}
+	for i := range meta.Tasks {
+		if meta.Tasks[i].ThreadID == threadID && at > meta.Tasks[i].UpdatedAt {
+			meta.Tasks[i].UpdatedAt = at
+			r.dirty[workspaceID] = true
+		}
+	}
+	if at > meta.Workspace.UpdatedAt {
+		meta.Workspace.UpdatedAt = at
+		r.dirty[workspaceID] = true
+	}
+}
+
 // Touch updates a workspace's last-activity stamp so history sorts by use.
 func (r *Recorder) Touch(workspaceID string, at int64) {
 	r.mu.Lock()

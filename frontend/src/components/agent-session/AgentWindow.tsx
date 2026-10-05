@@ -201,7 +201,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   }, [activeMode]);
 
   const OVERSHOOT_PX = 16;
-  const OVERSHOOT_HOLD_MS = 460;
+  const OVERSHOOT_HOLD_MS = 1000;
   const [isPulsing, setIsPulsing] = useState(false);
   const [isDraggingResize, setIsDraggingResize] = useState(false);
 

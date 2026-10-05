@@ -280,8 +280,7 @@ export function extractChatHistoryItems(
           drivers,
           models,
           updatedAt:
-            latest.updatedAt ||
-            primary.updatedAt ||
+            Math.max(0, ...groupTasks.map((gt: any) => gt.updatedAt || 0)) ||
             meta.workspace?.updatedAt ||
             meta.workspace?.createdAt ||
             0,
