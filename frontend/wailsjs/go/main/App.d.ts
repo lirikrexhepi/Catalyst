@@ -3,6 +3,7 @@
 import {provider} from '../models';
 import {projects} from '../models';
 import {main} from '../models';
+import {slashcmd} from '../models';
 import {attachments} from '../models';
 import {domain} from '../models';
 import {session} from '../models';
@@ -105,6 +106,8 @@ export function ListSessions():Promise<Array<domain.Session>>;
 export function ListSessionsMeta(arg1:number):Promise<Array<domain.SessionRecord>>;
 
 export function ListSkills(arg1:string):Promise<Array<skills.Info>>;
+
+export function ListSlashCommands(arg1:string,arg2:string):Promise<Array<slashcmd.Command>>;
 
 export function ListWorkspaces():Promise<Array<domain.Workspace>>;
 

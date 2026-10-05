@@ -1,4 +1,4 @@
-import { MaterialIcon } from './icons';
+import { ChevronLeft, ChevronRight, MaterialIcon, RefreshCw } from './icons';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProjectsState, Project } from '../orchestrator/useProjects';
@@ -531,7 +531,8 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   }, [activeTasks]);
 
   // Identify model vendor from selectedProviderId, selectedModelId, activeTask or usageReport
-  const driverName = useMemo<'claude' | 'codex' | 'antigravity' | 'opencode'>(() => {
+  type UsageDriverName = 'claude' | 'codex' | 'antigravity' | 'opencode';
+  const autoDriverName = useMemo<UsageDriverName>(() => {
     if (selectedProviderId === 'claude') return 'claude';
     if (selectedProviderId === 'codex') return 'codex';
     if (selectedProviderId === 'antigravity') return 'antigravity';
@@ -552,8 +553,45 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     return 'claude';
   }, [selectedProviderId, selectedModelId, activeTask?.model, usageReport]);
 
-  // Driver usage data
-  const shownAccount = useOrchestratorStore((state) => state.shownAccount(driverName));
+  const [viewedDriver, setViewedDriver] = useState<UsageDriverName | null>(null);
+  const [viewedAccounts, setViewedAccounts] = useState<Record<string, string>>({});
+  const driverName = viewedDriver ?? autoDriverName;
+
+  useEffect(() => {
+    if (mode !== 'usage') {
+      setViewedDriver(null);
+      setViewedAccounts({});
+    }
+  }, [mode]);
+
+  const usageDrivers = useMemo<UsageDriverName[]>(() => {
+    const order: UsageDriverName[] = ['claude', 'codex', 'antigravity', 'opencode'];
+    const present = new Set((usageReport?.drivers ?? []).map((d) => d.driver));
+    const list = order.filter((name) => present.has(name));
+    return list.includes(autoDriverName) ? list : [autoDriverName, ...list];
+  }, [usageReport, autoDriverName]);
+
+  const stepDriver = (delta: number) => {
+    const index = usageDrivers.indexOf(driverName);
+    const next = usageDrivers[(index + delta + usageDrivers.length) % usageDrivers.length];
+    setViewedDriver(next);
+  };
+
+  const storeShownAccount = useOrchestratorStore((state) => state.shownAccount(driverName));
+  const shownAccount = viewedAccounts[driverName] ?? storeShownAccount;
+  const driverAccounts = useMemo(() => {
+    const entries = usageReport?.drivers?.filter((d) => d.driver === driverName) ?? [];
+    return entries.map((d) => ({ id: d.account || 'default', name: d.accountName || d.account || 'Default' }));
+  }, [usageReport, driverName]);
+
+  const stepAccount = () => {
+    if (driverAccounts.length < 2) return;
+    const index = driverAccounts.findIndex((account) => account.id === shownAccount);
+    const next = driverAccounts[(index + 1) % driverAccounts.length];
+    setViewedAccounts((prev) => ({ ...prev, [driverName]: next.id }));
+  };
+  const shownAccountName = driverAccounts.find((account) => account.id === shownAccount)?.name;
+
   const driverData = useMemo(() => {
     const entries = usageReport?.drivers?.filter((d) => d.driver === driverName) ?? [];
     return (
@@ -958,15 +996,51 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
             transition={{ duration: 0.15 }}
             className="flex flex-col w-full h-full p-4 justify-between"
           >
-            {/* Header: Model Logo + Title */}
             <div className="flex items-center justify-between pb-1">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 flex items-center justify-center">
-                  {modelTheme.icon}
-                </div>
-                <span className="text-[13px] font-semibold text-white font-(family-name:--app-font) tracking-tight">
+              <div className="flex items-center gap-1 min-w-0">
+                {usageDrivers.length > 1 && (
+                <button
+                  type="button"
+                  title="Previous provider"
+                  aria-label="Previous provider"
+                  onClick={() => stepDriver(-1)}
+                  className={`w-5 h-5 rounded-full ${
+                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
+                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
+                >
+                  <ChevronLeft size={13} strokeWidth={2} />
+                </button>
+                )}
+                <div className="w-5 h-5 flex items-center justify-center shrink-0">{modelTheme.icon}</div>
+                <span className="text-[13px] font-semibold text-white font-(family-name:--app-font) tracking-tight truncate">
                   {modelTheme.name} Usage
                 </span>
+                {usageDrivers.length > 1 && (
+                <button
+                  type="button"
+                  title="Next provider"
+                  aria-label="Next provider"
+                  onClick={() => stepDriver(1)}
+                  className={`w-5 h-5 rounded-full ${
+                    isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
+                  } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
+                >
+                  <ChevronRight size={13} strokeWidth={2} />
+                </button>
+                )}
+                {driverAccounts.length > 1 && (
+                  <button
+                    type="button"
+                    title="Switch account"
+                    onClick={stepAccount}
+                    className={`ml-1 h-[20px] pl-1.5 pr-1 rounded-full flex items-center gap-1 text-[10px] font-medium font-(family-name:--app-font) tracking-tight shrink-0 active:scale-95 transition-all cursor-pointer ${
+                      isLight ? 'bg-black/[0.06] text-black/60 hover:bg-black/10' : 'bg-white/[0.08] text-white/60 hover:bg-white/[0.14]'
+                    }`}
+                  >
+                    <span className="max-w-[64px] truncate">{shownAccountName}</span>
+                    <RefreshCw size={10} strokeWidth={2} />
+                  </button>
+                )}
               </div>
               <button
                 type="button"

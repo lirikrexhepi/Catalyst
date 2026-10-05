@@ -14,16 +14,27 @@ import { AttachmentsState, filesFromTransfer } from '../common/useAttachments';
 import { readChatDrag } from '../common/chatDrag';
 import { providerIcon } from './providerIcons';
 import { SkillTestPicker } from './SkillTestPicker';
+import type { QueuedMessage } from '../scene/QueuedMessages';
+import { SlashMenu } from './SlashMenu';
+import { ListSlashCommands } from '../../../wailsjs/go/main/App';
+import { slashcmd } from '../../../wailsjs/go/models';
 import { ArrowUp, ChevronDown, Loader2, Paperclip, Plus, X, MaterialIcon } from '../common/icons';
 
 export interface OrchestratorInputProps {
   onSubmit?: (message: string, modelId: string) => void;
   onSkillTest?: (message: string, modelId: string, skills: string[]) => void;
   attachments?: AttachmentsState;
+  queue?: {
+    items: QueuedMessage[];
+    onSendNow: (id: string) => void;
+    onEdit: (id: string) => void;
+    onDelete: (id: string) => void;
+  };
   onInterrupt?: () => void;
   isBusy?: boolean;
   projects?: ProjectsState;
   targetTitle?: string;
+  commandDriver?: string;
   hasActiveAgent?: boolean;
   onNewAgent?: () => void;
   isCreatingNewAgent?: boolean;
@@ -46,6 +57,8 @@ const MAX_FIELD_HEIGHT = 160;
 const TOOLBAR_HEIGHT = 40;
 // Chrome around the rows: the capsule's own padding. Named for the same reason.
 const CAPSULE_CHROME = 18;
+const QUEUE_ROW_HEIGHT = 32;
+const QUEUE_MAX_ROWS = 3;
 // Chips get their own row between the field and the toolbar rather than
 // growing the capsule without bound.
 
@@ -56,7 +69,9 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   isBusy = false,
   projects,
   attachments,
+  queue,
   targetTitle,
+  commandDriver,
   hasActiveAgent = false,
   onNewAgent,
   isCreatingNewAgent = false,
@@ -159,7 +174,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   const submitMessage = () => {
     if (!canSubmit) return;
     if (skillTest) onSkillTest?.(messageText, selectedModelId, testSkills);
-    else onSubmit?.(messageText, selectedModelId);
+    else onSubmit?.(expandSlash(messageText), selectedModelId);
     setMessageText('');
     if (textareaRef.current) {
       textareaRef.current.style.height = `${LINE_HEIGHT}px`;
@@ -191,7 +206,83 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     void attachments.accept(files);
   };
 
+  const storeProviderId = useOrchestratorStore((state) => state.selectedProviderId);
+  const slashDriver = ['claude', 'codex', 'antigravity', 'opencode'].includes(commandDriver ?? '')
+    ? (commandDriver as string)
+    : ['claude', 'codex', 'antigravity', 'opencode'].includes(storeProviderId)
+      ? storeProviderId
+      : 'claude';
+  const slashCwd = projects?.active?.path ?? '';
+  const [slashCommands, setSlashCommands] = useState<slashcmd.Command[]>([]);
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashDismissed, setSlashDismissed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    ListSlashCommands(slashDriver, slashCwd)
+      .then((list) => {
+        if (live) setSlashCommands(list ?? []);
+      })
+      .catch(() => {
+        if (live) setSlashCommands([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [slashDriver, slashCwd]);
+
+  const slashQuery = /^\/([^\s]*)$/.exec(messageText)?.[1];
+  const slashMatches = React.useMemo(() => {
+    if (slashQuery === undefined) return [];
+    const needle = slashQuery.toLowerCase();
+    const starts = slashCommands.filter((c) => c.name.toLowerCase().startsWith(needle));
+    const rest = slashCommands.filter((c) => !c.name.toLowerCase().startsWith(needle) && c.name.toLowerCase().includes(needle));
+    return [...starts, ...rest];
+  }, [slashQuery, slashCommands]);
+  const slashOpen = !slashDismissed && !skillTest && slashMatches.length > 0;
+
+  useEffect(() => {
+    setSlashIndex(0);
+    setSlashDismissed(false);
+  }, [slashQuery]);
+
+  const pickSlash = (command: slashcmd.Command) => {
+    setMessageText('/' + command.name + ' ');
+    setSlashDismissed(true);
+    textareaRef.current?.focus();
+  };
+
+  const expandSlash = (text: string): string => {
+    if (slashDriver === 'claude' || !text.startsWith('/')) return text;
+    const [head, ...tail] = text.slice(1).split(/\s+/);
+    const command = slashCommands.find((c) => c.kind === 'custom' && c.name === head && c.prompt);
+    if (!command || !command.prompt) return text;
+    const args = tail.join(' ').trim();
+    if (/\$ARGUMENTS|\{\{args\}\}/.test(command.prompt)) {
+      return command.prompt.replace(/\$ARGUMENTS|\{\{args\}\}/g, args);
+    }
+    return args ? command.prompt + '\n\n' + args : command.prompt;
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashOpen) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        setSlashIndex((index) => (index + step + slashMatches.length) % slashMatches.length);
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        e.preventDefault();
+        pickSlash(slashMatches[Math.min(slashIndex, slashMatches.length - 1)]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSlashDismissed(true);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       submitMessage();
@@ -215,13 +306,66 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   // it, so the capsule stacks text, chips and controls instead of squeezing
   // them side by side.
   const textZoneHeight = isExpanded ? Math.min(textareaHeight + 24, 188) : 40;
-  const capsuleHeight = Math.max(textZoneHeight + TOOLBAR_HEIGHT + CAPSULE_CHROME, 98);
+  const queueItems = queue?.items ?? [];
+  const queueHeight = queueItems.length > 0 ? Math.min(queueItems.length, QUEUE_MAX_ROWS) * QUEUE_ROW_HEIGHT + 10 : 0;
+  const capsuleHeight = Math.max(textZoneHeight + TOOLBAR_HEIGHT + CAPSULE_CHROME, 98) + queueHeight;
   if (hasAttachments && attachments) railRef.current = attachments.items;
   const railItems = hasAttachments && attachments ? attachments.items : railRef.current;
   const isSpawning = hasActiveAgent && viewMode === 'deck' && isCreatingNewAgent;
 
   const capsuleContent = (
     <div className="flex flex-col w-full h-full">
+      {queue && queueItems.length > 0 && (
+        <div
+          className={`shrink-0 flex flex-col px-[6px] pt-[4px] pb-[6px] mb-[2px] border-b ${isLight ? 'border-black/[0.07]' : 'border-white/[0.07]'}`}
+          style={{ height: queueHeight }}
+        >
+          <div className="flex flex-col overflow-y-auto custom-scrollbar" style={{ maxHeight: QUEUE_MAX_ROWS * QUEUE_ROW_HEIGHT }}>
+            {queueItems.map((item, index) => (
+              <div
+                key={item.id}
+                className={`group/queued flex items-center gap-2 px-2 rounded-[9px] transition-colors duration-150 ${isLight ? 'hover:bg-black/[0.04]' : 'hover:bg-white/[0.05]'}`}
+                style={{ height: QUEUE_ROW_HEIGHT }}
+              >
+                <span className={`text-[10px] font-mono tabular-nums shrink-0 ${isLight ? 'text-black/35' : 'text-white/35'}`}>{index + 1}</span>
+                <span className={`flex-1 min-w-0 truncate text-[12.5px] tracking-tight font-(family-name:--app-font) ${isLight ? 'text-black/70' : 'text-white/70'}`}>
+                  {item.text || (item.files?.length ? `${item.files.length} attached file(s)` : 'Empty prompt')}
+                </span>
+                <span className={`text-[10.5px] tracking-tight shrink-0 group-hover/queued:hidden ${isLight ? 'text-black/35' : 'text-white/35'}`}>
+                  Queued
+                </span>
+                <div className="hidden group-hover/queued:flex items-center gap-0.5 shrink-0">
+                  {[
+                    { label: 'Send now', icon: 'arrow_upward', run: () => queue.onSendNow(item.id), danger: false },
+                    { label: 'Edit', icon: 'edit', run: () => queue.onEdit(item.id), danger: false },
+                    { label: 'Remove', icon: 'close', run: () => queue.onDelete(item.id), danger: true },
+                  ].map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      title={action.label}
+                      aria-label={action.label}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        action.run();
+                      }}
+                      className={`w-[24px] h-[24px] rounded-[7px] flex items-center justify-center active:scale-90 transition-all cursor-pointer ${
+                        action.danger
+                          ? 'text-rose-400/70 hover:text-rose-300 hover:bg-rose-500/15'
+                          : isLight
+                            ? 'text-black/50 hover:text-black hover:bg-black/[0.07]'
+                            : 'text-white/55 hover:text-white hover:bg-white/[0.1]'
+                      }`}
+                    >
+                      <MaterialIcon name={action.icon} className="text-[14px]" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Message field: the full top row. */}
       <div className="flex-1 min-w-0 flex items-start gap-2 px-[14px] pt-[8px] overflow-hidden">
         {isSpawning && (
@@ -533,6 +677,18 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
         >
           {capsuleContent}
         </LiquidGlass>
+      )}
+
+      {slashOpen && (
+        <div className="absolute bottom-[calc(100%+12px)] left-[9px] z-50 pointer-events-auto">
+          <SlashMenu
+            commands={slashMatches}
+            selected={Math.min(slashIndex, slashMatches.length - 1)}
+            isLight={isLight}
+            onPick={pickSlash}
+            onHover={setSlashIndex}
+          />
+        </div>
       )}
 
       {/* Popups Row (Model Picker & Effort Picker) - anchored ABOVE the input bar, flush with model pill */}

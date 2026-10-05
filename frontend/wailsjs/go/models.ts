@@ -2034,6 +2034,31 @@ export namespace session {
 
 }
 
+export namespace slashcmd {
+	
+	export class Command {
+	    name: string;
+	    description: string;
+	    source: string;
+	    kind: string;
+	    prompt?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Command(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.source = source["source"];
+	        this.kind = source["kind"];
+	        this.prompt = source["prompt"];
+	    }
+	}
+
+}
+
 export namespace skills {
 	
 	export class Info {

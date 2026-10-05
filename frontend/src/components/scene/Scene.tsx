@@ -27,7 +27,7 @@ import {
   useWallpaper,
 } from '../sidebar';
 import { DeckNavigationPill } from './DeckNavigationPill';
-import { QueuedMessages, QueuedMessage } from './QueuedMessages';
+import type { QueuedMessage } from './QueuedMessages';
 import { LiquidGlass } from '../../liquid-glass';
 import { useTheme } from '../../themes';
 import { MutateAgentTask, RespondToQuestion } from '../../../wailsjs/go/main/App';
@@ -1238,26 +1238,20 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
           canNext={activeCardIndex < activeTasks.length - 1}
         />
 
-        {/* Queued Messages Display */}
-        {currentQueuedMessages.length > 0 && (
-          <div className="w-full flex justify-center pointer-events-auto animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <QueuedMessages
-              items={currentQueuedMessages}
-              onSendNow={handleSendNow}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
-          </div>
-        )}
-
         {/* Unified Omnibar Input Bar */}
         <div ref={inputWrapperRef} className="pointer-events-auto w-full flex justify-center">
           <OrchestratorInput
+            queue={
+              currentQueuedMessages.length > 0
+                ? { items: currentQueuedMessages, onSendNow: handleSendNow, onEdit: handleEdit, onDelete: handleDelete }
+                : undefined
+            }
             onSubmit={handleSubmit}
             onSkillTest={handleSkillTest}
             onInterrupt={handleInterrupt}
             isBusy={isCurrentBusy}
             targetTitle={activeTask?.title}
+            commandDriver={viewMode === 'deck' ? activeTask?.driver : undefined}
             hasActiveAgent={activeTasks.length > 0}
             viewMode={viewMode}
             onToggleViewMode={() => setViewMode((prev) => (prev === 'deck' ? 'grid' : 'deck'))}
