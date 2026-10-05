@@ -916,10 +916,6 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
           className={`absolute inset-0 z-20 flex items-center justify-center overflow-hidden ${
             viewMode === 'grid' || viewMode === 'orchestrator' ? 'pointer-events-auto cursor-default' : 'pointer-events-none'
           }`}
-          style={{
-            perspective: '1200px',
-            perspectiveOrigin: '50% 65%',
-          }}
           onClick={(e) => {
             // Clicking backdrop in orchestrator mode returns to grid; in grid returns to deck
             if (viewMode === 'orchestrator' && e.target === e.currentTarget) {
@@ -1038,7 +1034,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
               const fullscreenDeck = viewMode === 'deck' && Boolean(fullscreenId);
               const isFullscreen = fullscreenDeck && Math.abs(offset) <= 1;
               if (isFullscreen) {
-                transform = `translate3d(calc(${offset} * 100vw), 0, 0) scale(1)`;
+                transform = offset === 0 && fullscreenSettled ? 'none' : `translateX(calc(${offset} * 100vw))`;
                 zIndex = isCenter ? 35 : 34;
                 opacity = isCenter || fullscreenSettled ? 1 : 0;
                 isInteractive = isCenter;
@@ -1101,7 +1097,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                       setActiveCardIndex(index);
                     }
                   }}
-                  className={`absolute will-change-transform ${
+                  className={`absolute ${fullscreenDeck && fullscreenSettled ? '' : 'will-change-transform'} ${
                     isInteractive ? 'pointer-events-auto' : 'pointer-events-none'
                   } ${
                     viewMode === 'grid'

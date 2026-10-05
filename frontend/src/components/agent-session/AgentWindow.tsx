@@ -79,7 +79,6 @@ const PANEL_STYLE: React.CSSProperties = {
 
 const FEED_SCROLL_STYLE: React.CSSProperties = {
   overscrollBehavior: 'contain',
-  willChange: 'scroll-position',
 };
 
 /** Compact duration label: 9s, 3m 04s, 1h 02m. */
