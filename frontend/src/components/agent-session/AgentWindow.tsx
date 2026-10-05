@@ -464,9 +464,9 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
 
           {/* Card Header (Reinvented: seamless, borderless, organic glass) */}
           <div className="flex items-center justify-between shrink-0 pt-0.5 pb-2 px-1">
-            <div className="flex items-center gap-2 min-w-0 pr-2" style={isFullscreen ? { maxWidth: 'calc(100% - 140px)' } : undefined}>
+            <div className={'flex gap-2 min-w-0 pr-2 ' + (isFullscreen ? 'items-start flex-1' : 'items-center')}>
               <div
-                className="relative flex items-center gap-1.5 shrink-0"
+                className={'relative flex items-center gap-1.5 shrink-0 ' + (isFullscreen ? 'h-[22px]' : '')}
                 title={
                   driverProgression.length > 1
                     ? 'CLI transition: ' + driverProgression.map((step) => step.driver + (step.model ? ' (' + formatModelBadge(step.model, step.driver) + ')' : '')).join(' → ')
@@ -474,40 +474,52 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
                 }
               >
                 {driverProgression.length > 1
-                  ? driverProgression.map((step, idx) => (
-                      <React.Fragment key={idx}>
-                        {idx > 0 && (
-                          <span className={'text-[10px] leading-none ' + (isLight ? 'text-black/35' : 'text-white/35')}>→</span>
+                  ? (
+                      <>
+                        {driverProgression.length > 3 && (
+                          <span className={'inline-flex items-center justify-center h-[16px] min-w-[16px] px-1 rounded-full text-[9.5px] font-semibold leading-none ' + (isLight ? 'bg-black/[0.07] text-black/55' : 'bg-white/10 text-white/55')}>
+                            +{driverProgression.length - 3}
+                          </span>
                         )}
-                        <span className="inline-flex items-center justify-center shrink-0">
-                          {renderChatIcon(step.driver, step.model, isLight, 'w-[15px] h-[15px]')}
-                        </span>
-                      </React.Fragment>
-                    ))
-                  : renderChatIcon(activeDriver, activeModel, isLight, 'w-[15px] h-[15px]')}
+                        {driverProgression.slice(-3).map((step, idx) => (
+                          <React.Fragment key={driverProgression.length + idx}>
+                            {(idx > 0 || driverProgression.length > 3) && (
+                              <span className={'text-[10px] leading-none ' + (isLight ? 'text-black/35' : 'text-white/35')}>→</span>
+                            )}
+                            <span className="inline-flex items-center justify-center shrink-0">
+                              {renderChatIcon(step.driver, step.model, isLight, 'w-[15px] h-[15px]')}
+                            </span>
+                          </React.Fragment>
+                        ))}
+                      </>
+                    )
+                  :renderChatIcon(activeDriver, activeModel, isLight, 'w-[15px] h-[15px]')}
                 {isWorking && (
                   <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black/40 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse" />
                 )}
               </div>
 
-              <div className="flex items-center gap-2 min-w-0">
-                <span className={`text-[13px] font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
+              <div className={isFullscreen ? 'flex flex-col min-w-0 gap-0.5' : 'flex items-center gap-2 min-w-0'}>
+                <span className={`${isFullscreen ? 'text-[15px] leading-[22px]' : 'text-[13px]'} font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
                   {title}
                 </span>
-                {projectName && (
-                  <span className={'inline-flex items-center gap-1 shrink-0 text-[11px] font-medium font-(family-name:--app-font) tracking-tight ' + (isLight ? 'text-black/55' : 'text-white/50')} title={'Project: ' + projectName}>
-                    <Folder size={12} strokeWidth={1.75} />
-                    {projectName}
-                  </span>
-                )}
-                {subtitle && (
-                  <span className={`text-[11px] font-medium font-(family-name:--app-font) tracking-tight truncate hidden sm:inline ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-                    · {subtitle}
-                  </span>
-                )}
+                <div className="flex items-center gap-2 min-w-0">
+                  {projectName && (
+                    <span className={'inline-flex items-center gap-1 shrink-0 text-[11px] font-medium font-(family-name:--app-font) tracking-tight ' + (isLight ? 'text-black/55' : 'text-white/50')} title={'Project: ' + projectName}>
+                      <Folder size={12} strokeWidth={1.75} />
+                      {projectName}
+                    </span>
+                  )}
+                  {subtitle && (
+                    <span className={`text-[11px] font-medium font-(family-name:--app-font) tracking-tight truncate hidden sm:inline ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+                      · {subtitle}
+                    </span>
+                  )}
+                  {isFullscreen && <ContextRing usage={contextUsage} isLight={isLight} />}
+                </div>
               </div>
 
-              <ContextRing usage={contextUsage} isLight={isLight} />
+              {!isFullscreen && <ContextRing usage={contextUsage} isLight={isLight} />}
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
