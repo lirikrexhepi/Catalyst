@@ -608,6 +608,12 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   const isCurrentBusy =
     viewMode === 'orchestrator' ? coordinator.isBusy : Boolean(activeTask?.isBusy);
 
+
+  useEffect(() => {
+    if (!fullscreenId || viewMode !== 'deck') return;
+    const current = activeTasks[activeCardIndex];
+    if (current && current.threadId !== fullscreenId) setFullscreenId(current.threadId);
+  }, [activeCardIndex, activeTasks, fullscreenId, viewMode]);
   // Synchronize bottom omnibar model picker with active card/chat
   useEffect(() => {
     if (viewMode === 'deck' && activeTask?.model) {
@@ -1193,6 +1199,29 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
             })}
           </div>
         </div>
+      )}
+
+      {fullscreenId && viewMode === 'deck' && (
+        <>
+          {([-1, 1] as const).map((dir) => {
+            const neighbor = activeTasks[activeCardIndex + dir];
+            if (!neighbor) return null;
+            return (
+              <button
+                key={dir}
+                type="button"
+                onClick={() => setActiveCardIndex(activeCardIndex + dir)}
+                title={neighbor.title}
+                className={`absolute bottom-3 z-40 pointer-events-auto flex items-center gap-1.5 max-w-[220px] px-2.5 py-1 rounded-full text-[11px] font-medium font-(family-name:--app-font) tracking-tight cursor-pointer transition-all duration-150 active:scale-95 ${
+                  dir < 0 ? 'left-3' : 'right-3 flex-row-reverse'
+                } ${isLight ? 'text-black/35 hover:text-black/70 hover:bg-black/[0.06]' : 'text-white/30 hover:text-white/70 hover:bg-white/[0.08]'}`}
+              >
+                <span className="text-[12px] leading-none">{dir < 0 ? '←' : '→'}</span>
+                <span className="truncate">{neighbor.title || 'Agent'}</span>
+              </button>
+            );
+          })}
+        </>
       )}
 
       {/* Level 3: Orchestrator Workspace Layer (Shape-Morphing) */}
