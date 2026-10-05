@@ -13,12 +13,12 @@ export const useInTimeline = () => useContext(TimelineContext);
 
 type DotTone = 'text' | 'row' | 'error' | 'running';
 
-const ELBOW_HEIGHT = 9;
-const ELBOW_RADIUS = 6;
+const ELBOW_HEIGHT = 13;
+const ELBOW_RADIUS = 9;
 
 const ELBOW_COLOR: Record<DotTone, string> = {
-  text: 'text-current/[0.4]',
-  row: 'text-current/[0.24]',
+  text: 'text-current/[0.22]',
+  row: 'text-current/[0.22]',
   error: 'text-rose-400/70',
   running: 'text-emerald-400/70',
 };
@@ -36,7 +36,7 @@ export function TimelineDot({ y, tone = 'row' }: { y: number; tone?: DotTone }) 
       style={{ top: y - ELBOW_HEIGHT, left: -(GUTTER - RAIL_X) }}
     >
       <path
-        d={`M0.5 ${ELBOW_HEIGHT - ELBOW_RADIUS} Q0.5 ${ELBOW_HEIGHT - 0.5} ${ELBOW_RADIUS + 0.5} ${ELBOW_HEIGHT - 0.5} H${width}`}
+        d={`M0 ${ELBOW_HEIGHT - ELBOW_RADIUS} C0 ${ELBOW_HEIGHT - 3} 3 ${ELBOW_HEIGHT - 0.5} ${ELBOW_RADIUS} ${ELBOW_HEIGHT - 0.5} H${width}`}
         stroke="currentColor"
         strokeWidth="1"
         strokeLinecap="round"
@@ -82,11 +82,11 @@ export function TimelineSegment({
     <div className={`relative ${className}`} style={{ paddingLeft: GUTTER, paddingTop: SEGMENT_PAD, paddingBottom: SEGMENT_PAD }}>
       <span
         aria-hidden
-        className="absolute w-px bg-current/[0.14] pointer-events-none"
+        className="absolute w-px bg-current/[0.22] pointer-events-none"
         style={{
           left: RAIL_X - 0.5,
-          top: connectUp ? 0 : anchor - ELBOW_RADIUS,
-          bottom: connectDown ? 0 : `calc(100% - ${anchor - ELBOW_RADIUS}px)`,
+          top: connectUp ? -1 : anchor - ELBOW_RADIUS,
+          bottom: connectDown ? -1 : `calc(100% - ${anchor - ELBOW_RADIUS}px)`,
         }}
       />
       <TimelineContext.Provider value>{children}</TimelineContext.Provider>
