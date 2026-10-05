@@ -186,9 +186,9 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
       frost={24}
       frostSaturation={isLight ? 110 : 130}
       specularOpacity={isLight ? 0.3 : 0.06}
-      tint="var(--theme-card-bg, rgba(18, 18, 18, 0.94))"
+      tint="var(--theme-input-bg, rgba(10, 10, 10, 0.96))"
       shadow={isLight ? 'subtle' : 'apple'}
-      border="1px solid var(--theme-card-border, rgba(255, 255, 255, 0.09))"
+      border="1px solid var(--theme-input-border, rgba(255, 255, 255, 0.08))"
       className="w-[230px] p-2 text-white shadow-2xl"
       style={{
         boxShadow: isLight
