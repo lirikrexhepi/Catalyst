@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, SlidersHorizontal, Cpu, Palette, Smartphone } from 'lucide-react';
+import { X, SlidersHorizontal, Cpu, Palette, Smartphone } from '../common/icons';
 import { WallpaperState } from './useWallpaper';
 import { DefaultModels } from './useDefaultModels';
 import { useTheme } from '../../themes';

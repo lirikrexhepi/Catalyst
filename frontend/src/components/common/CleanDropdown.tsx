@@ -1,3 +1,4 @@
+import { MaterialIcon } from './icons';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
@@ -143,15 +144,7 @@ export const CleanDropdown: React.FC<CleanDropdownProps> = ({
         <span className="text-[11.5px] font-medium font-(family-name:--app-font) tracking-tight truncate flex-1">
           {displayLabel}
         </span>
-        <span
-          className={`material-symbols-rounded text-[14px] leading-none transition-transform duration-200 shrink-0 ${
-            isOpen
-              ? isLight ? 'rotate-180 text-black' : 'rotate-180 text-white'
-              : isLight ? 'text-black/45' : 'text-white/40'
-          }`}
-        >
-          expand_more
-        </span>
+        <MaterialIcon name="expand_more" className={`text-[14px] transition-transform duration-200 shrink-0 ${ isOpen ? isLight ? 'rotate-180 text-black' : 'rotate-180 text-white' : isLight ? 'text-black/45' : 'text-white/40' }`}/>
       </button>
 
       {/* Popover Menu Portaled to document.body so it is never clipped by sidebar/scroll containers */}
@@ -228,13 +221,7 @@ export const CleanDropdown: React.FC<CleanDropdownProps> = ({
                           {option.label}
                         </span>
                         {isSelected && (
-                          <span
-                            className={`material-symbols-rounded text-[13px] leading-none shrink-0 ${
-                              isLight ? 'text-black' : 'text-white'
-                            }`}
-                          >
-                            check
-                          </span>
+                          <MaterialIcon name="check" className={`text-[13px] shrink-0 ${ isLight ? 'text-black' : 'text-white' }`}/>
                         )}
                       </button>
                     );

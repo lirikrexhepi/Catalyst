@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react'
-import { CircleAlert, type LucideIcon } from 'lucide-react'
+import { CircleAlert, type IconComponent } from '../../icons'
 import { GlassPill, GlassSquircle } from '../../ui'
 import { SHEET } from '../sheet'
 
 interface StatusCardProps {
   children: ReactNode
   title?: string
-  icon?: LucideIcon
+  icon?: IconComponent
   action?: { label: string; onClick: () => void }
   className?: string
 }

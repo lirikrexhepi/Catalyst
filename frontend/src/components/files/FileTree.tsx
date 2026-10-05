@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight } from '../common/icons';
 import { fileIconUrl, folderIconUrl } from 'virtual:file-icons';
 import { files } from '../../../wailsjs/go/models';
 import { ProjectTreeState } from './useProjectTree';

@@ -4,10 +4,6 @@ import { Chevron, Collapse, formatElapsed } from './WorkRow';
 import { DiffStat, DiffView } from './EditTool';
 import { EditToolBlockData } from './types';
 
-function Divider() {
-  return <div className="h-px w-full bg-current/[0.08]" />;
-}
-
 export const WorkingHeader = React.memo(function WorkingHeader({ startedAt }: { startedAt: number }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -19,7 +15,6 @@ export const WorkingHeader = React.memo(function WorkingHeader({ startedAt }: { 
       <span className="text-[12.5px] tracking-tight leading-[18px] text-current/45 tabular-nums">
         Working for {formatElapsed((now - startedAt) / 1000)}
       </span>
-      <Divider />
     </div>
   );
 });
@@ -40,7 +35,6 @@ export function WorkedFor({ seconds, children }: { seconds: number | null; child
       <Collapse open={open}>
         <div className="flex flex-col gap-2 pb-1">{children}</div>
       </Collapse>
-      <Divider />
     </div>
   );
 }

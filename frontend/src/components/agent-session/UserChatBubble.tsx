@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { formatMessageTime } from './MessageTimestamp';
@@ -72,7 +73,7 @@ const UserImageThumbnail: React.FC<ThumbnailProps> = ({ file, onOpen }) => {
   if (loading) {
     return (
       <div className="w-20 h-20 rounded-[10px] bg-white/15 animate-pulse flex items-center justify-center border border-white/20">
-        <span className="material-symbols-outlined text-[18px] text-white/50">image</span>
+        <MaterialIcon name="image" className="text-[18px] text-white/50"/>
       </div>
     );
   }
@@ -83,7 +84,7 @@ const UserImageThumbnail: React.FC<ThumbnailProps> = ({ file, onOpen }) => {
         title={file.path}
         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-white/20 border border-white/25 text-white text-[11px] max-w-[220px]"
       >
-        <span className="material-symbols-outlined text-[14px] text-white/80 shrink-0">draft</span>
+        <MaterialIcon name="draft" className="text-[14px] text-white/80 shrink-0"/>
         <span className="truncate">{name}</span>
       </div>
     );
@@ -106,7 +107,7 @@ const UserImageThumbnail: React.FC<ThumbnailProps> = ({ file, onOpen }) => {
         draggable={false}
       />
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
-        <span className="material-symbols-outlined text-white text-[18px] drop-shadow">zoom_in</span>
+        <MaterialIcon name="zoom_in" className="text-white text-[18px] drop-shadow"/>
       </div>
     </button>
   );
@@ -188,8 +189,8 @@ const UserChatBubbleImpl: React.FC<UserChatBubbleProps> = ({
 
   return (
     <>
-      <div className={`self-end flex flex-col items-end gap-1 max-w-[80%] ${className}`}>
-        <div className="w-full rounded-[18px] bg-[#007AFF] px-4 py-2.5 text-[12.5px] font-(family-name:--app-font) text-white shadow-[0_4px_14px_rgba(0,122,255,0.35)] leading-relaxed select-text font-medium break-words">
+      <div className={`self-end ml-auto flex flex-col items-end gap-1 max-w-[80%] w-fit ${className}`}>
+        <div className="w-fit max-w-full rounded-[18px] bg-[#007AFF] px-4 py-2.5 text-[12.5px] font-(family-name:--app-font) text-white shadow-[0_4px_14px_rgba(0,122,255,0.35)] leading-relaxed select-text font-medium break-words text-left">
           {/* Attached images/files rendered at the TOP */}
           {files.length > 0 && (
             <div className={`flex flex-wrap gap-2 ${cleanText ? 'mb-2.5' : ''}`}>
@@ -226,9 +227,7 @@ const UserChatBubbleImpl: React.FC<UserChatBubbleProps> = ({
               onClick={handleCopy}
               className="w-[16px] h-[16px] rounded flex items-center justify-center text-white/35 hover:text-white/80 hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
             >
-              <span className="material-symbols-outlined text-[12px] leading-none">
-                {copied ? 'check' : 'content_copy'}
-              </span>
+              <MaterialIcon name={copied ? 'check' : 'content_copy'} className="text-[12px]"/>
             </button>
           </div>
         )}
@@ -258,7 +257,7 @@ const UserChatBubbleImpl: React.FC<UserChatBubbleProps> = ({
                 onClick={() => setOpenedImage(null)}
                 className="absolute -top-3.5 -right-3.5 w-8 h-8 rounded-full bg-black/80 hover:bg-black border border-white/20 hover:border-white/40 text-white/80 hover:text-white flex items-center justify-center cursor-pointer shadow-lg hover:scale-105 active:scale-95 transition-all"
               >
-                <span className="material-symbols-outlined text-[18px] leading-none">close</span>
+                <MaterialIcon name="close" className="text-[18px]"/>
               </button>
             </div>
           </div>,

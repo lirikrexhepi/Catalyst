@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { ClipboardSetText } from '../../../wailsjs/runtime/runtime';
@@ -65,7 +66,7 @@ const IconButton: React.FC<{
     onClick={onClick}
     className={`w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer shrink-0 ${tone}`}
   >
-    <span className="material-symbols-rounded text-[16px] leading-none">{icon}</span>
+    <MaterialIcon name={icon} className="text-[16px]"/>
   </button>
 );
 
@@ -178,9 +179,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
             onMouseDown={onTitleMouseDown}
             className="flex items-center gap-2 shrink-0 cursor-grab active:cursor-grabbing"
           >
-            <span className="material-symbols-rounded text-[17px] text-white/80 leading-none">
-              account_tree
-            </span>
+            <MaterialIcon name="account_tree" className="text-[17px] text-white/80"/>
             <span className="text-[12.5px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
               Changes
             </span>
@@ -202,17 +201,10 @@ export const GitWindow: React.FC<GitWindowProps> = ({
                         : 'text-white/50 hover:text-white/85 hover:bg-white/[0.07]'
                     }`}
                   >
-                    <span className="material-symbols-rounded text-[13px] leading-none shrink-0">
-                      {lane.isMain ? 'home_storage' : 'linked_services'}
-                    </span>
+                    <MaterialIcon name={lane.isMain ? 'home_storage' : 'linked_services'} className="text-[13px] shrink-0"/>
                     <span className="truncate">{lane.title}</span>
                     {lane.orphaned && (
-                      <span
-                        title="No agent in this session claims this worktree"
-                        className="material-symbols-rounded text-[13px] leading-none text-amber-300/90 shrink-0"
-                      >
-                        warning
-                      </span>
+                      <span title="No agent in this session claims this worktree" className="inline-flex"><MaterialIcon name="warning" className="text-[13px] text-amber-300/90 shrink-0" /></span>
                     )}
                     {count > 0 && (
                       <span className="text-[10px] tabular-nums text-white/45 shrink-0">{count}</span>
@@ -236,9 +228,7 @@ export const GitWindow: React.FC<GitWindowProps> = ({
 
           {activeLane && (
             <div className="flex items-center gap-2 shrink-0 px-0.5">
-              <span className="material-symbols-rounded text-[13px] leading-none text-white/35">
-                fork_right
-              </span>
+              <MaterialIcon name="fork_right" className="text-[13px] text-white/35"/>
               <span className="text-[11px] font-(family-name:--app-font) text-white/60 tracking-tight truncate max-w-[220px]">
                 {activeLane.branch || 'detached'}
               </span>

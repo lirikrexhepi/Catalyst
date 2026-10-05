@@ -1,6 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, FlaskConical } from 'lucide-react';
+import { Check, FlaskConical } from '../common/icons';
 import { ListSkills } from '../../../wailsjs/go/main/App';
 import { skills as skillModels } from '../../../wailsjs/go/models';
 

@@ -22,6 +22,7 @@ type UserInput struct {
 type ThreadStartParams struct {
 	Cwd                   string `json:"cwd,omitempty"`
 	Model                 string `json:"model,omitempty"`
+	Effort                string `json:"effort,omitempty"`
 	ApprovalPolicy        string `json:"approvalPolicy,omitempty"`
 	Sandbox               string `json:"sandbox,omitempty"`
 	DeveloperInstructions string `json:"developerInstructions,omitempty"`
@@ -41,6 +42,7 @@ type ThreadResumeParams struct {
 	ThreadID              string `json:"threadId"`
 	Cwd                   string `json:"cwd,omitempty"`
 	Model                 string `json:"model,omitempty"`
+	Effort                string `json:"effort,omitempty"`
 	ApprovalPolicy        string `json:"approvalPolicy,omitempty"`
 	Sandbox               string `json:"sandbox,omitempty"`
 	DeveloperInstructions string `json:"developerInstructions,omitempty"`
@@ -50,6 +52,7 @@ type TurnStartParams struct {
 	ThreadID string      `json:"threadId"`
 	Input    []UserInput `json:"input"`
 	Model    string      `json:"model,omitempty"`
+	Effort   string      `json:"effort,omitempty"`
 	Cwd      string      `json:"cwd,omitempty"`
 }
 

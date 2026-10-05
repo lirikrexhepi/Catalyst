@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 
@@ -68,14 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePanel, onSelect, classNa
           {/* grid place-items-center centres the child box, and an inset ring is
               used instead of a border so the active state cannot shift the glyph
               by the border width. */}
-          <span
-            className="material-symbols-rounded text-[20px] leading-none block"
-            style={{
-              fontVariationSettings: `'FILL' ${isActive ? 1 : 0}, 'wght' 400, 'GRAD' 0, 'opsz' 20`,
-            }}
-          >
-            {item.icon}
-          </span>
+          <MaterialIcon name={item.icon} className="text-[20px] block" strokeWidth={isActive ? 2 : 1.5} />
         </button>
       );
     })}

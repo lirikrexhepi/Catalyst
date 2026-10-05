@@ -1,4 +1,4 @@
-import { Globe } from 'lucide-react'
+import { Globe } from '../icons'
 import { SheetRow } from './sheet'
 import type { DevServer } from '../types'
 

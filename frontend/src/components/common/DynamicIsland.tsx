@@ -1,3 +1,4 @@
+import { MaterialIcon } from './icons';
 import React, { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProjectsState, Project } from '../orchestrator/useProjects';
@@ -348,9 +349,7 @@ export function renderChatIcon(driver?: string, model?: string, isLight?: boolea
     return <OpenAISwirlIcon className={`${sizeClass} shrink-0 ${isLight ? 'text-black' : 'text-white'}`} />;
   }
   return (
-    <span className="material-symbols-rounded text-[14px] text-white/60 leading-none shrink-0">
-      chat
-    </span>
+    <MaterialIcon name="chat" className="text-[14px] text-white/60 shrink-0"/>
   );
 }
 
@@ -773,7 +772,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 }}
                 className="w-4 h-4 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors ml-1 cursor-pointer"
               >
-                <span className="material-symbols-rounded text-[13px] leading-none">close</span>
+                <MaterialIcon name="close" className="text-[13px]"/>
               </button>
             </div>
           </motion.div>
@@ -804,9 +803,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 projectId={displayedProjectId}
                 size={15}
                 glyph={
-                  <span className="material-symbols-rounded text-[15px] text-white/60 shrink-0 leading-none">
-                    folder
-                  </span>
+                  <MaterialIcon name="folder" className="text-[15px] text-white/60 shrink-0"/>
                 }
               />
               <span className="text-[12.5px] font-medium text-white tracking-tight truncate max-w-[110px]">
@@ -978,7 +975,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                   isLight ? 'hover:bg-black/10 text-black/40 hover:text-black' : 'hover:bg-white/10 text-white/40 hover:text-white'
                 } active:scale-90 flex items-center justify-center transition-all cursor-pointer`}
               >
-                <span className="material-symbols-rounded text-[14px] leading-none">close</span>
+                <MaterialIcon name="close" className="text-[14px]"/>
               </button>
             </div>
 

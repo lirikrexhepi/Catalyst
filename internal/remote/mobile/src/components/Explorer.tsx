@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight } from '../icons'
 import { fileIconUrl, folderIconUrl } from 'virtual:file-icons'
 import { api } from '../api'
 import type { ChangeStatus, DiffFile, TreeEntry, TreeStatus } from '../workspaceTypes'

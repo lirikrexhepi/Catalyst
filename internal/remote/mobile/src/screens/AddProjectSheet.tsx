@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Folder, GitBranch, HardDrive, House } from 'lucide-react'
+import { ChevronLeft, Folder, GitBranch, HardDrive, House } from '../icons'
 import { Sheet, SheetEmpty, SheetList, SheetNote, SheetPrimary, SheetRow } from '../components/sheet'
 import { GlassCircle } from '../ui'
 import { ICON_STROKE } from '../components/chrome/BarButton'

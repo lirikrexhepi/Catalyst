@@ -40,6 +40,7 @@ type thread struct {
 	codexID  string
 	cwd      string
 	model    string
+	effort   string
 
 	mu     sync.Mutex
 	turnID string
@@ -176,13 +177,14 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	if model == "" {
 		model = a.settings.Model
 	}
+	effort := ResolveEffort(in.Options, "")
 	approval := approvalPolicy(in.Permission)
 
-	t := &thread{threadID: in.ThreadID, cwd: in.Cwd, model: model}
+	t := &thread{threadID: in.ThreadID, cwd: in.Cwd, model: model, effort: effort}
 
 	if in.Resume != "" {
 		params := ThreadResumeParams{
-			ThreadID: in.Resume, Cwd: in.Cwd, Model: model, ApprovalPolicy: approval,
+			ThreadID: in.Resume, Cwd: in.Cwd, Model: model, Effort: effort, ApprovalPolicy: approval,
 			DeveloperInstructions: provider.RuntimeInstructions,
 		}
 		var resumed ThreadStartResponse
@@ -192,7 +194,7 @@ func (a *Adapter) StartSession(ctx context.Context, in domain.SessionStartInput)
 	}
 
 	if t.codexID == "" {
-		params := ThreadStartParams{Cwd: in.Cwd, Model: model, ApprovalPolicy: approval, DeveloperInstructions: provider.RuntimeInstructions}
+		params := ThreadStartParams{Cwd: in.Cwd, Model: model, Effort: effort, ApprovalPolicy: approval, DeveloperInstructions: provider.RuntimeInstructions}
 		var started ThreadStartResponse
 		if err := conn.Call(ctx, "thread/start", params, &started); err != nil {
 			return domain.Session{}, fmt.Errorf("codex thread/start: %w", err)
@@ -267,7 +269,7 @@ func (a *Adapter) SendTurn(ctx context.Context, in domain.SendTurnInput) error {
 		Kind: domain.EventTurnStarted, ThreadID: in.ThreadID, TurnID: in.TurnID, Driver: domain.DriverCodex,
 	})
 
-	params := TurnStartParams{ThreadID: t.codexID, Input: input, Model: t.model, Cwd: t.cwd}
+	params := TurnStartParams{ThreadID: t.codexID, Input: input, Model: t.model, Effort: t.effort, Cwd: t.cwd}
 	var started TurnStartResponse
 	if err := conn.Call(ctx, "turn/start", params, &started); err != nil {
 		t.mu.Lock()
@@ -390,6 +392,9 @@ func (a *Adapter) UpdateModel(threadID, model string, options domain.ModelOption
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.model = model
+	if effort := options.String(domain.OptionEffort); effort != "" {
+		t.effort = effort
+	}
 	return true
 }
 

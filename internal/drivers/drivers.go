@@ -101,7 +101,11 @@ func (d *codexDriver) DefaultSettings() domain.ProviderSettings {
 }
 
 func (d *codexDriver) Probe(ctx context.Context, settings domain.ProviderSettings) domain.ProviderSnapshot {
-	return provider.ProbeVersion(ctx, binaryFor(settings, "codex"), settings)
+	snapshot := provider.ProbeVersion(ctx, binaryFor(settings, "codex"), settings)
+	if snapshot.Availability == domain.AvailabilityReady {
+		snapshot.Models = codex.Models()
+	}
+	return snapshot
 }
 
 func (d *codexDriver) NewAdapter(settings domain.ProviderSettings, emit provider.Emitter) (provider.Adapter, error) {

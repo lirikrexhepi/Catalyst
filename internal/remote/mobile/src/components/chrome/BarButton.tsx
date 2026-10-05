@@ -1,10 +1,10 @@
-import type { LucideIcon } from 'lucide-react'
+import type { IconComponent } from '../../icons'
 import { GlassCircle } from '../../ui'
 
 export const ICON_STROKE = 1.75
 
 interface BarButtonProps {
-  icon: LucideIcon
+  icon: IconComponent
   label: string
   onClick: () => void
   disabled?: boolean

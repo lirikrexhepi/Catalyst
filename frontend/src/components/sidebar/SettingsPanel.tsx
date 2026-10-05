@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ArrowUpRight } from 'lucide-react';
+import { X, ArrowUpRight } from '../common/icons';
 import { WallpaperState } from './useWallpaper';
 import { DefaultModels } from './useDefaultModels';
 import { useTheme } from '../../themes';

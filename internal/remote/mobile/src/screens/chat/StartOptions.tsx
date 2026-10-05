@@ -1,4 +1,4 @@
-import { ChevronRight, FolderGit2, Zap } from 'lucide-react'
+import { ChevronRight, FolderGit2, Zap } from '../../icons'
 import { GlassSwitch } from '../../ui'
 import { ProjectIcon } from '../../components/ProjectIcon'
 

@@ -11,9 +11,10 @@
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
     "@legendapp/list": "3.3.3",
     "jsqr": "^1.4.0",
-    "lucide-react": "^1.48.0",
     "material-icon-theme": "^5.38.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

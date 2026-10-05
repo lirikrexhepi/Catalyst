@@ -39,6 +39,16 @@ Invoke-Step 'Building phone UI' {
     } finally { Pop-Location }
 }
 
+
+Invoke-Step 'Syncing picked icon into build' {
+    $StagedIco = Join-Path $env:APPDATA 'composer\icons\app.ico'
+    $StagedPng = Join-Path $env:APPDATA 'composer\icons\app-512.png'
+    if ((Test-Path $StagedIco) -and (Test-Path $StagedPng)) {
+        Copy-Item $StagedIco (Join-Path $Repo 'build\windows\icon.ico') -Force
+        Copy-Item $StagedPng (Join-Path $Repo 'build\appicon.png') -Force
+    }
+}
+
 Invoke-Step 'Building desktop app (wails build)' {
     Push-Location $Repo
     try { wails build } finally { Pop-Location }

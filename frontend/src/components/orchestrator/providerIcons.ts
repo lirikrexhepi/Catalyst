@@ -1,10 +1,12 @@
 import claudeLogo from '../../assets/logo/claude-icon-logo.png';
 import antigravityLogo from '../../assets/logo/antigravity-icon-logo.png';
+import codexLogo from '../../assets/logo/codex-icon-logo.svg';
 import opencodeDarkLogo from '../../assets/logo/opencode-icon-logo-dark.png';
 import opencodeLightLogo from '../../assets/logo/opencode-icon-logo-light.png';
 
 export const PROVIDER_ICONS: Record<string, string | undefined> = {
   claude: claudeLogo,
+  codex: codexLogo,
   antigravity: antigravityLogo,
   opencode: opencodeLightLogo,
 };

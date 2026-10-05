@@ -1,4 +1,4 @@
-import { X } from 'lucide-react'
+import { X } from '../../icons'
 import type { Attachment } from './useAttachments'
 
 interface AttachmentStripProps {

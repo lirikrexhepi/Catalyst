@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useOrchestratorStore } from './useOrchestratorStore';
@@ -72,19 +73,7 @@ export const TaskModelPicker: React.FC<TaskModelPickerProps> = ({
         <span className="text-[11px] font-medium font-(family-name:--app-font) tracking-tight truncate">
           {currentModel?.name || 'Select model'}
         </span>
-        <span
-          className={`material-symbols-outlined text-[14px] leading-none transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${
-            isLight
-              ? isOpen
-                ? 'rotate-180 text-black'
-                : 'rotate-0 text-black/50 group-hover:text-black/85'
-              : isOpen
-                ? 'rotate-180 text-white'
-                : 'rotate-0 text-white/50 group-hover:text-white/85'
-          }`}
-        >
-          expand_more
-        </span>
+        <MaterialIcon name="expand_more" className={`text-[14px] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${ isLight ? isOpen ? 'rotate-180 text-black' : 'rotate-0 text-black/50 group-hover:text-black/85' : isOpen ? 'rotate-180 text-white' : 'rotate-0 text-white/50 group-hover:text-white/85' }`}/>
       </button>
 
       {/* Floating Glass Dropdown Popover */}
@@ -167,13 +156,7 @@ export const TaskModelPicker: React.FC<TaskModelPickerProps> = ({
                         {model.name}
                       </span>
                       {isSelected && (
-                        <span
-                          className={`material-symbols-outlined text-[14px] leading-none shrink-0 ${
-                            isLight ? 'text-black/90' : 'text-white/90'
-                          }`}
-                        >
-                          check
-                        </span>
+                        <MaterialIcon name="check" className={`text-[14px] shrink-0 ${ isLight ? 'text-black/90' : 'text-white/90' }`}/>
                       )}
                     </button>
                   );

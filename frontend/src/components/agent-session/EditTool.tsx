@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 import { fileIconForPath } from '../common/fileIcon';
 import { WorkRow } from './WorkRow';
@@ -47,7 +48,7 @@ export const DiffView = React.memo(function DiffView({ lines }: { lines: DiffLin
         title="Copy diff"
         className="absolute top-1.5 right-1.5 z-[1] w-[22px] h-[22px] rounded-[6px] flex items-center justify-center text-current/45 hover:text-current hover:bg-current/[0.08] opacity-0 group-hover/out:opacity-100 transition-all duration-150 cursor-pointer"
       >
-        <span className="material-symbols-outlined text-[13px] leading-none">{copied ? 'check' : 'content_copy'}</span>
+        <MaterialIcon name={copied ? 'check' : 'content_copy'} className="text-[13px]"/>
       </button>
       <div className="max-h-[300px] overflow-auto custom-scrollbar py-1.5 select-text">
         {lines.map((line, index) => {

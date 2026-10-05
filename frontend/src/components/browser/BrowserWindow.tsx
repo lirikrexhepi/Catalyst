@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
@@ -245,9 +246,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
               isDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
           >
-            <span className="material-symbols-rounded text-[16px] text-white/50 leading-none shrink-0 pl-0.5">
-              globe
-            </span>
+            <MaterialIcon name="globe" className="text-[16px] text-white/50 shrink-0 pl-0.5"/>
 
             <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto no-scrollbar">
               {browser.agents.length === 0 ? (
@@ -284,9 +283,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                           }`}
                         />
                       ) : (
-                        <span className="material-symbols-rounded text-[13px] leading-none text-white/40 shrink-0">
-                          language
-                        </span>
+                        <MaterialIcon name="language" className="text-[13px] text-white/40 shrink-0"/>
                       )}
                       <span className="truncate">{agent.title}</span>
                     </button>
@@ -301,7 +298,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
               onClick={onClose}
               className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 active:scale-90 flex items-center justify-center transition-all cursor-pointer text-white/60 hover:text-white shrink-0"
             >
-              <span className="material-symbols-outlined text-[13px] leading-none">close</span>
+              <MaterialIcon name="close" className="text-[13px]"/>
             </button>
           </div>
 
@@ -332,9 +329,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                       }}
                       className="w-[15px] h-[15px] rounded-[4px] grid place-items-center opacity-0 group-hover:opacity-100 hover:bg-white/20 transition-all shrink-0 cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[11px] leading-none">
-                        close
-                      </span>
+                      <MaterialIcon name="close" className="text-[11px]"/>
                     </button>
                   </div>
                 );
@@ -345,7 +340,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
                 onClick={() => browser.openTab()}
                 className="w-[22px] h-[22px] rounded-[6px] grid place-items-center text-white/40 hover:text-white/85 hover:bg-white/10 active:scale-90 transition-all cursor-pointer shrink-0"
               >
-                <span className="material-symbols-rounded text-[15px] leading-none">add</span>
+                <MaterialIcon name="add" className="text-[15px]"/>
               </button>
             </div>
           )}
@@ -358,7 +353,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
               onClick={browser.reload}
               className="w-[26px] h-[26px] rounded-[8px] grid place-items-center text-white/45 hover:text-white/90 hover:bg-white/10 active:scale-90 transition-all cursor-pointer shrink-0"
             >
-              <span className="material-symbols-rounded text-[16px] leading-none">refresh</span>
+              <MaterialIcon name="refresh" className="text-[16px]"/>
             </button>
 
             <form onSubmit={submitAddress} className="flex-1 min-w-0">
@@ -379,7 +374,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
               onClick={() => activeTab && BrowserOpenURL(activeTab.url)}
               className="w-[26px] h-[26px] rounded-[8px] grid place-items-center text-white/45 hover:text-white/90 hover:bg-white/10 active:scale-90 transition-all cursor-pointer shrink-0 disabled:opacity-30 disabled:cursor-default"
             >
-              <span className="material-symbols-rounded text-[15px] leading-none">open_in_new</span>
+              <MaterialIcon name="open_in_new" className="text-[15px]"/>
             </button>
           </div>
 
@@ -398,9 +393,7 @@ export const BrowserWindow: React.FC<BrowserWindowProps> = ({
             ) : (
               <div className="flex-1 min-h-0 rounded-[12px] bg-white/[0.03] border border-white/[0.07] grid place-items-center">
                 <div className="flex flex-col items-center gap-2 px-6 text-center max-w-[280px]">
-                  <span className="material-symbols-rounded text-[26px] text-white/25 leading-none">
-                    globe
-                  </span>
+                  <MaterialIcon name="globe" className="text-[26px] text-white/25"/>
                   <span className="text-[12px] font-(family-name:--app-font) text-white/40 leading-relaxed">
                     No agent is serving a page yet. Once an agent starts a dev server it appears
                     here automatically.

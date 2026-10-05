@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bell, BellRing, CircleCheck, Moon, Send } from 'lucide-react'
+import { Bell, BellRing, CircleCheck, Moon, Send } from '../../icons'
 import { SheetList, SheetNote, SheetRow } from '../../components/sheet'
 import { GlassSwitch } from '../../ui'
 import type { PushPrefs } from '../../api'

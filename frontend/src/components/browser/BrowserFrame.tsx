@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { BrowserTab } from './useBrowser';
@@ -73,9 +74,7 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({ tab, onBlocked }) =>
     return (
       <div className="flex-1 min-h-0 rounded-[12px] bg-white/[0.03] border border-white/[0.07] grid place-items-center">
         <div className="flex flex-col items-center gap-2 px-6 text-center">
-          <span className="material-symbols-rounded text-[26px] text-white/25 leading-none">
-            globe
-          </span>
+          <MaterialIcon name="globe" className="text-[26px] text-white/25"/>
           <span className="text-[12px] font-(family-name:--app-font) text-white/40 leading-relaxed">
             Enter an address, or pick a detected port above.
           </span>
@@ -111,9 +110,7 @@ export const BrowserFrame: React.FC<BrowserFrameProps> = ({ tab, onBlocked }) =>
       {tab.blocked && (
         <div className="absolute inset-0 grid place-items-center bg-[#1b1e24]">
           <div className="flex flex-col items-center gap-2.5 px-8 text-center max-w-[340px]">
-            <span className="material-symbols-rounded text-[26px] text-white/30 leading-none">
-              public_off
-            </span>
+            <MaterialIcon name="public_off" className="text-[26px] text-white/30"/>
             <span className="text-[12.5px] font-medium font-(family-name:--app-font) text-white/80 tracking-tight">
               This site refused to be embedded
             </span>

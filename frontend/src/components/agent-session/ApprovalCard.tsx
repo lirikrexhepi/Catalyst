@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 import { ApprovalOptionItem } from './types';
 
@@ -66,9 +67,7 @@ export const ApprovalCard: React.FC<ApprovalCardProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-md bg-amber-400/15 flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[13px] text-amber-300 leading-none">
-              shield
-            </span>
+            <MaterialIcon name="shield" className="text-[13px] text-amber-300"/>
           </div>
           <span className="text-[12px] font-semibold text-current/95 tracking-tight">
             {title}

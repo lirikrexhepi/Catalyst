@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { RestoredSession } from './useHistory';
@@ -97,7 +98,7 @@ export const RestoredSessionBar: React.FC<RestoredSessionBarProps> = ({
             onClick={onClose}
             className="w-[26px] h-[26px] rounded-[8px] grid place-items-center text-white/45 hover:text-white/90 hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
           >
-            <span className="material-symbols-rounded text-[16px] leading-none">close</span>
+            <MaterialIcon name="close" className="text-[16px]"/>
           </button>
         </div>
       </div>

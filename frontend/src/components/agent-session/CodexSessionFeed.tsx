@@ -15,6 +15,7 @@ import { MessageTimestamp } from './MessageTimestamp';
 
 export interface CodexSessionFeedProps {
   blocks: AgentStreamBlock[];
+  modelId?: string;
   isWorking?: boolean;
   className?: string;
   onApprovePlan?: (blockId: string) => void;
@@ -32,6 +33,7 @@ export interface CodexSessionFeedProps {
  */
 export const CodexSessionFeed: React.FC<CodexSessionFeedProps> = ({
   blocks,
+  modelId,
   isWorking = false,
   className = '',
   onApprovePlan,
@@ -66,9 +68,13 @@ export const CodexSessionFeed: React.FC<CodexSessionFeedProps> = ({
                 {block.isStreaming && (
                   <span className="inline-block w-1.5 h-3 bg-white/70 ml-1 animate-pulse align-middle" />
                 )}
-                {!block.isStreaming && (
-                  <MessageTimestamp timestamp={block.timestamp} content={block.content} />
-                )}
+                <MessageTimestamp
+                  timestamp={block.timestamp}
+                  content={block.content}
+                  driver="codex"
+                  model={block.model || modelId}
+                  isStreaming={block.isStreaming}
+                />
               </div>
             );
 

@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { WallpaperState } from './useWallpaper';
 import { isCustom } from './wallpapers';
@@ -265,7 +266,7 @@ export function WallpaperPicker({ wallpaper, isLight, columns = 3 }: { wallpaper
                   onClick={() => wallpaper.remove(item.id)}
                   className="absolute top-1 right-1 w-[18px] h-[18px] rounded-full bg-black/60 hover:bg-rose-500/80 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-150 cursor-pointer"
                 >
-                  <span className="material-symbols-rounded text-[12px] text-white leading-none">close</span>
+                  <MaterialIcon name="close" className="text-[12px] text-white"/>
                 </button>
               )}
             </div>
@@ -398,7 +399,7 @@ export function FontPicker({ isLight }: { isLight: boolean }) {
               }}
               className="absolute top-1.5 right-1.5 w-[20px] h-[20px] rounded-full bg-black/60 hover:bg-rose-500/80 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-150 cursor-pointer"
             >
-              <span className="material-symbols-rounded text-[12px] leading-none">close</span>
+              <MaterialIcon name="close" className="text-[12px]"/>
             </button>
           </div>
         ))}
@@ -458,7 +459,7 @@ export function AppIconPicker({ isLight }: { isLight: boolean }) {
         })}
       </div>
       <span className={`px-1 text-[11px] tracking-tight leading-snug ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-        Changes the window and taskbar icon. Pinned shortcuts keep the original icon.
+        Applies instantly to the window, taskbar, desktop and Start menu.
       </span>
       {error && <span className="px-1 text-[11px] text-red-300/90">{error}</span>}
     </div>

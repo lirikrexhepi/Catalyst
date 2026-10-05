@@ -125,6 +125,8 @@ func main() {
 	})
 
 	if err != nil {
-		println("Error:", err.Error())
+		logger.Errorf("Main", "wails.Run exited with error: %v", err)
+	} else {
+		logger.Infof("Main", "wails.Run exited cleanly")
 	}
 }

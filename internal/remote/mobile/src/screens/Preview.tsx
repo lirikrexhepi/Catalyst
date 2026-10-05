@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bot, Check, ChevronLeft, GitBranch, Loader2, Minus, Monitor, Play, Plus, Square, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from 'lucide-react'
+import { Bot, Check, ChevronLeft, GitBranch, Loader2, Minus, Monitor, Play, Plus, Square, RotateCw, Smartphone, SquareArrowOutUpRight, SquareTerminal } from '../icons'
 import { BarButton, ICON_STROKE } from '../components/chrome/BarButton'
 import { GlassPill, GlassSegmented } from '../ui'
 import { MorphButtons } from '../ui/glass/MorphButtons'

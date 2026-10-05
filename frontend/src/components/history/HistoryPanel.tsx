@@ -1,4 +1,4 @@
-import { Archive } from 'lucide-react';
+import { Archive, MaterialIcon } from '../common/icons';
 import React, { useMemo } from 'react';
 import { ScrollArea } from '../common/ScrollArea';
 import { history } from '../../../wailsjs/go/models';
@@ -120,9 +120,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
     <div className={`w-full h-full flex flex-col select-none ${className}`}>
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-rounded text-[18px] text-white/80 leading-none">
-            history
-          </span>
+          <MaterialIcon name="history" className="text-[18px] text-white/80"/>
           <span className="text-[13px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
             History
           </span>
@@ -143,7 +141,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
             onClick={onNewChat}
             className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
           >
-            <span className="material-symbols-rounded text-[17px] leading-none">add</span>
+            <MaterialIcon name="add" className="text-[17px]"/>
           </button>
           {onImport && (
             <button
@@ -152,7 +150,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
               onClick={onImport}
               className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
             >
-              <span className="material-symbols-rounded text-[16px] leading-none">upload</span>
+              <MaterialIcon name="upload" className="text-[16px]"/>
             </button>
           )}
           <button
@@ -161,7 +159,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
             onClick={onRefresh}
             className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
           >
-            <span className="material-symbols-rounded text-[16px] leading-none">refresh</span>
+            <MaterialIcon name="refresh" className="text-[16px]"/>
           </button>
           <button
             type="button"
@@ -169,7 +167,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({
             onClick={onClose}
             className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
           >
-            <span className="material-symbols-rounded text-[16px] leading-none">close</span>
+            <MaterialIcon name="close" className="text-[16px]"/>
           </button>
         </div>
       </div>

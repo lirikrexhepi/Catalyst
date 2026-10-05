@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 import { domain } from '../../../wailsjs/go/models';
 
@@ -63,9 +64,7 @@ export const QueuedMessages: React.FC<QueuedMessagesProps> = ({
           title={isCollapsed ? 'Expand queue' : 'Collapse queue'}
           className="w-[22px] h-[22px] rounded-[6px] flex items-center justify-center text-white/60 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer shrink-0"
         >
-          <span className="material-symbols-outlined text-[16px] leading-none">
-            {isCollapsed ? 'expand_more' : 'expand_less'}
-          </span>
+          <MaterialIcon name={isCollapsed ? 'expand_more' : 'expand_less'} className="text-[16px]"/>
         </button>
       </div>
 
@@ -86,9 +85,7 @@ export const QueuedMessages: React.FC<QueuedMessagesProps> = ({
                 </span>
                 {item.files && item.files.length > 0 && (
                   <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-white/75 shrink-0">
-                    <span className="material-symbols-rounded text-[11px] leading-none">
-                      attach_file
-                    </span>
+                    <MaterialIcon name="attach_file" className="text-[11px]"/>
                     {item.files.length}
                   </span>
                 )}
@@ -102,9 +99,7 @@ export const QueuedMessages: React.FC<QueuedMessagesProps> = ({
                   title="Send now"
                   className="w-[24px] h-[24px] rounded-[7px] flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 active:scale-90 transition-all cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[15px] leading-none">
-                    arrow_forward
-                  </span>
+                  <MaterialIcon name="arrow_forward" className="text-[15px]"/>
                 </button>
                 <button
                   type="button"
@@ -112,9 +107,7 @@ export const QueuedMessages: React.FC<QueuedMessagesProps> = ({
                   title="Edit message"
                   className="w-[24px] h-[24px] rounded-[7px] flex items-center justify-center text-white/60 hover:text-white hover:bg-white/15 active:scale-90 transition-all cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[14px] leading-none">
-                    edit
-                  </span>
+                  <MaterialIcon name="edit" className="text-[14px]"/>
                 </button>
                 <button
                   type="button"
@@ -122,9 +115,7 @@ export const QueuedMessages: React.FC<QueuedMessagesProps> = ({
                   title="Delete message"
                   className="w-[24px] h-[24px] rounded-[7px] flex items-center justify-center text-white/40 hover:text-rose-300 hover:bg-rose-500/20 active:scale-90 transition-all cursor-pointer"
                 >
-                  <span className="material-symbols-outlined text-[15px] leading-none">
-                    delete
-                  </span>
+                  <MaterialIcon name="delete" className="text-[15px]"/>
                 </button>
               </div>
             </div>

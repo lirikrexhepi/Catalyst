@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ClipboardCopy, ScrollText, Trash2 } from 'lucide-react'
+import { ClipboardCopy, ScrollText, Trash2 } from '../../icons'
 import { SheetEmpty, SheetList, SheetRow } from '../../components/sheet'
 import { api, getBase } from '../../api'
 import { message, useStore } from '../../store'

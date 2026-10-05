@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Loader2, WifiOff } from 'lucide-react'
+import { Loader2, WifiOff } from '../../icons'
 import { retryNow, useStore } from '../../store'
 import { StatusPill } from './StatusPill'
 

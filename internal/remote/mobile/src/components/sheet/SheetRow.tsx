@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
-import { Check, ChevronRight, type LucideIcon } from 'lucide-react'
+import { Check, ChevronRight, type IconComponent } from '../../icons'
 import { ICON_STROKE } from '../chrome/BarButton'
 
 interface SheetRowProps {
-  icon?: LucideIcon
+  icon?: IconComponent
   iconNode?: ReactNode
   label: ReactNode
   detail?: string

@@ -44,6 +44,8 @@ export interface AssistantTextBlock {
   turnId?: string;
   /** Errors and diagnostics are never merged into by agent text. */
   variant?: 'error';
+  model?: string;
+  driver?: string;
 }
 
 export interface ThinkingBlockData {

@@ -1,4 +1,4 @@
-import { Eye, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { Eye, RefreshCw, SlidersHorizontal } from '../icons'
 import { showAllChats, useHiddenChats } from '../hiddenChats'
 import { Sheet, SheetList, SheetRow } from '../components/sheet'
 import { loadProviders, refreshSummaries } from '../store'

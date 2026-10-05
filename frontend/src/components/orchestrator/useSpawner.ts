@@ -35,6 +35,8 @@ export interface SpawnedTask {
   branch?: string;
   model?: string;
   driver?: string;
+  drivers?: string[];
+  models?: string[];
   blocks: AgentStreamBlock[];
   isBusy: boolean;
   workspaceId?: string;
@@ -560,20 +562,74 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
                 toModelOptions(desired, store.getCurrentModelSettings(desired.id)),
               );
             }
-            const created = withEarlyEvents({
+            threads.current.delete(currentTask.threadId);
+            const stamp = Date.now();
+            const prevDriver = currentTask.driver;
+            const prevModelId = currentTask.model;
+            const prevModelName =
+              store.models.find((m) => m.id === prevModelId)?.name || prevModelId;
+            const nextDriver = spawned.driver;
+            const nextModel = spawned.model;
+            const nextProvider = store.providers.find((p) => p.id === nextDriver);
+            const nextProviderName = nextProvider?.name || providerDisplayName(nextDriver);
+            const nextModelName = desired?.name || nextModel || 'model';
+            const isDifferent =
+              (prevDriver && prevDriver !== nextDriver) ||
+              (prevModelId && prevModelId !== nextModel);
+            const notice = isDifferent
+              ? describeSwitch(
+                  providerDisplayName(prevDriver),
+                  prevModelName,
+                  nextProviderName,
+                  nextModelName,
+                )
+              : '';
+            const icon = desired?.icon || nextProvider?.icon || '';
+
+            const prevDrivers =
+              (currentTask as any).drivers || (currentTask.driver ? [currentTask.driver] : []);
+            const prevModels =
+              (currentTask as any).models || (currentTask.model ? [currentTask.model] : []);
+            const nextDrivers = Array.from(
+              new Set([...prevDrivers, nextDriver].filter(Boolean)),
+            );
+            const nextModels = Array.from(
+              new Set([...prevModels, nextModel].filter(Boolean)),
+            );
+
+            const newBlocks: AgentStreamBlock[] = [
+              ...currentTask.blocks,
+              ...(notice
+                ? [
+                    {
+                      type: 'notice' as const,
+                      id: `notice-${stamp}`,
+                      label: notice,
+                      icon: icon || undefined,
+                    },
+                  ]
+                : []),
+              userBlock(trimmed, `user-${stamp}`, files, stamp),
+            ];
+
+            const updated = withEarlyEvents({
+              ...currentTask,
               threadId: spawned.threadId,
-              title: spawned.title || currentTask.title,
-              branch: (spawned as any).worktree?.branch,
-              model: spawned.model,
-              driver: spawned.driver,
-              blocks: [userBlock(promptText, `user-${Date.now()}`, [], Date.now())],
+              title: currentTask.title,
+              branch: (spawned as any).worktree?.branch ?? currentTask.branch,
+              model: nextModel,
+              driver: nextDriver,
+              drivers: nextDrivers,
+              models: nextModels,
+              blocks: newBlocks,
               isBusy: true,
-              workspaceId: currentTask.workspaceId,
               isLive: true,
-              projectName: currentTask.projectName,
-              projectPath: currentTask.projectPath,
+              importedFrom: undefined,
             });
-            setTasks((prev) => [...prev, created]);
+
+            setTasks((prev) =>
+              prev.map((t) => (t.threadId === currentTask.threadId ? updated : t)),
+            );
             return spawned.threadId;
           } catch (cause) {
             setError(cause instanceof Error ? cause.message : String(cause));
@@ -586,7 +642,9 @@ export function useSpawner(options?: UseSpawnerOptions): Spawner {
           threads.current.add(threadId);
           setTasks((prev) =>
             prev.map((t) =>
-              t.workspaceId === currentTask.workspaceId ? { ...t, isLive: true } : t,
+              t.workspaceId === currentTask.workspaceId
+                ? { ...t, isLive: true, importedFrom: undefined }
+                : t,
             ),
           );
         } catch (cause) {

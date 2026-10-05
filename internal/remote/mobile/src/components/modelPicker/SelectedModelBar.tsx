@@ -1,4 +1,4 @@
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft } from '../../icons'
 import { CHEVRON_LEFT_NUDGE, GlassRing, GlassSquircle } from '../../ui'
 import { usageTone } from '../chrome/usageTone'
 import { PICKER } from './layout'

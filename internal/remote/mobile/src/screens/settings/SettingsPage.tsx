@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Activity, Globe } from 'lucide-react'
+import { Activity, Globe } from '../../icons'
 import { SheetList, SheetNote, SheetRow } from '../../components/sheet'
 import { GlassSwitch } from '../../ui'
 import { buildStamp } from '../../buildInfo'

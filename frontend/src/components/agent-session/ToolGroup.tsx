@@ -1,5 +1,7 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { Chevron, Collapse, OutputPanel, WorkRow } from './WorkRow';
+import { ROW_DOT_Y, TimelineDot, useInTimeline } from './Timeline';
 import { TextShimmer } from './TextShimmer';
 
 export interface ToolGroupItem {
@@ -73,6 +75,7 @@ export const ToolItemRow = React.memo(function ToolItemRow({ item }: { item: Too
 const COLLAPSE_AT = 4;
 
 const ToolGroupImpl: React.FC<ToolGroupProps> = ({ items = [], defaultExpanded, className = '' }) => {
+  const inTimeline = useInTimeline();
   const anyRunning = items.some((item) => item.status === 'running');
   const [open, setOpen] = useState(defaultExpanded ?? anyRunning);
   const touched = useRef(false);
@@ -94,7 +97,8 @@ const ToolGroupImpl: React.FC<ToolGroupProps> = ({ items = [], defaultExpanded, 
 
   const label = `Used ${items.length} tools`;
   return (
-    <div className={`flex flex-col font-(family-name:--app-font) ${className}`}>
+    <div className={`relative flex flex-col font-(family-name:--app-font) ${className}`}>
+      {inTimeline && <TimelineDot y={ROW_DOT_Y} tone={anyRunning ? 'running' : 'row'} />}
       <button
         type="button"
         onClick={() => {
@@ -103,9 +107,6 @@ const ToolGroupImpl: React.FC<ToolGroupProps> = ({ items = [], defaultExpanded, 
         }}
         className="group/work flex items-center gap-2 self-start py-[3px] text-[12.5px] tracking-tight leading-[18px] text-current/55 hover:text-current/85 transition-colors duration-150 cursor-pointer"
       >
-        <span className="w-[15px] h-[18px] flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined text-[14px] leading-none">stacks</span>
-        </span>
         {anyRunning ? <TextShimmer duration={1.6}>{label}</TextShimmer> : <span>{label}</span>}
         <Chevron open={open} direction="down" />
       </button>

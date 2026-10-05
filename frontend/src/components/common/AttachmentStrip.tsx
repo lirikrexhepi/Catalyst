@@ -1,3 +1,4 @@
+import { MaterialIcon } from './icons';
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PreviewAttachment } from '../../../wailsjs/go/main/App';
@@ -8,6 +9,7 @@ export interface AttachmentStripProps {
   onRemove: (id: string) => void;
   /** Smaller tiles for the agent windows, which are narrower. */
   compact?: boolean;
+  vertical?: boolean;
   className?: string;
 }
 
@@ -107,7 +109,7 @@ const Tile: React.FC<TileProps> = ({ item, compact, onRemove, onOpen }) => {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center animate-pulse bg-white/10">
-              <span className="material-symbols-rounded text-[18px] text-white/40">image</span>
+              <MaterialIcon name="image" className="text-[18px] text-white/40"/>
             </div>
           )}
         </button>
@@ -145,13 +147,7 @@ const Tile: React.FC<TileProps> = ({ item, compact, onRemove, onOpen }) => {
         compact ? 'h-[26px] pl-2 pr-1.5' : 'h-[28px] pl-2.5 pr-2'
       }`}
     >
-      <span
-        className={`material-symbols-rounded leading-none shrink-0 text-white/60 ${
-          compact ? 'text-[14px]' : 'text-[15px]'
-        }`}
-      >
-        {iconFor(item.mime)}
-      </span>
+      <MaterialIcon name={iconFor(item.mime)} className={`shrink-0 text-white/60 ${compact ? 'text-[14px]' : 'text-[15px]' }`}/>
       <span
         className={`font-(family-name:--app-font) font-medium tracking-tight truncate ${
           compact ? 'text-[11px]' : 'text-[12px]'
@@ -189,6 +185,7 @@ export const AttachmentStrip: React.FC<AttachmentStripProps> = ({
   items,
   onRemove,
   compact = false,
+  vertical = false,
   className = '',
 }) => {
   const [opened, setOpened] = useState<{ item: Attachment; preview: string } | null>(null);
@@ -207,7 +204,7 @@ export const AttachmentStrip: React.FC<AttachmentStripProps> = ({
 
   return (
     <>
-      <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+      <div className={`flex gap-1.5 ${vertical ? 'flex-col items-end' : 'flex-wrap items-center'} ${className}`}>
         {items.map((item) => (
           <Tile
             key={item.id}

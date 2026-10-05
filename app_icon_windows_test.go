@@ -14,7 +14,10 @@ func TestEmbeddedAppIconsBecomeWindowsIcons(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s%s missing: %v", id, size.suffix, err)
 			}
-			icon := iconFromPNG(data, size.px)
+			icon, err := pngToHICON(data)
+			if err != nil {
+				t.Fatalf("%s%s did not convert to an icon: %v", id, size.suffix, err)
+			}
 			if icon == 0 {
 				t.Fatalf("%s%s did not convert to an icon", id, size.suffix)
 			}

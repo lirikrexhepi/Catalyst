@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent, type TouchEvent } from 'react'
-import { Clock3, Mic, Paperclip, Send, Square } from 'lucide-react'
+import { Clock3, Mic, Paperclip, Send, Square } from '../../icons'
 import { VoiceWave } from './VoiceWave'
 import { GlassCircle, GlassSquircle, SEND_NUDGE } from '../../ui'
 import { interrupt, removeQueued, send, useStore } from '../../store'

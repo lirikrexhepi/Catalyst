@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTheme } from '../../themes';
 import { useOrchestratorStore } from './useOrchestratorStore';
@@ -225,9 +226,7 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
           </div>
         ) : (
           <div className="flex items-center gap-1.5 text-[11px] font-medium font-(family-name:--app-font) text-emerald-400">
-            <span className="material-symbols-outlined text-[13px] leading-none">
-              check_circle
-            </span>
+            <MaterialIcon name="check_circle" className="text-[13px]"/>
             <span>Agent{tasks.length > 1 ? 's' : ''} running</span>
           </div>
         )}
@@ -249,9 +248,7 @@ export const InlinePlanCard: React.FC<InlinePlanCardProps> = ({
               }`}
             >
               {useWorktree && (
-                <span className="material-symbols-outlined text-[10px] leading-none">
-                  check
-                </span>
+                <MaterialIcon name="check" className="text-[10px]"/>
               )}
             </span>
             <span className="text-[10.5px] font-(family-name:--app-font) text-current/60 group-hover:text-current/90 tracking-tight">

@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState, useMemo } from 'react';
 import { TodoItem } from './TodoTool';
 import { MutateAgentTask } from '../../../wailsjs/go/main/App';
@@ -119,9 +120,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
       <div className="shrink-0 px-3 pt-2 pb-3 flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[17px] text-white/70 leading-none">
-              checklist
-            </span>
+            <MaterialIcon name="checklist" className="text-[17px] text-white/70"/>
             <span className="text-[13px] font-semibold text-white tracking-tight">
               Tasklist
             </span>
@@ -200,9 +199,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
         {filteredTodos.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/40">
             <div className="w-10 h-10 rounded-2xl bg-white/[0.04] flex items-center justify-center mb-3 text-white/35">
-              <span className="material-symbols-outlined text-[20px]">
-                {filter === 'completed' ? 'done_all' : 'fact_check'}
-              </span>
+              <MaterialIcon name={filter === 'completed' ? 'done_all' : 'fact_check'} className="text-[20px]"/>
             </div>
             <p className="text-[13px] font-medium text-white/70">
               {totalCount === 0
@@ -246,17 +243,11 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
                     className="shrink-0 flex items-center justify-center focus:outline-none cursor-pointer"
                   >
                     {isDone ? (
-                      <span className="material-symbols-outlined text-[18px] text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] leading-none">
-                        check_circle
-                      </span>
+                      <MaterialIcon name="check_circle" className="text-[18px] text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)]"/>
                     ) : isInProgress ? (
-                      <span className="material-symbols-outlined text-[18px] text-sky-400 leading-none animate-pulse drop-shadow-[0_0_6px_rgba(56,189,248,0.7)]">
-                        arrow_circle_right
-                      </span>
+                      <MaterialIcon name="arrow_circle_right" className="text-[18px] text-sky-400 animate-pulse drop-shadow-[0_0_6px_rgba(56,189,248,0.7)]"/>
                     ) : (
-                      <span className="material-symbols-outlined text-[18px] text-white/30 group-hover:text-white/60 leading-none transition-colors">
-                        radio_button_unchecked
-                      </span>
+                      <MaterialIcon name="radio_button_unchecked" className="text-[18px] text-white/30 group-hover:text-white/60 transition-colors"/>
                     )}
                   </button>
 
@@ -318,9 +309,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
                     }
                     className="p-1 rounded text-white/30 hover:text-rose-400 hover:bg-rose-500/15 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[14px] leading-none">
-                      close
-                    </span>
+                    <MaterialIcon name="close" className="text-[14px]"/>
                   </button>
                 </div>
               </div>
@@ -333,9 +322,7 @@ export const AgentTasklistView: React.FC<AgentTasklistViewProps> = ({
       <div className="shrink-0 p-3 pt-2 bg-black/10 backdrop-blur-sm">
         <form onSubmit={handleAddTask} className="flex items-center gap-2">
           <div className="relative flex-1">
-            <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-white/35 pointer-events-none">
-              add
-            </span>
+            <MaterialIcon name="add" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-white/35 pointer-events-none"/>
             <input
               type="text"
               value={newTaskText}

@@ -14,7 +14,7 @@ import { AttachmentsState, filesFromTransfer } from '../common/useAttachments';
 import { readChatDrag } from '../common/chatDrag';
 import { providerIcon } from './providerIcons';
 import { SkillTestPicker } from './SkillTestPicker';
-import { ArrowUp, ChevronDown, Loader2, Paperclip, Plus, Square, X } from 'lucide-react';
+import { ArrowUp, ChevronDown, Loader2, Paperclip, Plus, Square, X, MaterialIcon } from '../common/icons';
 
 export interface OrchestratorInputProps {
   onSubmit?: (message: string, modelId: string) => void;
@@ -48,7 +48,6 @@ const TOOLBAR_HEIGHT = 40;
 const CAPSULE_CHROME = 18;
 // Chips get their own row between the field and the toolbar rather than
 // growing the capsule without bound.
-const MAX_CHIPS_HEIGHT = 84;
 
 export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   onSubmit,
@@ -92,9 +91,8 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const attachmentsRef = useRef<HTMLDivElement>(null);
   const [textareaHeight, setTextareaHeight] = useState(LINE_HEIGHT);
-  const [attachmentHeight, setAttachmentHeight] = useState(0);
+  const railRef = useRef(attachments?.items ?? []);
 
   // Transition mount coordination for guaranteed entrance AND exit
   const modelPickerMount = useTransitionMount(isModelPickerOpen, 200);
@@ -132,25 +130,6 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
     el.style.height = `${targetHeight}px`;
     setTextareaHeight(targetHeight);
   }, [messageText]);
-
-  // The chips row's real height, read from the DOM: chips wrap
-  // unpredictably, so how many rows they occupy is not something a file count
-  // can predict. Observed rather than measured once: the height settles after
-  // thumbnails load, not only when the file list changes.
-  useLayoutEffect(() => {
-    const el = attachmentsRef.current;
-    if (!el) {
-      setAttachmentHeight(0);
-      return;
-    }
-
-    const measure = () => setAttachmentHeight(el.offsetHeight);
-    measure();
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [attachments?.items]);
 
   // Handle clicking outside to close pickers
   useEffect(() => {
@@ -236,7 +215,9 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
   // it, so the capsule stacks text, chips and controls instead of squeezing
   // them side by side.
   const textZoneHeight = isExpanded ? Math.min(textareaHeight + 24, 188) : 40;
-  const capsuleHeight = Math.max(textZoneHeight + attachmentHeight + TOOLBAR_HEIGHT + CAPSULE_CHROME, 98);
+  const capsuleHeight = Math.max(textZoneHeight + TOOLBAR_HEIGHT + CAPSULE_CHROME, 98);
+  if (hasAttachments && attachments) railRef.current = attachments.items;
+  const railItems = hasAttachments && attachments ? attachments.items : railRef.current;
   const isSpawning = hasActiveAgent && viewMode === 'deck' && isCreatingNewAgent;
 
   const capsuleContent = (
@@ -311,22 +292,6 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
           }}
         />
       </div>
-
-      {/* Staged files ride between the field and the toolbar. */}
-      {attachments && hasAttachments && (
-        <div
-          ref={attachmentsRef}
-          className="overflow-y-auto overflow-x-hidden custom-scrollbar mx-[14px]"
-          style={{ maxHeight: `${MAX_CHIPS_HEIGHT}px` }}
-        >
-          <AttachmentStrip
-            items={attachments.items}
-            onRemove={attachments.remove}
-            compact
-            className="py-1"
-          />
-        </div>
-      )}
 
       {/* Toolbar: pickers on the left, actions on the right. Borderless, like
           text — the squircle itself is the shape, nothing inside needs a box. */}
@@ -466,6 +431,22 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
       }}
       className={`relative flex flex-col items-center select-none ${className}`}
     >
+      <AnimatePresence>
+        {attachments && hasAttachments && (
+          <motion.div
+            key="attachment-rail"
+            initial={{ opacity: 0, x: 16, scale: 0.96 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 12, scale: 0.97, transition: { duration: 0.14, ease: 'easeIn' } }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.8 }}
+            style={{ transformOrigin: 'bottom right', right: 'calc(50% + 370px)' }}
+            className="absolute bottom-0 max-h-[320px] overflow-y-auto overflow-x-hidden custom-scrollbar pointer-events-auto z-10"
+          >
+            <AttachmentStrip items={railItems} onRemove={attachments.remove} compact vertical />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Orchestrator Squircle Bar - Expands strictly downward with stationary top elements */}
       {useOpticalRefraction ? (
         <RefractiveGlass
@@ -625,16 +606,12 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                           : 'hover:bg-white/[0.07] text-white/85'
                       }`}
                     >
-                      <span className="material-symbols-rounded text-[15px] leading-none shrink-0 opacity-60">
-                        folder
-                      </span>
+                      <MaterialIcon name="folder" className="text-[15px] shrink-0 opacity-60"/>
                       <span className="flex-1 min-w-0 text-[12.5px] font-medium font-(family-name:--app-font) tracking-tight truncate">
                         {project.name}
                       </span>
                       {selected && (
-                        <span className={`material-symbols-rounded text-[15px] leading-none shrink-0 ${isLight ? 'text-black/70' : 'text-white/70'}`}>
-                          check
-                        </span>
+                        <MaterialIcon name="check" className={`text-[15px] shrink-0 ${isLight ? 'text-black/70' : 'text-white/70'}`}/>
                       )}
                     </button>
                   );

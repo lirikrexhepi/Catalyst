@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { WorkRow, formatElapsed } from './WorkRow';
 
@@ -36,7 +37,6 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
 
   return (
     <WorkRow
-      iconNode={<span className="material-symbols-outlined text-[14px] leading-none">neurology</span>}
       label={label}
       running={isThinking}
       defaultOpen={defaultExpanded}

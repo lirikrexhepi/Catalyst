@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { useTheme } from '../../themes';
 import { AgentSessionFeed } from './AgentSessionFeed';
@@ -7,7 +7,7 @@ import { AgentGitView } from './AgentGitView';
 import { AgentServersView } from './AgentServersView';
 import { domain, servers } from '../../../wailsjs/go/models';
 import { GitState } from '../git';
-import { X, Square } from 'lucide-react';
+import { X, Square } from '../common/icons';
 import { OrbitLoader } from './OrbitLoader';
 import { TextShimmer } from './TextShimmer';
 import { AgentStreamBlock, TodoToolBlockData } from './types';
@@ -17,6 +17,8 @@ import { useSmoothScroll } from '../common/useSmoothScroll';
 import { usePinnedScroll } from '../common/usePinnedScroll';
 import { ContextRing } from './ContextRing';
 import type { ContextUsage } from './contextUsage';
+import { parseSwitchNotice } from './NoticeDivider';
+import { formatModelBadge, renderChatIcon } from '../common/DynamicIsland';
 
 export type AgentSessionStatus = 'working' | 'finished' | 'idle' | 'error';
 
@@ -38,6 +40,9 @@ export interface AgentWindowProps {
   minSize?: { width: number; height: number };
   maxSize?: { width: number; height: number };
   modelId?: string;
+  driver?: string;
+  drivers?: string[];
+  models?: string[];
   streamBlocks: AgentStreamBlock[];
   isFocused?: boolean;
   isAnimating?: boolean;
@@ -96,6 +101,9 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   lastTurnMs,
   contextUsage,
   modelId,
+  driver,
+  drivers,
+  models,
   streamBlocks,
   isFocused = false,
   isAnimating = false,
@@ -124,6 +132,59 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   const feedScrollRef = useRef<HTMLDivElement>(null);
   const [internalMode, setInternalMode] = useState<AgentCardMode>('chat');
   const activeMode = cardMode !== undefined ? cardMode : internalMode;
+
+  const driverProgression = useMemo(() => {
+    const steps: Array<{ driver: string; model?: string }> = [];
+
+    // 1. Scan streamBlocks for notice switches
+    for (const b of streamBlocks) {
+      if (b.type === 'notice' && b.label) {
+        const parsed = parseSwitchNotice(b.label);
+        if (parsed) {
+          if (parsed.fromDriver && steps.length === 0) {
+            steps.push({ driver: parsed.fromDriver, model: parsed.fromModel });
+          }
+          if (parsed.toDriver) {
+            const prev = steps[steps.length - 1];
+            if (!prev || prev.driver.toLowerCase() !== parsed.toDriver.toLowerCase() || (parsed.toModel && prev.model !== parsed.toModel)) {
+              steps.push({ driver: parsed.toDriver, model: parsed.toModel });
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Fallback to passed drivers/models array if available and multiple
+    if (steps.length === 0 && Array.isArray(drivers) && drivers.length > 1) {
+      for (let i = 0; i < drivers.length; i++) {
+        const d = drivers[i];
+        if (d && !steps.some((s) => s.driver.toLowerCase() === d.toLowerCase())) {
+          steps.push({ driver: d, model: models?.[i] });
+        }
+      }
+    }
+
+    // 3. If there is a current driver that is different from the first step
+    if (steps.length === 1 && driver && driver.toLowerCase() !== steps[0].driver.toLowerCase()) {
+      steps.push({ driver, model: modelId });
+    }
+
+    return steps;
+  }, [streamBlocks, drivers, models, driver, modelId]);
+
+  const activeDriver = useMemo(() => {
+    if (driverProgression.length > 0) {
+      return driverProgression[driverProgression.length - 1].driver;
+    }
+    return driver || 'antigravity';
+  }, [driverProgression, driver]);
+
+  const activeModel = useMemo(() => {
+    if (driverProgression.length > 0) {
+      return driverProgression[driverProgression.length - 1].model || modelId;
+    }
+    return modelId;
+  }, [driverProgression, modelId]);
   // Secondary tabs (browser iframe, git, servers) mount on first visit only,
   // instead of every card running all five views at once.
   const [visited, setVisited] = useState<ReadonlySet<AgentCardMode>>(() => new Set<AgentCardMode>(['chat']));
@@ -179,7 +240,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
       const minW = 650;
       const maxW = Math.min(1350, Math.floor((window.innerWidth - 60) / STEP) * STEP);
       const minH = 450;
-      const maxH = Math.min(880, Math.floor((window.innerHeight - 80) / STEP) * STEP);
+      const maxH = Math.min(880, Math.floor((window.innerHeight - 260) / STEP) * STEP);
 
       const clampedW = Math.max(minW, Math.min(maxW, snappedW));
       const clampedH = Math.max(minH, Math.min(maxH, snappedH));
@@ -372,14 +433,16 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
           {/* Card Header (Reinvented: seamless, borderless, organic glass) */}
           <div className="flex items-center justify-between shrink-0 pt-0.5 pb-2 px-1">
             <div className="flex items-center gap-2 min-w-0 pr-2">
-              {/* Status Dot: Pulsing Emerald when working, subtle white when idle */}
-              <span
-                className={`w-2 h-2 rounded-full shrink-0 transition-all duration-300 ${
-                  isWorking
-                    ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse'
-                    : (isLight ? 'bg-black/30' : 'bg-white/30')
-                }`}
-              />
+              {/* Active Driver Icon with live working indicator */}
+              <div
+                className="relative flex items-center justify-center shrink-0"
+                title={`Active CLI: ${activeDriver}${activeModel ? ` (${formatModelBadge(activeModel, activeDriver)})` : ''}`}
+              >
+                {renderChatIcon(activeDriver, activeModel, isLight, 'w-[15px] h-[15px]')}
+                {isWorking && (
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black/40 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse" />
+                )}
+              </div>
 
               <div className="flex items-baseline gap-1.5 min-w-0 truncate">
                 <span className={`text-[13px] font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
@@ -391,6 +454,35 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
                   </span>
                 )}
               </div>
+
+              {/* CLI Transition Story Pill (e.g. [Antigravity] → [Codex]) */}
+              {driverProgression.length > 1 && (
+                <div
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium tracking-tight border backdrop-blur-md shrink-0 select-none shadow-xs transition-all ${
+                    isLight
+                      ? 'bg-black/[0.05] text-black/75 border-black/10 hover:bg-black/[0.08]'
+                      : 'bg-white/[0.08] text-white/85 border-white/10 hover:bg-white/[0.12]'
+                  }`}
+                  title={`CLI transition: ${driverProgression.map((s) => `${s.driver}${s.model ? ` (${formatModelBadge(s.model, s.driver)})` : ''}`).join(' → ')}`}
+                >
+                  {driverProgression.map((step, idx) => (
+                    <React.Fragment key={idx}>
+                      {idx > 0 && (
+                        <span className={`text-[10px] leading-none ${isLight ? 'text-black/40' : 'text-white/40'}`}>
+                          →
+                        </span>
+                      )}
+                      <span
+                        className="inline-flex items-center justify-center shrink-0"
+                        title={step.model ? `${step.driver}: ${formatModelBadge(step.model, step.driver)}` : step.driver}
+                      >
+                        {renderChatIcon(step.driver, step.model, isLight, 'w-[13px] h-[13px]')}
+                      </span>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+
               <ContextRing usage={contextUsage} isLight={isLight} />
             </div>
 
@@ -455,6 +547,8 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
                 <AgentSessionFeed
                   blocks={streamBlocks}
                   threadId={id}
+                  modelId={activeModel}
+                  driver={activeDriver}
                   isWorking={isWorking}
                   onApprovePlan={onApprovePlan}
                   onAnswerQuestion={onAnswerQuestion}

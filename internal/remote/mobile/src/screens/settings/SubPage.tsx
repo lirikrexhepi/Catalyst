@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft } from '../../icons'
 import { BarButton } from '../../components/chrome/BarButton'
 import { prefersReducedMotion } from '../../ui'
 

@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { PendingPlan } from './useSpawner';
@@ -74,9 +75,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
     >
       <div className="flex items-center justify-between pb-3">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px] text-white/80 leading-none">
-            account_tree
-          </span>
+          <MaterialIcon name="account_tree" className="text-[18px] text-white/80"/>
           <span className="text-[13px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
             Delegate {plan.tasks.length} task{plan.tasks.length === 1 ? '' : 's'}?
           </span>
@@ -134,9 +133,7 @@ export const PlanPrompt: React.FC<PlanPromptProps> = ({
             }`}
           >
             {useWorktree && (
-              <span className="material-symbols-outlined text-[12px] text-black leading-none">
-                check
-              </span>
+              <MaterialIcon name="check" className="text-[12px] text-black"/>
             )}
           </span>
           <span className="text-[11px] font-(family-name:--app-font) text-white/60 group-hover:text-white/85 tracking-tight">

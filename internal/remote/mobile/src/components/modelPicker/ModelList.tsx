@@ -1,4 +1,4 @@
-import { Check, RefreshCw } from 'lucide-react'
+import { Check, RefreshCw } from '../../icons'
 import { GlassSquircle } from '../../ui'
 import type { ModelChoice, ProviderInfo } from '../../types'
 import { effortLabel, effortOption, selectedEffort } from './effort'

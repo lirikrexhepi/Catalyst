@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import jsQR from 'jsqr'
-import { QrCode } from 'lucide-react'
+import { QrCode } from '../icons'
 import { api, applyScannedLink, getBase, getToken } from '../api'
 import { appIconSrc } from '../appIcons'
 import { useAppIcon } from '../appIcon'

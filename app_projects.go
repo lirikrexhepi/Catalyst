@@ -135,7 +135,7 @@ func (a *App) GetWorkspaceRecap(workspaceID string) string {
 }
 
 // ContextStatus reports how full a thread's context is, mirroring Zeron's
-// context ring (amber 75%, red 90%) and Synara's /status. Chars are the local
+// context ring (amber 75%, red 90%) and Orchestrator's /status. Chars are the local
 // proxy; token usage refines it when the driver reports a context window.
 func (a *App) ContextStatus(threadID string) map[string]any {
 	events := a.manager.History(threadID)
@@ -167,7 +167,7 @@ func (a *App) ContextStatus(threadID string) map[string]any {
 }
 
 // CompactWorkspace builds a structured recap of a workspace conversation and
-// stores it as RECAP.md, like Synara's recap panel and Cursor's growing shared
+// stores it as RECAP.md, like Orchestrator's recap panel and Cursor's growing shared
 // context. Rule-based today (no extra model call); pass llmText from the caller
 // when a summarizer turn has produced one to store that instead.
 func (a *App) CompactWorkspace(workspaceID, llmText string) (string, error) {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronRight, FolderGit2, MessageCirclePlus, Plus, Settings } from 'lucide-react'
+import { ChevronRight, FolderGit2, MessageCirclePlus, Plus, Settings } from '../icons'
 import { providerIcon } from '../components/providerIcons'
 import { api } from '../api'
 import AddProjectSheet from './AddProjectSheet'

@@ -1062,7 +1062,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                     width: cardWidth,
                     maxWidth: 'calc(100vw - 120px)',
                     height: cardHeight,
-                    maxHeight: cardMaxHeight,
+                    maxHeight: `min(${cardMaxHeight}, calc(100vh - 260px))`,
                     minHeight: '440px',
                     transform,
                     opacity,
@@ -1096,6 +1096,9 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                     lastTurnMs={task.lastTurnMs}
                     contextUsage={task.context}
                     modelId={task.model}
+                    driver={task.driver}
+                    drivers={(task as any).drivers}
+                    models={(task as any).models}
                     streamBlocks={task.blocks}
                     isFocused={viewMode === 'deck' ? isCenter : false}
                     isAnimating={currentCardMode === 'browser' ? isAnimating : false}

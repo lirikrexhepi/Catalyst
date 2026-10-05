@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '../../icons'
 import { CHEVRON_DOWN_NUDGE, GlassPill, GlassRing, type GlassBorderStyle } from '../../ui'
 import { usageTone } from './usageTone'
 

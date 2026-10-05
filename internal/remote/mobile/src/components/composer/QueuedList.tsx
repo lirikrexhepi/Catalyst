@@ -1,4 +1,4 @@
-import { Clock3, X } from 'lucide-react'
+import { Clock3, X } from '../../icons'
 
 interface QueuedListProps {
   items: { id: string; text: string }[]

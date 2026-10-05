@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { useOrchestratorStore } from './useOrchestratorStore';
@@ -259,9 +260,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
                     draggable={false}
                   />
                 ) : (
-                  <span className="material-symbols-rounded text-[18px] text-white/60 relative z-10 leading-none">
-                    smart_toy
-                  </span>
+                  <MaterialIcon name="smart_toy" className="text-[18px] text-white/60 relative z-10"/>
                 )}
               </button>
             );

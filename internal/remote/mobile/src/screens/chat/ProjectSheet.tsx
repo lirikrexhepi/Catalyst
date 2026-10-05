@@ -1,4 +1,4 @@
-import { FolderGit2, Plus } from 'lucide-react'
+import { FolderGit2, Plus } from '../../icons'
 import { Sheet, SheetList, SheetRow } from '../../components/sheet'
 import { ProjectIcon } from '../../components/ProjectIcon'
 import { ICON_STROKE } from '../../components/chrome/BarButton'

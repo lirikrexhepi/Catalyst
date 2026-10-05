@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, LayoutGrid, Layers, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Layers, Sparkles } from '../common/icons';
 import { useTheme } from '../../themes';
 
 export interface DeckNavigationPillProps {
@@ -122,21 +122,7 @@ export const DeckNavigationPill: React.FC<DeckNavigationPillProps> = ({
             <Sparkles size={16} strokeWidth={1.75} className="shrink-0" />
           </button>
         </div>
-      ) : (
-        /* Deck Mode */
-        <button
-          type="button"
-          onClick={onAscend || onToggleViewMode}
-          title="Grid view (Ctrl + ↑)"
-          className={`w-[32px] h-[32px] rounded-full flex items-center justify-center transition-all duration-150 border cursor-pointer active:scale-90 shadow-lg backdrop-blur-md ${
-            isLight
-              ? 'bg-black/[0.04] hover:bg-black/[0.09] border-black/[0.08] text-[#030303]/80 hover:text-[#030303]'
-              : 'bg-black/40 hover:bg-black/60 border-white/15 text-white/80 hover:text-white'
-          }`}
-        >
-          <LayoutGrid size={16} strokeWidth={1.75} className={`shrink-0 ${isLight ? 'text-[#030303]/80' : 'text-white/80'}`} />
-        </button>
-      )}
+      ) : null}
     </div>
   );
 };

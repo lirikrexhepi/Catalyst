@@ -54,27 +54,27 @@ const projectsChangedChannel = "projects:changed"
 const cliUpdateChannel = "cli:update-available"
 
 type App struct {
-	ctx          context.Context
-	registry     *provider.Registry
-	manager      *session.Manager
-	coordinator  *session.Coordinator
-	workspaces   *session.Workspaces
-	spawner      *session.Spawner
-	orchestrator *session.Constructor
-	usage        *session.UsageTracker
-	quota        *claude.QuotaSource
+	ctx           context.Context
+	registry      *provider.Registry
+	manager       *session.Manager
+	coordinator   *session.Coordinator
+	workspaces    *session.Workspaces
+	spawner       *session.Spawner
+	orchestrator  *session.Constructor
+	usage         *session.UsageTracker
+	quota         *claude.QuotaSource
 	opencodeQuota *opencode.GoQuotaSource
 	accountQuota  *accountQuotas
-	scanner      *servers.Scanner
-	devservers   *devserver.Manager
-	control      *devserver.Control
-	historyStore *history.Store
-	recorder     *history.Recorder
-	projects     *projects.Store
-	attachments  *attachments.Store
-	memory       *memory.Store
-	remoteServer *remote.Server
-	stopFeed     func()
+	scanner       *servers.Scanner
+	devservers    *devserver.Manager
+	control       *devserver.Control
+	historyStore  *history.Store
+	recorder      *history.Recorder
+	projects      *projects.Store
+	attachments   *attachments.Store
+	memory        *memory.Store
+	remoteServer  *remote.Server
+	stopFeed      func()
 
 	// headless is set when the app runs without a window (see headless.go).
 	// Window-bound calls check it, since Wails' runtime exits the process when
@@ -323,13 +323,6 @@ func (a *App) observe(event domain.RuntimeEvent) {
 
 func (a *App) domReady(ctx context.Context) {
 	runtime.WindowShow(ctx)
-	if id := a.GetAppIcon(); id != defaultAppIcon {
-		go func() {
-			if err := applyAppIcon(id); err != nil {
-				logger.Warnf("App", "Could not apply app icon %s: %v", id, err)
-			}
-		}()
-	}
 }
 
 // trackTaskState keeps a task's stored state in step with its turns, so a

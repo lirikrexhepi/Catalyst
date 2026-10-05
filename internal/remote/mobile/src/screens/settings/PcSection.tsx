@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, Coffee, Power, Unplug } from 'lucide-react'
+import { Activity, Coffee, Power, Unplug } from '../../icons'
 import { SheetList, SheetNote, SheetRow } from '../../components/sheet'
 import { ICON_STROKE } from '../../components/chrome/BarButton'
 import { MorphButtons } from '../../ui/glass/MorphButtons'

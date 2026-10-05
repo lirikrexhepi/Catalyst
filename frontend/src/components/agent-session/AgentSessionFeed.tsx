@@ -18,11 +18,25 @@ import { MessageTimestamp } from './MessageTimestamp';
 import { RespondToApproval, RespondToQuestion } from '../../../wailsjs/go/main/App';
 import { buildFeedSegments, FeedSegment } from './feedTurns';
 import { ChangesCard, WorkedFor, WorkingHeader } from './TurnParts';
+import { PlainSegment, ROW_DOT_Y, TEXT_DOT_Y, TimelineNode, TimelineSegment } from './Timeline';
+
+const CARD_TYPES = new Set<AgentStreamBlock['type']>(['text', 'tool_question', 'approval_request', 'tool_plan', 'tool_todo']);
+
+const isTimelineSegment = (segment: FeedSegment) =>
+  segment.kind === 'run' ||
+  segment.kind === 'worked' ||
+  segment.kind === 'working' ||
+  (segment.kind === 'block' && segment.block.type !== 'user' && segment.block.type !== 'notice');
+
+const segmentDotY = (segment: FeedSegment) =>
+  segment.kind === 'block' ? TEXT_DOT_Y : ROW_DOT_Y;
 
 export interface AgentSessionFeedProps {
   blocks: AgentStreamBlock[];
   threadId?: string;
   className?: string;
+  modelId?: string;
+  driver?: string;
   onApprovePlan?: (blockId: string) => void;
   onAnswerQuestion?: (blockId: string, answers: string[]) => void;
   onSkipQuestion?: (blockId: string) => void;
@@ -62,6 +76,8 @@ interface FeedBlockProps {
   launched: boolean;
   canUseWorktree?: boolean;
   isActive: boolean;
+  defaultDriver?: string;
+  defaultModel?: string;
   handlers: React.MutableRefObject<Handlers>;
 }
 
@@ -77,6 +93,8 @@ const FeedBlock = React.memo(function FeedBlock({
   launched,
   canUseWorktree,
   isActive,
+  defaultDriver,
+  defaultModel,
   handlers,
 }: FeedBlockProps) {
   const h = handlers.current;
@@ -93,8 +111,16 @@ const FeedBlock = React.memo(function FeedBlock({
       const cursor = block.isStreaming && (
         <span className="inline-block w-1.5 h-3 bg-current ml-1 animate-pulse align-middle opacity-70" />
       );
-      const stamp = !block.isStreaming && isLatestText && (
-        <MessageTimestamp timestamp={block.timestamp} content={block.content} />
+      const blockDriver = block.driver || defaultDriver;
+      const blockModel = block.model || defaultModel;
+      const stamp = (
+        <MessageTimestamp
+          timestamp={block.timestamp}
+          content={block.content}
+          driver={blockDriver}
+          model={blockModel}
+          isStreaming={block.isStreaming}
+        />
       );
       if (plan) {
         if (launched && !(plan.proseBefore || plan.proseAfter) && !block.isStreaming) {
@@ -110,7 +136,13 @@ const FeedBlock = React.memo(function FeedBlock({
                 onConfirm={() => undefined}
                 onDismiss={() => handlers.current.onDismissPlan?.()}
               />
-              {isLatestText && <MessageTimestamp timestamp={block.timestamp} />}
+              <MessageTimestamp
+                timestamp={block.timestamp}
+                content={block.content}
+                driver={blockDriver}
+                model={blockModel}
+                isStreaming={block.isStreaming}
+              />
             </div>
           );
         }
@@ -285,6 +317,8 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
   isActive = true,
   isWorking,
   launchedKeys,
+  modelId,
+  driver,
   ...handlerProps
 }) => {
   const handlers = React.useRef<Handlers>(handlerProps);
@@ -316,7 +350,7 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
       const plan = planOf(block.content);
       launched = Boolean(plan && launchedSet.has(plan.tasks.map((task) => task.title).join('\n')));
     }
-    return (
+    const node = (
       <FeedBlock
         key={block.id}
         block={block}
@@ -325,9 +359,12 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
         launched={launched}
         canUseWorktree={canUseWorktree}
         isActive={isActive}
+        defaultDriver={driver}
+        defaultModel={modelId}
         handlers={handlers}
       />
     );
+    return CARD_TYPES.has(block.type) ? <TimelineNode key={block.id}>{node}</TimelineNode> : node;
   };
 
   const renderSequence = (items: AgentStreamBlock[]) => {
@@ -360,17 +397,21 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
             return <React.Fragment key={segment.key}>{renderBlock(segment.block)}</React.Fragment>;
           case 'run':
             return (
-              <div key={segment.key} className="flex flex-col -my-1">
+              <div key={segment.key} className="flex flex-col">
                 {segment.blocks.map(renderBlock)}
               </div>
             );
           case 'working':
-            return <WorkingHeader key={segment.key} startedAt={segment.startedAt} />;
+            return (
+              <TimelineNode key={segment.key} y={ROW_DOT_Y} tone="running">
+                <WorkingHeader startedAt={segment.startedAt} />
+              </TimelineNode>
+            );
           case 'worked':
             return (
-              <WorkedFor key={segment.key} seconds={segment.seconds}>
-                {renderSequence(segment.blocks)}
-              </WorkedFor>
+              <TimelineNode key={segment.key} y={ROW_DOT_Y}>
+                <WorkedFor seconds={segment.seconds}>{renderSequence(segment.blocks)}</WorkedFor>
+              </TimelineNode>
             );
           case 'changes':
             return <ChangesCard key={segment.key} edits={segment.edits} />;
@@ -380,17 +421,24 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
   };
 
   return (
-    <div className={`flex flex-col gap-3.5 ${className}`}>
-      {segments.map((segment) => (
-        <div key={segment.key} className="feed-segment">
-          {renderSegment(segment)}
-        </div>
-      ))}
+    <div className={`flex flex-col ${className}`}>
+      {segments.map((segment, index) => {
+        const body = <div className="feed-segment w-full flex flex-col">{renderSegment(segment)}</div>;
+        if (!isTimelineSegment(segment)) return <PlainSegment key={segment.key}>{body}</PlainSegment>;
+        return (
+          <TimelineSegment
+            key={segment.key}
+            connectUp={index > 0 && isTimelineSegment(segments[index - 1])}
+            connectDown={index < segments.length - 1 && isTimelineSegment(segments[index + 1])}
+            dotY={segmentDotY(segment)}
+          >
+            {body}
+          </TimelineSegment>
+        );
+      })}
     </div>
   );
 };
 
 export const AgentSessionFeed = React.memo(AgentSessionFeedImpl);
 AgentSessionFeed.displayName = 'AgentSessionFeed';
-
-export default AgentSessionFeed;

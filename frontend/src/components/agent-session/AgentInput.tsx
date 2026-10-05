@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useOrchestratorStore } from '../orchestrator/useOrchestratorStore';
@@ -111,6 +112,9 @@ export const AgentInput: React.FC<AgentInputProps> = ({
   // An attachment on its own is a complete message, so a turn is sendable when
   // there is either text or a staged file.
   const hasAttachments = attachments.items.length > 0;
+  const railRef = useRef(attachments.items);
+  if (hasAttachments) railRef.current = attachments.items;
+  const railItems = hasAttachments ? attachments.items : railRef.current;
   const canSubmit = message.trim().length > 0 || hasAttachments;
 
   const submitMessage = () => {
@@ -205,6 +209,22 @@ export const AgentInput: React.FC<AgentInputProps> = ({
       onDragOver={(e) => e.preventDefault()}
       className={`relative flex flex-col select-none ${className}`}
     >
+      <AnimatePresence>
+        {hasAttachments && (
+          <motion.div
+            key="attachment-rail"
+            initial={{ opacity: 0, x: 14, scale: 0.96 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 10, scale: 0.97, transition: { duration: 0.14, ease: 'easeIn' } }}
+            transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.8 }}
+            style={{ transformOrigin: 'bottom right' }}
+            className="absolute right-[calc(100%+10px)] bottom-0 max-h-[320px] overflow-y-auto overflow-x-hidden custom-scrollbar"
+          >
+            <AttachmentStrip items={railItems} onRemove={attachments.remove} compact vertical />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Main Agent Input Box - Obsidian Dark Stealth Bubble */}
       <div
         className="rounded-[14px] glass-card border border-white/10 p-2.5 flex flex-col gap-2 transition-all duration-200"
@@ -233,22 +253,6 @@ export const AgentInput: React.FC<AgentInputProps> = ({
           />
         </div>
 
-        {/* Staged files, between the message and the controls so they read as
-            part of what is about to be sent. */}
-        {hasAttachments && (
-          <div
-            className="overflow-y-auto overflow-x-hidden custom-scrollbar"
-            style={{ maxHeight: '96px' }}
-          >
-            <AttachmentStrip
-              items={attachments.items}
-              onRemove={attachments.remove}
-              compact
-              className="px-1 pr-1.5"
-            />
-          </div>
-        )}
-
         {/* Bottom Toolbar: Model Switcher + Action Button */}
         <div className="flex items-center justify-between pt-0.5">
           {/* Model trigger badge */}
@@ -272,13 +276,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
             <span className="text-[11.5px] font-medium font-(family-name:--app-font) text-white tracking-tight leading-none">
               {currentModel?.name || 'Select Model'}
             </span>
-            <span
-              className={`material-symbols-outlined text-[15px] text-white/70 group-hover:text-white transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                isLocalModelPickerOpen ? 'rotate-180 text-white' : ''
-              }`}
-            >
-              expand_more
-            </span>
+            <MaterialIcon name="expand_more" className={`text-[15px] text-white/70 group-hover:text-white transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${ isLocalModelPickerOpen ? 'rotate-180 text-white' : '' }`}/>
           </button>
 
           <div className="flex items-center gap-1 shrink-0">
@@ -298,9 +296,7 @@ export const AgentInput: React.FC<AgentInputProps> = ({
                 : 'text-white/55 hover:text-white hover:bg-white/15 active:scale-90 cursor-pointer'
             }`}
           >
-            <span className="material-symbols-rounded text-[16px] leading-none">
-              {attachments.isBusy ? 'hourglass_top' : 'attach_file'}
-            </span>
+            <MaterialIcon name={attachments.isBusy ? 'hourglass_top' : 'attach_file'} className="text-[16px]"/>
           </button>
 
           {/* Action / Send Button (Normal upward arrow or Interrupt target when streaming) */}
@@ -311,13 +307,9 @@ export const AgentInput: React.FC<AgentInputProps> = ({
             className="w-[28px] h-[28px] rounded-[9px] bg-[#3a3b50]/80 border border-white/20 hover:bg-[#484964]/90 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer group shrink-0"
           >
             {isStreaming ? (
-              <span className="material-symbols-outlined text-[16px] text-blue-300 group-hover:text-rose-300 transition-colors">
-                radio_button_checked
-              </span>
+              <MaterialIcon name="radio_button_checked" className="text-[16px] text-blue-300 group-hover:text-rose-300 transition-colors"/>
             ) : (
-              <span className="material-symbols-outlined text-[16px] text-white/95 group-hover:text-white transition-colors">
-                arrow_upward
-              </span>
+              <MaterialIcon name="arrow_upward" className="text-[16px] text-white/95 group-hover:text-white transition-colors"/>
             )}
           </button>
           </div>

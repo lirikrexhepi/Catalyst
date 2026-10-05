@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Activity, Clock, Cpu, HardDrive, RefreshCw, Zap } from 'lucide-react'
+import { Activity, Clock, Cpu, HardDrive, RefreshCw, Zap } from '../../icons'
 import { SheetList, SheetNote, SheetRow } from '../../components/sheet'
 import { api, type PCStats } from '../../api'
 import { Section, SubPage } from './SubPage'

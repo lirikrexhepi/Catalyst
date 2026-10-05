@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { EyeOff, Trash2 } from 'lucide-react'
+import { EyeOff, Trash2 } from '../../icons'
 import { Sheet, SheetNote, type Dismiss } from '../../components/sheet'
 import { ICON_STROKE } from '../../components/chrome/BarButton'
 import { MorphButtons } from '../../ui/glass/MorphButtons'

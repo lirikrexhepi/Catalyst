@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { ScrollArea } from '../common/ScrollArea';
@@ -90,22 +91,7 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
                   projectId={project.id}
                   size={16}
                   glyph={
-                    <span
-                      className={`material-symbols-rounded text-[16px] leading-none shrink-0 ${
-                        project.missing
-                          ? 'text-amber-500'
-                          : isActive
-                            ? isLight
-                              ? 'text-[#030303]'
-                              : 'text-white/90'
-                            : isLight
-                              ? 'text-black/55'
-                              : 'text-white/55'
-                      }`}
-                      style={{ fontVariationSettings: `'FILL' ${isActive ? 1 : 0}` }}
-                    >
-                      {project.missing ? 'folder_off' : 'folder'}
-                    </span>
+                    <MaterialIcon name={project.missing ? 'folder_off' : 'folder'} className={`text-[16px] shrink-0 ${project.missing ? 'text-amber-500' : isActive ? isLight ? 'text-[#030303]' : 'text-white/90' : isLight ? 'text-black/55' : 'text-white/55' }`} strokeWidth={isActive ? 2 : 1.5} />
                   }
                 />
                 <span className="flex flex-col min-w-0 gap-[1px]">
@@ -152,7 +138,7 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
                     : 'text-white/40 hover:text-white hover:bg-white/15'
                 }`}
               >
-                <span className="material-symbols-rounded text-[15px] leading-none">close</span>
+                <MaterialIcon name="close" className="text-[15px]"/>
               </button>
             </div>
           );
@@ -179,9 +165,7 @@ export const ProjectPicker: React.FC<ProjectPickerProps> = ({
             : 'text-white/80 hover:text-white hover:bg-white/[0.06] cursor-pointer active:scale-[0.98]'
       }`}
     >
-      <span className="material-symbols-rounded text-[16px] leading-none">
-        {isChoosing ? 'hourglass_top' : 'create_new_folder'}
-      </span>
+      <MaterialIcon name={isChoosing ? 'hourglass_top' : 'create_new_folder'} className="text-[16px]"/>
       <span className="text-[12.5px] font-medium font-(family-name:--app-font) tracking-tight">
         {isChoosing ? 'Choosing…' : 'Add project…'}
       </span>

@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useRef } from 'react';
 import { LiquidGlass } from '../../liquid-glass';
 import { ScrollArea } from '../common/ScrollArea';
@@ -84,13 +85,7 @@ export const CoordinatorPanel: React.FC<CoordinatorPanelProps> = ({
           onClick={onToggleCollapsed}
           className="w-[22px] h-[22px] rounded-[6px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer group"
         >
-          <span
-            className={`material-symbols-outlined text-[17px] text-white/45 group-hover:text-white/90 leading-none transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              isCollapsed ? 'rotate-180' : 'rotate-0'
-            }`}
-          >
-            expand_less
-          </span>
+          <MaterialIcon name="expand_less" className={`text-[17px] text-white/45 group-hover:text-white/90 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${ isCollapsed ? 'rotate-180' : 'rotate-0' }`}/>
         </button>
       </div>
 

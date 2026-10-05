@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Monitor, MonitorOff, Sunrise } from 'lucide-react'
+import { Monitor, MonitorOff, Sunrise } from '../../icons'
 import { SheetList, SheetNote, SheetRow } from '../../components/sheet'
 import { GlassSwitch } from '../../ui'
 import { api } from '../../api'

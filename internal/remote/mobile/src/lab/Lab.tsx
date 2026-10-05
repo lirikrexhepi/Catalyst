@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronDown, Menu, MessageSquarePlus, Mic, Monitor, Paperclip, Play, Send, Smartphone } from 'lucide-react'
+import { ChevronDown, Menu, MessageSquarePlus, Mic, Monitor, Paperclip, Play, Send, Smartphone } from '../icons'
 import { DEFAULT_RIM_LIGHT, GlassCircle, GlassPill, GlassSegmented, GlassSquircle, Squircle, type GlassBorderStyle, type StrokeAlign } from '../ui'
 import { FpsMeter } from './FpsMeter'
 import { ModelSwitch } from '../components/chrome/ModelSwitch'

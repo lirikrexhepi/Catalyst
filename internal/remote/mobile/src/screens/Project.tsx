@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ChevronDown, ChevronLeft, GitBranch, Menu, Play, RefreshCw } from 'lucide-react'
+import { ChevronDown, ChevronLeft, GitBranch, Menu, Play, RefreshCw } from '../icons'
 import { Sheet, SheetList, SheetRow } from '../components/sheet'
 import { Code, Diffs, FileIcon, StatusMark, Tree, useTree } from '../components/Explorer'
 import { api } from '../api'

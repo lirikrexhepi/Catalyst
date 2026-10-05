@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { servers } from '../../../wailsjs/go/models';
-import { Terminal, Globe, Square } from 'lucide-react';
+import { Terminal, Globe, Square } from '../common/icons';
 import { ScrollArea } from '../common/ScrollArea';
 
 export interface AgentServersViewProps {

@@ -13,8 +13,8 @@ import {
   Terminal,
   Wrench,
   X,
-  type LucideIcon,
-} from 'lucide-react'
+  type IconComponent,
+} from '../icons'
 import Markdown from '../components/Markdown'
 import { api } from '../api'
 import { basename, dirname, duration } from '../format'
@@ -136,7 +136,7 @@ function Thought({ thinking, text }: { thinking: boolean; text: string }) {
   )
 }
 
-const ACT_ICON: Record<ToolGroupItem['type'], LucideIcon> = {
+const ACT_ICON: Record<ToolGroupItem['type'], IconComponent> = {
   read: FileText,
   bash: Terminal,
   search: Search,

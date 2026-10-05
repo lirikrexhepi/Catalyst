@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Copy, Loader2, Smartphone } from 'lucide-react';
+import { Check, Copy, Loader2, Smartphone } from '../common/icons';
 import { useRemoteAccess } from './useRemoteAccess';
 import { useTheme } from '../../themes';
 

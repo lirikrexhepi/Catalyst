@@ -1,4 +1,4 @@
-import { Moon, SunMedium, SunMoon } from 'lucide-react'
+import { Moon, SunMedium, SunMoon } from '../../icons'
 import { GlassSegmented } from '../../ui'
 import { ICON_STROKE } from '../../components/chrome/BarButton'
 import { setThemePref, useThemePref, type ThemePref } from '../../theme'

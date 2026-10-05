@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowDown } from 'lucide-react'
+import { ArrowDown } from '../../icons'
 import { VirtualFeed, type VirtualFeedHandle } from '../../feed/VirtualFeed'
 import { ModelPicker } from '../../components/modelPicker/ModelPicker'
 import Elapsed from '../../components/Elapsed'

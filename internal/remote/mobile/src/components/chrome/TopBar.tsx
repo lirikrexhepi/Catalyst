@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Menu, MessageCirclePlus, Play } from 'lucide-react'
+import { Menu, MessageCirclePlus, Play } from '../../icons'
 import { BarButton } from './BarButton'
 
 interface TopBarProps {

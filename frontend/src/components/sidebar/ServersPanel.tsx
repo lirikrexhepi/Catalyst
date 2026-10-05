@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React from 'react';
 import { ScrollArea } from '../common/ScrollArea';
 import { servers } from '../../../wailsjs/go/models';
@@ -111,9 +112,7 @@ export const ServersPanel: React.FC<ServersPanelProps> = ({
     <div className={`w-full h-full flex flex-col select-none ${className}`}>
       <div className="flex items-center justify-between px-4 pt-3.5 pb-2.5 shrink-0">
         <div className="flex items-center gap-2">
-          <span className="material-symbols-rounded text-[18px] text-white/80 leading-none">
-            terminal
-          </span>
+          <MaterialIcon name="terminal" className="text-[18px] text-white/80"/>
           <span className="text-[13px] font-semibold font-(family-name:--app-font) text-white tracking-tight">
             Servers
           </span>
@@ -130,7 +129,7 @@ export const ServersPanel: React.FC<ServersPanelProps> = ({
             onClick={onRefresh}
             className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
           >
-            <span className="material-symbols-rounded text-[16px] leading-none">refresh</span>
+            <MaterialIcon name="refresh" className="text-[16px]"/>
           </button>
           <button
             type="button"
@@ -138,7 +137,7 @@ export const ServersPanel: React.FC<ServersPanelProps> = ({
             onClick={onClose}
             className="w-[24px] h-[24px] rounded-[7px] hover:bg-white/10 active:scale-90 flex items-center justify-center transition-all duration-150 cursor-pointer text-white/45 hover:text-white/90"
           >
-            <span className="material-symbols-rounded text-[16px] leading-none">close</span>
+            <MaterialIcon name="close" className="text-[16px]"/>
           </button>
         </div>
       </div>

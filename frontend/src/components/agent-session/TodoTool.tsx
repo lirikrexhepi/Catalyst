@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React from 'react';
 
 export interface TodoItem {
@@ -50,17 +51,11 @@ const TodoToolImpl: React.FC<TodoToolProps> = ({
             >
               {/* Status Icon */}
               {isDone ? (
-                <span className="material-symbols-outlined text-[16px] text-emerald-400 shrink-0 leading-none">
-                  check_circle
-                </span>
+                <MaterialIcon name="check_circle" className="text-[16px] text-emerald-400 shrink-0"/>
               ) : isInProgress ? (
-                <span className="material-symbols-outlined text-[16px] text-blue-400 shrink-0 leading-none animate-pulse">
-                  arrow_circle_right
-                </span>
+                <MaterialIcon name="arrow_circle_right" className="text-[16px] text-blue-400 shrink-0 animate-pulse"/>
               ) : (
-                <span className="material-symbols-outlined text-[16px] text-white/40 group-hover:text-white/70 shrink-0 leading-none">
-                  radio_button_unchecked
-                </span>
+                <MaterialIcon name="radio_button_unchecked" className="text-[16px] text-white/40 group-hover:text-white/70 shrink-0"/>
               )}
 
               {/* Task text */}

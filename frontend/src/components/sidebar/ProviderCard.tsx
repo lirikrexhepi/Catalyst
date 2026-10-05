@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronDown, Plus } from '../common/icons';
 import { CleanDropdown } from '../common/CleanDropdown';
 import { providerIcon } from '../orchestrator/providerIcons';
 import { DefaultModels, ProviderDefault } from './useDefaultModels';

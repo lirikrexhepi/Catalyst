@@ -1,5 +1,7 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useEffect, useState } from 'react';
 import { TextShimmer } from './TextShimmer';
+import { ROW_DOT_Y, TimelineContext, TimelineDot, useInTimeline } from './Timeline';
 
 export function Collapse({ open, children }: { open: boolean; children: React.ReactNode }) {
   const [mounted, setMounted] = useState(open);
@@ -29,11 +31,7 @@ export function Collapse({ open, children }: { open: boolean; children: React.Re
 export function Chevron({ open, direction = 'right' }: { open: boolean; direction?: 'right' | 'down' }) {
   const rotation = direction === 'down' ? (open ? 'rotate-180' : 'rotate-0') : open ? 'rotate-90' : 'rotate-0';
   return (
-    <span
-      className={`material-symbols-outlined text-[14px] leading-none text-current/35 group-hover/work:text-current/70 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${rotation}`}
-    >
-      {direction === 'down' ? 'expand_more' : 'chevron_right'}
-    </span>
+    <MaterialIcon name={direction === 'down' ? 'expand_more' : 'chevron_right'} className={`text-[14px] text-current/35 group-hover/work:text-current/70 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] shrink-0 ${rotation}`}/>
   );
 }
 
@@ -51,7 +49,6 @@ export interface WorkRowProps {
 }
 
 function WorkRowImpl({
-  icon,
   iconNode,
   label,
   target,
@@ -63,12 +60,14 @@ function WorkRowImpl({
   direction = 'right',
 }: WorkRowProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const inTimeline = useInTimeline();
   const expandable = Boolean(children);
   const tone = error ? 'text-rose-400/90' : 'text-current/55';
   const text = target ? `${label} ${target}` : label;
 
   return (
-    <div className="flex flex-col min-w-0 font-(family-name:--app-font)">
+    <div className="relative flex flex-col min-w-0 font-(family-name:--app-font)">
+      {inTimeline && <TimelineDot y={ROW_DOT_Y} tone={error ? 'error' : running ? 'running' : 'row'} />}
       <button
         type="button"
         disabled={!expandable}
@@ -77,11 +76,7 @@ function WorkRowImpl({
           expandable ? 'cursor-pointer' : 'cursor-default'
         } ${tone} ${expandable ? 'hover:text-current/85' : ''} transition-colors duration-150`}
       >
-        <span className="w-[15px] h-[18px] flex items-center justify-center shrink-0">
-          {iconNode ?? (
-            <span className="material-symbols-outlined text-[14px] leading-none">{error ? 'error' : icon || 'build'}</span>
-          )}
-        </span>
+        {iconNode && <span className="w-[15px] h-[18px] flex items-center justify-center shrink-0">{iconNode}</span>}
         {running ? (
           <TextShimmer duration={1.6} className="truncate min-w-0">
             {text}
@@ -97,7 +92,9 @@ function WorkRowImpl({
       </button>
       {expandable && (
         <Collapse open={open}>
-          <div className="pl-[23px] pt-1 pb-1.5">{children}</div>
+          <div className="pt-1 pb-1.5">
+            <TimelineContext.Provider value={false}>{children}</TimelineContext.Provider>
+          </div>
         </Collapse>
       )}
     </div>
@@ -122,7 +119,7 @@ export function OutputPanel({ text, prefix }: { text: string; prefix?: string })
         title="Copy"
         className="absolute top-1.5 right-1.5 w-[22px] h-[22px] rounded-[6px] flex items-center justify-center text-current/45 hover:text-current hover:bg-current/[0.08] opacity-0 group-hover/out:opacity-100 transition-all duration-150 cursor-pointer"
       >
-        <span className="material-symbols-outlined text-[13px] leading-none">{copied ? 'check' : 'content_copy'}</span>
+        <MaterialIcon name={copied ? 'check' : 'content_copy'} className="text-[13px]"/>
       </button>
       <pre className="m-0 pr-6 max-h-[240px] overflow-auto custom-scrollbar whitespace-pre-wrap break-all font-['Geist_Mono',monospace] text-[11px] leading-[1.6] text-current/70 select-text">
         {prefix && <span className="text-current/90">{prefix}{text ? '\n' : ''}</span>}

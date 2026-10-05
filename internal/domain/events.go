@@ -41,6 +41,7 @@ type RuntimeEvent struct {
 	TurnID     string     `json:"turnId,omitempty"`
 	InstanceID string     `json:"instanceId,omitempty"`
 	Driver     DriverKind `json:"driver,omitempty"`
+	Model      string     `json:"model,omitempty"`
 	Account    string     `json:"account,omitempty"`
 	Seq        uint64     `json:"seq"`
 	// ItemID identifies the content item (text block, reasoning part, tool) an

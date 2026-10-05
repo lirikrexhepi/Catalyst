@@ -1,4 +1,4 @@
-import { FileText } from 'lucide-react'
+import { FileText } from '../../icons'
 import { GlassSquircle, Squircle } from '../../ui'
 import { basename } from '../../format'
 import type { UserMessageFile } from '../types'

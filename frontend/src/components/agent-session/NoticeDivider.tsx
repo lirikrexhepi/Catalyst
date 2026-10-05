@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 import { renderChatIcon } from '../common/DynamicIsland';
 import { useTheme } from '../../themes/ThemeContext';
@@ -8,7 +9,7 @@ export interface NoticeDividerProps {
   className?: string;
 }
 
-function parseSwitchNotice(label: string): { fromDriver?: string; fromModel?: string; toDriver?: string; toModel?: string } | null {
+export function parseSwitchNotice(label: string): { fromDriver?: string; fromModel?: string; toDriver?: string; toModel?: string } | null {
   if (!label.startsWith('Switched from ')) return null;
   const content = label.slice(14);
   const parts = content.split(' to ');
@@ -67,9 +68,7 @@ const NoticeDividerImpl: React.FC<NoticeDividerProps> = ({ label, icon, classNam
             draggable={false}
           />
         ) : (
-          <span className="material-symbols-outlined text-[13px] leading-none text-white/35">
-            swap_horiz
-          </span>
+          <MaterialIcon name="swap_horiz" className="text-[13px] text-white/35"/>
         )}
         <span className="text-[11px] font-medium font-(family-name:--app-font) text-white/55 tracking-tight whitespace-nowrap">
           {label}

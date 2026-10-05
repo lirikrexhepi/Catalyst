@@ -18,6 +18,7 @@ import { RespondToApproval, RespondToQuestion } from '../../../wailsjs/go/main/A
 export interface ClaudeSessionFeedProps {
   blocks: AgentStreamBlock[];
   threadId?: string;
+  modelId?: string;
   className?: string;
   onApprovePlan?: (blockId: string) => void;
   onAnswerQuestion?: (blockId: string, answers: string[]) => void;
@@ -36,6 +37,7 @@ export interface ClaudeSessionFeedProps {
 export const ClaudeSessionFeed: React.FC<ClaudeSessionFeedProps> = ({
   blocks,
   threadId,
+  modelId,
   className = '',
   onApprovePlan,
   onAnswerQuestion,
@@ -70,9 +72,13 @@ export const ClaudeSessionFeed: React.FC<ClaudeSessionFeedProps> = ({
                 {block.isStreaming && (
                   <span className="inline-block w-1.5 h-3 bg-white/70 ml-1 animate-pulse align-middle" />
                 )}
-                {!block.isStreaming && (
-                  <MessageTimestamp timestamp={block.timestamp} content={block.content} />
-                )}
+                <MessageTimestamp
+                  timestamp={block.timestamp}
+                  content={block.content}
+                  driver="claude"
+                  model={block.model || modelId}
+                  isStreaming={block.isStreaming}
+                />
               </div>
             );
 

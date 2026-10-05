@@ -1,10 +1,17 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState, useCallback } from 'react';
+import { formatModelBadge, renderChatIcon } from '../common/DynamicIsland';
+import { useTheme } from '../../themes';
 
 export interface MessageTimestampProps {
   timestamp?: number;
   content?: string;
   className?: string;
   align?: 'left' | 'right';
+  driver?: string;
+  model?: string;
+  isStreaming?: boolean;
+  isLight?: boolean;
 }
 
 /**
@@ -37,14 +44,20 @@ export function formatMessageTime(timestamp?: number | string | Date): string {
 
 /**
  * MessageTimestamp Component
- * Clean, subtle message timestamp and copy action matching Cursor/Composer.
+ * Clean, subtle message timestamp, current model indicator, and copy action.
  */
 export const MessageTimestamp: React.FC<MessageTimestampProps> = ({
   timestamp,
   content,
   className = '',
   align = 'left',
+  driver,
+  model,
+  isStreaming = false,
+  isLight: propIsLight,
 }) => {
+  const { currentTheme } = useTheme();
+  const isLight = propIsLight ?? (currentTheme?.id === 'light' || currentTheme?.id === 'white');
   const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback((e: React.MouseEvent) => {
@@ -55,35 +68,59 @@ export const MessageTimestamp: React.FC<MessageTimestampProps> = ({
     setTimeout(() => setCopied(false), 1500);
   }, [content]);
 
-  if (!timestamp) return null;
+  const modelLabel = model || driver ? formatModelBadge(model, driver) : null;
+  const formattedTime = timestamp ? formatMessageTime(timestamp) : '';
+  const fullDateTitle = timestamp ? new Date(timestamp).toLocaleString() : '';
 
-  const formattedTime = formatMessageTime(timestamp);
-  if (!formattedTime) return null;
-
-  const fullDateTitle = new Date(timestamp).toLocaleString();
+  if (!formattedTime && !modelLabel) return null;
 
   return (
     <div
-      className={`flex items-center gap-1.5 pt-1.5 text-[11px] font-(family-name:--app-font) text-white/40 select-none ${
+      className={`flex items-center gap-1.5 pt-1.5 text-[11px] font-(family-name:--app-font) ${
+        isLight ? 'text-black/45' : 'text-white/40'
+      } select-none ${
         align === 'right' ? 'justify-end' : 'justify-start'
       } ${className}`}
     >
-      <span
-        title={fullDateTitle}
-        className="tracking-tight hover:text-white/60 transition-colors"
-      >
-        {formattedTime}
-      </span>
-      {content && (
+      {modelLabel && (
+        <div
+          className={`inline-flex items-center gap-1.5 transition-colors ${
+            isLight ? 'text-black/60 hover:text-black/90' : 'text-white/60 hover:text-white/90'
+          }`}
+          title={driver ? `${driver}${model ? `: ${model}` : ''}` : model}
+        >
+          {renderChatIcon(driver, model, isLight, 'w-[12px] h-[12px]')}
+          <span className="font-medium tracking-tight">{modelLabel}</span>
+        </div>
+      )}
+
+      {modelLabel && formattedTime && (
+        <span className="opacity-40">·</span>
+      )}
+
+      {formattedTime && (
+        <span
+          title={fullDateTitle}
+          className={`tracking-tight transition-colors ${
+            isLight ? 'hover:text-black/75' : 'hover:text-white/70'
+          }`}
+        >
+          {formattedTime}
+        </span>
+      )}
+
+      {content && !isStreaming && (
         <button
           type="button"
           title={copied ? 'Copied!' : 'Copy message'}
           onClick={handleCopy}
-          className="w-[18px] h-[18px] rounded flex items-center justify-center text-white/35 hover:text-white/90 hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
+          className={`w-[18px] h-[18px] rounded flex items-center justify-center transition-all cursor-pointer active:scale-90 ${
+            isLight
+              ? 'text-black/35 hover:text-black/90 hover:bg-black/[0.06]'
+              : 'text-white/35 hover:text-white/90 hover:bg-white/10'
+          }`}
         >
-          <span className="material-symbols-outlined text-[13px] leading-none">
-            {copied ? 'check' : 'content_copy'}
-          </span>
+          <MaterialIcon name={copied ? 'check' : 'content_copy'} className="text-[13px]"/>
         </button>
       )}
     </div>

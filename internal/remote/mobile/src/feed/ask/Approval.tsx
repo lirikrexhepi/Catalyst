@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, ShieldCheck, X } from 'lucide-react'
+import { Check, ShieldCheck, X } from '../../icons'
 import { api } from '../../api'
 import { message } from '../../store'
 import type { AgentStreamBlock } from '../types'

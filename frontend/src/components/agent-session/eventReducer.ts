@@ -480,6 +480,8 @@ function appendText(
         content: event.delta ? existing.content + text : text,
         isStreaming: true,
         timestamp: existing.timestamp || atTime,
+        driver: existing.driver || event.driver,
+        model: existing.model || (event as any).model,
       };
     } else if (existing.type === 'thinking') {
       next[index] = { ...existing, thoughtText: event.delta ? existing.thoughtText + text : text };
@@ -492,7 +494,7 @@ function appendText(
   return [
     ...settled,
     kind === 'text'
-      ? { type: 'text', id, content: text, isStreaming: true, timestamp: atTime, itemId: itemId || undefined, turnId }
+      ? { type: 'text', id, content: text, isStreaming: true, timestamp: atTime, itemId: itemId || undefined, turnId, driver: event.driver, model: (event as any).model }
       : { type: 'thinking', id, isThinking: true, thoughtText: text, itemId: itemId || undefined, turnId },
   ];
 }

@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState, useMemo } from 'react';
 import { AgentStreamBlock, UserMessageBlock, NoticeBlock, AssistantTextBlock } from './types';
 import { UserChatBubble } from './UserChatBubble';
@@ -18,6 +19,7 @@ import { RespondToApproval, RespondToQuestion } from '../../../wailsjs/go/main/A
 export interface AntigravitySessionFeedProps {
   blocks: AgentStreamBlock[];
   threadId?: string;
+  modelId?: string;
   isWorking?: boolean;
   className?: string;
   onApprovePlan?: (blockId: string) => void;
@@ -49,6 +51,7 @@ interface Turn {
 export const AntigravitySessionFeed: React.FC<AntigravitySessionFeedProps> = ({
   blocks,
   threadId,
+  modelId,
   isWorking = false,
   className = '',
   onApprovePlan,
@@ -246,13 +249,7 @@ export const AntigravitySessionFeed: React.FC<AntigravitySessionFeedProps> = ({
                   <span className="text-[12px] font-medium font-(family-name:--app-font) text-white/60 group-hover:text-white/90 tracking-tight select-none leading-none">
                     Worked for {duration}s
                   </span>
-                  <span
-                    className={`material-symbols-outlined text-[15px] text-white/40 group-hover:text-white/80 leading-none transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-                      isExpanded ? 'rotate-90' : 'rotate-0'
-                    }`}
-                  >
-                    chevron_right
-                  </span>
+                  <MaterialIcon name="chevron_right" className={`text-[15px] text-white/40 group-hover:text-white/80 transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${ isExpanded ? 'rotate-90' : 'rotate-0' }`}/>
                 </button>
 
                 {/* Expandable detailed tool history for the completed turn */}
@@ -357,9 +354,13 @@ export const AntigravitySessionFeed: React.FC<AntigravitySessionFeedProps> = ({
                 {block.isStreaming && (
                   <span className="inline-block w-1.5 h-3 bg-white/70 ml-1 animate-pulse align-middle" />
                 )}
-                {!block.isStreaming && (
-                  <MessageTimestamp timestamp={block.timestamp} content={block.content} />
-                )}
+                <MessageTimestamp
+                  timestamp={block.timestamp}
+                  content={block.content}
+                  driver="antigravity"
+                  model={block.model || modelId}
+                  isStreaming={block.isStreaming}
+                />
               </div>
             ))}
           </div>

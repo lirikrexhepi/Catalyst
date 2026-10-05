@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BrowserOpenURL } from '../../../wailsjs/runtime/runtime';
 import { servers } from '../../../wailsjs/go/models';
@@ -211,7 +212,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                 : 'text-white/20 cursor-default'
             }`}
           >
-            <span className="material-symbols-rounded text-[15px] leading-none">arrow_back</span>
+            <MaterialIcon name="arrow_back" className="text-[15px]"/>
           </button>
           <button
             type="button"
@@ -224,7 +225,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                 : 'text-white/20 cursor-default'
             }`}
           >
-            <span className="material-symbols-rounded text-[15px] leading-none">arrow_forward</span>
+            <MaterialIcon name="arrow_forward" className="text-[15px]"/>
           </button>
           <button
             type="button"
@@ -232,18 +233,14 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
             onClick={handleReload}
             className="w-6 h-6 rounded-[6px] flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
           >
-            <span className={`material-symbols-rounded text-[15px] leading-none ${isLoading ? 'animate-spin' : ''}`}>
-              refresh
-            </span>
+            <MaterialIcon name="refresh" className={`text-[15px] ${isLoading ? 'animate-spin' : ''}`}/>
           </button>
         </div>
 
         {/* Smart Address Bar */}
         <div className="flex-1 min-w-[200px] max-w-[620px] mx-auto relative flex items-center">
           <div className="w-full h-[28px] px-2.5 rounded-[6px] bg-white/[0.07] border border-white/[0.12] hover:border-white/20 focus-within:border-[#007AFF]/60 focus-within:bg-black/40 flex items-center gap-2 transition-all">
-            <span className="material-symbols-rounded text-[13px] text-white/45 shrink-0 leading-none">
-              {isLocalhost ? 'computer' : currentUrl.startsWith('https') ? 'lock' : 'search'}
-            </span>
+            <MaterialIcon name={isLocalhost ? 'computer' : currentUrl.startsWith('https') ? 'lock' : 'search'} className="text-[13px] text-white/45 shrink-0"/>
             <input
               type="text"
               value={inputUrl}
@@ -297,9 +294,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                 : 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25'
             }`}
           >
-            <span className="material-symbols-rounded text-[13px] leading-none">
-              {autoPauseBackground ? 'energy_savings_leaf' : 'bolt'}
-            </span>
+            <MaterialIcon name={autoPauseBackground ? 'energy_savings_leaf' : 'bolt'} className="text-[13px]"/>
             <span>{autoPauseBackground ? 'Power Save' : 'Live Always'}</span>
           </button>
 
@@ -310,7 +305,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
             className="h-[24px] px-2 rounded-[6px] bg-white/[0.07] hover:bg-white/15 border border-white/10 active:scale-95 text-white/75 hover:text-white text-[11px] font-medium font-(family-name:--app-font) flex items-center gap-1 transition-all cursor-pointer"
           >
             <span>Open</span>
-            <span className="material-symbols-rounded text-[13px] leading-none">open_in_new</span>
+            <MaterialIcon name="open_in_new" className="text-[13px]"/>
           </button>
         </div>
       </div>
@@ -352,9 +347,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                 className="absolute inset-0 z-25 bg-[#121316]/92 backdrop-blur-md flex flex-col items-center justify-center text-center p-6 cursor-pointer group transition-all duration-200"
               >
                 <div className="w-12 h-12 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center mb-3 shadow-xl group-hover:scale-105 group-hover:bg-white/[0.1] transition-all duration-200">
-                  <span className="material-symbols-rounded text-emerald-400 text-2xl">
-                    view_in_ar
-                  </span>
+                  <MaterialIcon name="view_in_ar" className="text-emerald-400 text-2xl"/>
                 </div>
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[11px] font-mono font-medium mb-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -365,7 +358,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                 </p>
                 <div className="px-3.5 py-1.5 rounded-[8px] bg-white/[0.08] hover:bg-white/15 border border-white/15 text-white text-[12px] font-medium flex items-center gap-1.5 transition-all shadow-md group-hover:border-white/30">
                   <span>Click to Resume Preview</span>
-                  <span className="material-symbols-rounded text-[14px]">play_arrow</span>
+                  <MaterialIcon name="play_arrow" className="text-[14px]"/>
                 </div>
               </div>
             )}
@@ -394,7 +387,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
             {isBlocked && (
               <div className="absolute inset-0 bg-[#16181d] flex flex-col items-center justify-center text-center p-6 z-20">
                 <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3">
-                  <span className="material-symbols-rounded text-white/60 text-xl">public_off</span>
+                  <MaterialIcon name="public_off" className="text-white/60 text-xl"/>
                 </div>
                 <h4 className="text-[13.5px] font-semibold font-(family-name:--app-font) text-white/90 mb-1">
                   Site embedding restricted
@@ -408,7 +401,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
                   className="px-3.5 py-1.5 rounded-[6px] bg-[#007AFF] hover:bg-[#0A84FF] text-white text-[12px] font-medium flex items-center gap-1.5 shadow-lg active:scale-95 transition-all cursor-pointer"
                 >
                   <span>Open in Default Browser</span>
-                  <span className="material-symbols-rounded text-[14px]">open_in_new</span>
+                  <MaterialIcon name="open_in_new" className="text-[14px]"/>
                 </button>
               </div>
             )}
@@ -417,7 +410,7 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
           /* Empty / Start Surface */
           <div className="w-full h-full bg-[#121316] flex flex-col items-center justify-center text-center p-6 select-none">
             <div className="w-12 h-12 rounded-2xl bg-white/[0.05] border border-white/10 flex items-center justify-center mb-3.5 shadow-xl">
-              <span className="material-symbols-rounded text-white/60 text-2xl">language</span>
+              <MaterialIcon name="language" className="text-white/60 text-2xl"/>
             </div>
             <h3 className="text-[15px] font-semibold font-(family-name:--app-font) text-white/90 tracking-tight mb-1">
               Web Preview

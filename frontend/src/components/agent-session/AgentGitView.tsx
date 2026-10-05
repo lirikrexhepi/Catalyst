@@ -6,7 +6,7 @@ import { FilePreview } from '../files/FilePreview';
 import { FileTree } from '../files/FileTree';
 import { repoPath } from '../files/status';
 import { useProjectTree } from '../files/useProjectTree';
-import { GitBranch, FolderOpen, Copy, Check, RefreshCw } from 'lucide-react';
+import { GitBranch, FolderOpen, Copy, Check, RefreshCw } from '../common/icons';
 
 /** Left pane: the project's files, its uncommitted changes, or its history. */
 type LeftTab = 'files' | 'changes' | 'commits';

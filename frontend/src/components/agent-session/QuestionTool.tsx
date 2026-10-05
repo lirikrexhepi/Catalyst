@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 
 export interface QuestionOption {
@@ -53,9 +54,7 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
     return (
       <div className={`flex items-center gap-2 min-w-0 py-[3px] text-[12.5px] tracking-tight leading-[18px] font-(family-name:--app-font) text-current/55 ${className}`}>
         <span className="w-[15px] flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined text-[14px] leading-none">
-            {submitted === 'Skipped' ? 'block' : 'check'}
-          </span>
+          <MaterialIcon name={submitted === 'Skipped' ? 'block' : 'check'} className="text-[14px]"/>
         </span>
         <span className="truncate min-w-0">
           {submitted === 'Skipped' ? 'Skipped question' : 'Answered'}
@@ -114,7 +113,7 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
               onClick={() => setPage(page - 1)}
               className="w-[18px] h-[18px] flex items-center justify-center rounded-[5px] enabled:hover:bg-current/[0.08] enabled:hover:text-current disabled:opacity-30 cursor-pointer disabled:cursor-default"
             >
-              <span className="material-symbols-outlined text-[14px] leading-none">chevron_left</span>
+              <MaterialIcon name="chevron_left" className="text-[14px]"/>
             </button>
             {page + 1} of {list.length}
             <button
@@ -123,7 +122,7 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
               onClick={() => setPage(page + 1)}
               className="w-[18px] h-[18px] flex items-center justify-center rounded-[5px] enabled:hover:bg-current/[0.08] enabled:hover:text-current disabled:opacity-30 cursor-pointer disabled:cursor-default"
             >
-              <span className="material-symbols-outlined text-[14px] leading-none">chevron_right</span>
+              <MaterialIcon name="chevron_right" className="text-[14px]"/>
             </button>
           </span>
         )}
@@ -162,7 +161,7 @@ const QuestionToolImpl: React.FC<QuestionToolProps> = ({
           }`}
         >
           <span className="w-3 text-[12px] text-current/35 leading-[18px] shrink-0">
-            <span className="material-symbols-outlined text-[13px] leading-none align-[-2px]">edit</span>
+            <MaterialIcon name="edit" className="text-[13px] align-[-2px]"/>
           </span>
           <input
             type="text"

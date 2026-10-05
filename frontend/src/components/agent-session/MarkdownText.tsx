@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -55,9 +56,7 @@ const PreBlock: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
             : 'bg-white/10 hover:bg-white/20 text-white/50 hover:text-white border border-white/10 opacity-0 group-hover/code:opacity-100 focus-visible:opacity-100 active:scale-90 shadow-sm'
         }`}
       >
-        <span className="material-symbols-rounded text-[13px] leading-none">
-          {copied ? 'check' : 'content_copy'}
-        </span>
+        <MaterialIcon name={copied ? 'check' : 'content_copy'} className="text-[13px]"/>
         <span className="text-[10px] font-(family-name:--app-font) font-medium leading-none">
           {copied ? 'Copied' : 'Copy'}
         </span>

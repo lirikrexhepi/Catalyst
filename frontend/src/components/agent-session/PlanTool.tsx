@@ -1,3 +1,4 @@
+import { MaterialIcon } from '../common/icons';
 import React, { useState } from 'react';
 
 export interface PlanToolProps {
@@ -48,9 +49,7 @@ const PlanToolImpl: React.FC<PlanToolProps> = ({
         className="flex items-center justify-between cursor-pointer gap-2"
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="material-symbols-outlined text-[15px] text-white/70 shrink-0 leading-none">
-            description
-          </span>
+          <MaterialIcon name="description" className="text-[15px] text-white/70 shrink-0"/>
           <span className="text-[11px] text-white/60 font-mono tracking-tight truncate leading-none">
             {planFile}
           </span>
@@ -60,13 +59,7 @@ const PlanToolImpl: React.FC<PlanToolProps> = ({
           type="button"
           className="w-[18px] h-[18px] rounded flex items-center justify-center text-white/60 hover:text-white shrink-0"
         >
-          <span
-            className={`material-symbols-outlined text-[15px] leading-none transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              isExpanded ? 'rotate-180' : 'rotate-0'
-            }`}
-          >
-            unfold_more
-          </span>
+          <MaterialIcon name="unfold_more" className={`text-[15px] transition-transform duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${ isExpanded ? 'rotate-180' : 'rotate-0' }`}/>
         </button>
       </div>
 
@@ -102,7 +95,7 @@ const PlanToolImpl: React.FC<PlanToolProps> = ({
 
               {isApproved ? (
                 <div className="flex items-center gap-1 text-[11px] font-medium text-emerald-300 bg-emerald-500/15 px-2.5 py-1 rounded-md">
-                  <span className="material-symbols-outlined text-[13px]">check</span>
+                  <MaterialIcon name="check" className="text-[13px]"/>
                   Approved
                 </div>
               ) : (

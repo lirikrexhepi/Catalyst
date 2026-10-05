@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, materialIconSvg } from '../common/icons';
 import { MorphButtons } from '../../liquid-morph/glass/MorphButtons';
 import type { AgentCardMode } from './AgentWindow';
 
@@ -33,15 +33,12 @@ const LIGHT = {
   '--font': 'var(--app-font)',
 } as React.CSSProperties;
 
-const pillIcon = (inner: string) =>
-  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
-
 const ICONS: Record<AgentCardMode, string> = {
-  chat: pillIcon('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'),
-  tasklist: pillIcon('<rect x="3" y="5" width="6" height="6" rx="1"/><path d="m3 17 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>'),
-  browser: pillIcon('<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>'),
-  servers: pillIcon('<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>'),
-  changes: pillIcon('<line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>'),
+  chat: materialIconSvg('chat'),
+  tasklist: materialIconSvg('checklist'),
+  browser: materialIconSvg('globe'),
+  servers: materialIconSvg('terminal'),
+  changes: materialIconSvg('fork_right'),
 };
 
 export const AgentViewSwitcher: React.FC<AgentViewSwitcherProps> = ({ mode, onChange, tasks, servers, changes, isLight }) => {

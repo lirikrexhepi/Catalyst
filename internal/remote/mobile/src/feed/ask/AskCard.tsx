@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import type { IconComponent } from '../../icons'
 import { GlassSquircle } from '../../ui'
 import { SHEET } from '../../components/sheet'
 
 interface AskCardProps {
-  icon: LucideIcon
+  icon: IconComponent
   label: string
   children: ReactNode
 }
@@ -21,7 +21,7 @@ export function AskCard({ icon: Icon, label, children }: AskCardProps) {
   )
 }
 
-export function AskDone({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+export function AskDone({ icon: Icon, children }: { icon: IconComponent; children: ReactNode }) {
   return (
     <div className="ask-done">
       <Icon size={16} strokeWidth={2} aria-hidden />

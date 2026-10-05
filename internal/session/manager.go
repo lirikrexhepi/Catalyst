@@ -161,11 +161,14 @@ func (m *Manager) record(event domain.RuntimeEvent) {
 	// Adapters report their own events and do not all know their driver kind, so
 	// the manager fills it in from the thread's session. Consumers that group by
 	// CLI (usage totals, diagnostics) depend on this being present.
-	if (event.Driver == "" || event.Account == "") && event.ThreadID != "" {
+	if (event.Driver == "" || event.Account == "" || event.Model == "") && event.ThreadID != "" {
 		m.mu.RLock()
 		if entry, ok := m.threads[event.ThreadID]; ok {
 			if event.Driver == "" {
 				event.Driver = entry.session.Driver
+			}
+			if event.Model == "" {
+				event.Model = entry.session.Model
 			}
 			if event.Account == "" && event.Driver == entry.session.Driver {
 				event.Account = entry.session.Account
@@ -298,6 +301,9 @@ func (m *Manager) Start(ctx context.Context, kind domain.DriverKind, in domain.S
 
 	if session.Driver == "" {
 		session.Driver = kind
+	}
+	if session.Model == "" {
+		session.Model = in.Model
 	}
 	session.Account = account
 

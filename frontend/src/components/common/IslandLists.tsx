@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Reorder, useDragControls, motion, AnimatePresence } from 'motion/react';
-import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, GripVertical, Plus, Search, X } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, GripVertical, Plus, Search, X, MaterialIcon } from './icons';
 import { ScrollArea } from './ScrollArea';
 import { ProjectGlyph } from '../orchestrator/ProjectGlyph';
 import { providerIcon } from '../orchestrator/providerIcons';
@@ -225,7 +225,7 @@ const ProjectRow = React.memo(function ProjectRow({
                 <ProjectGlyph
                   projectId={project.id}
                   size={16}
-                  glyph={<span className={`material-symbols-rounded text-[16px] leading-none ${tone.sub}`}>folder</span>}
+                  glyph={<MaterialIcon name="folder" className={`text-[16px] ${tone.sub}`}/>}
                 />
               </span>
               <span className="flex flex-col min-w-0 gap-[1px]">

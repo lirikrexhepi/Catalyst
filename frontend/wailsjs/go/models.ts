@@ -711,6 +711,7 @@ export namespace domain {
 	    turnId?: string;
 	    instanceId?: string;
 	    driver?: string;
+	    model?: string;
 	    account?: string;
 	    seq: number;
 	    itemId?: string;
@@ -739,6 +740,7 @@ export namespace domain {
 	        this.turnId = source["turnId"];
 	        this.instanceId = source["instanceId"];
 	        this.driver = source["driver"];
+	        this.model = source["model"];
 	        this.account = source["account"];
 	        this.seq = source["seq"];
 	        this.itemId = source["itemId"];

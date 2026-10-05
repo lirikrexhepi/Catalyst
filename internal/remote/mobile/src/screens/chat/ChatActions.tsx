@@ -1,4 +1,4 @@
-import { Power, RotateCcw, Square } from 'lucide-react'
+import { Power, RotateCcw, Square } from '../../icons'
 import { Sheet } from '../../components/sheet'
 import { ICON_STROKE } from '../../components/chrome/BarButton'
 import { MorphButtons } from '../../ui/glass/MorphButtons'

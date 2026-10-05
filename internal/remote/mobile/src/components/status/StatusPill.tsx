@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import type { IconComponent } from '../../icons'
 import { GlassPill, SpringDriver, prefersReducedMotion } from '../../ui'
 
 interface StatusPillProps {
-  icon: LucideIcon
+  icon: IconComponent
   children: ReactNode
   action?: { label: string; onClick: () => void; busy?: boolean }
   placement?: 'top' | 'dock'

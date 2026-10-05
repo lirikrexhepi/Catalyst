@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import type { IconComponent } from '../../icons'
 import { GlassSquircle } from '../../ui'
 import { ICON_STROKE } from '../chrome/BarButton'
 import { SHEET } from './layout'
 
 interface SheetTileProps {
-  icon: LucideIcon
+  icon: IconComponent
   label: string
   onClick: () => void
   tone?: 'danger'

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { HelpCircle, MessageCircleQuestion } from 'lucide-react'
+import { HelpCircle, MessageCircleQuestion } from '../../icons'
 import { api } from '../../api'
 import { message } from '../../store'
 import type { AgentStreamBlock } from '../types'
