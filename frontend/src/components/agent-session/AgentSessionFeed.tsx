@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AgentStreamBlock } from './types';
 import { UserChatBubble } from './UserChatBubble';
 import { ThinkingBlock } from './ThinkingBlock';
@@ -18,7 +18,7 @@ import { MessageTimestamp } from './MessageTimestamp';
 import { RespondToApproval, RespondToQuestion } from '../../../wailsjs/go/main/App';
 import { buildFeedSegments, FeedSegment } from './feedTurns';
 import { ChangesCard, WorkedFor, WorkingHeader } from './TurnParts';
-import { PlainSegment, ROW_DOT_Y, TEXT_DOT_Y, TimelineNode, TimelineSegment } from './Timeline';
+import { PlainSegment, ROW_DOT_Y, TEXT_DOT_Y, TimelineAnimateContext, TimelineNode, TimelineSegment } from './Timeline';
 
 const CARD_TYPES = new Set<AgentStreamBlock['type']>(['text', 'tool_question', 'approval_request', 'tool_plan', 'tool_todo']);
 
@@ -391,6 +391,12 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
     return out;
   };
 
+  const [drawLines, setDrawLines] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDrawLines(true), 900);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const renderSegment = (segment: FeedSegment) => {
         switch (segment.kind) {
           case 'block':
@@ -421,6 +427,7 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
   };
 
   return (
+    <TimelineAnimateContext.Provider value={drawLines}>
     <div className={`flex flex-col ${className}`}>
       {segments.map((segment, index) => {
         const body = <div className="w-full flex flex-col">{renderSegment(segment)}</div>;
@@ -442,6 +449,7 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
         );
       })}
     </div>
+    </TimelineAnimateContext.Provider>
   );
 };
 

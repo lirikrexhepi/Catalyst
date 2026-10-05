@@ -838,6 +838,34 @@ body,
 
 
 
+.timeline-rail-draw {
+  transform-origin: top;
+  animation: timeline-rail-draw 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.timeline-elbow-draw {
+  stroke-dasharray: 1;
+  animation: timeline-elbow-draw 260ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both;
+}
+
+@keyframes timeline-rail-draw {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes timeline-elbow-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .feed-segment {
   content-visibility: auto;
   contain-intrinsic-size: auto 90px;
