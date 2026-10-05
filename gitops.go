@@ -34,12 +34,12 @@ func (a *App) GitBranches(worktreePath string) ([]domain.BranchInfo, error) {
 	return repo.Branches(a.ctx)
 }
 
-func (a *App) GitCheckout(worktreePath, branch string) error {
+func (a *App) GitCheckout(worktreePath, branch, mode string) error {
 	repo, err := a.checkoutAt(worktreePath)
 	if err != nil {
 		return err
 	}
-	return repo.Checkout(a.ctx, branch)
+	return repo.Checkout(a.ctx, branch, mode)
 }
 
 func (a *App) GitCreateBranch(worktreePath, name string) error {

@@ -33,14 +33,14 @@ export interface AgentGitViewProps {
   className?: string;
 }
 
-const STATUS_MARKS: Record<string, { mark: string; tone: string; bg: string }> = {
-  added: { mark: 'A', tone: 'text-emerald-300', bg: 'bg-emerald-500/15' },
-  modified: { mark: 'M', tone: 'text-amber-300', bg: 'bg-amber-500/15' },
-  deleted: { mark: 'D', tone: 'text-rose-300', bg: 'bg-rose-500/15' },
-  renamed: { mark: 'R', tone: 'text-sky-300', bg: 'bg-sky-500/15' },
-  copied: { mark: 'C', tone: 'text-sky-300', bg: 'bg-sky-500/15' },
-  untracked: { mark: 'U', tone: 'text-emerald-300/80', bg: 'bg-emerald-500/10' },
-  conflicted: { mark: '!', tone: 'text-rose-400', bg: 'bg-rose-500/25' },
+const STATUS_MARKS: Record<string, { glyph: string; tone: string; label: string; size: string }> = {
+  added: { glyph: '+', tone: 'text-emerald-300', label: 'Added', size: 'text-[15px]' },
+  untracked: { glyph: '+', tone: 'text-emerald-300', label: 'New', size: 'text-[15px]' },
+  copied: { glyph: '+', tone: 'text-sky-300', label: 'Copied', size: 'text-[15px]' },
+  modified: { glyph: '●', tone: 'text-amber-300/90', label: 'Modified', size: 'text-[8px]' },
+  deleted: { glyph: '−', tone: 'text-rose-300', label: 'Deleted', size: 'text-[15px]' },
+  renamed: { glyph: '→', tone: 'text-sky-300', label: 'Renamed', size: 'text-[13px]' },
+  conflicted: { glyph: '!', tone: 'text-rose-400', label: 'Conflicted', size: 'text-[13px]' },
 };
 
 const FONT = 'font-(family-name:--app-font)';
@@ -156,9 +156,10 @@ const FileRow = React.memo<FileRowProps>(({ file, selected, onSelect, onToggle, 
         {dir && <div className="text-[10px] text-white/35 font-mono truncate">{dir}</div>}
       </div>
       <span
-        className={`w-4 h-4 rounded-[4px] flex items-center justify-center text-[10px] font-mono font-bold shrink-0 ${badge.bg} ${badge.tone}`}
+        title={badge.label}
+        className={`w-4 h-4 flex items-center justify-center font-semibold leading-none shrink-0 ${badge.size} ${badge.tone}`}
       >
-        {badge.mark}
+        {badge.glyph}
       </span>
     </div>
   );
@@ -195,6 +196,8 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
   const [summary, setSummary] = useState('');
   const [description, setDescription] = useState('');
   const [branchQuery, setBranchQuery] = useState('');
+  const [showDescription, setShowDescription] = useState(false);
+  const [pendingBranch, setPendingBranch] = useState<string | null>(null);
 
   const matchingLane =
     git?.lanes.find(
@@ -326,6 +329,18 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
         >
           {(close) => (
             <div className="p-1 max-h-[300px] overflow-y-auto custom-scrollbar">
+              {lane && (
+                <MenuRow
+                  onClick={() => {
+                    void git.reveal(lane.path);
+                    close();
+                  }}
+                >
+                  <FolderOpen size={14} className="text-white/45 shrink-0" />
+                  <span className={`text-[12px] ${FONT}`}>Reveal in File Explorer</span>
+                </MenuRow>
+              )}
+              <div className="h-px bg-white/[0.07] my-1 mx-1" />
               {git.lanes.map((l) => (
                 <MenuRow
                   key={l.path}
@@ -354,6 +369,7 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
           width={290}
           onOpen={() => {
             setBranchQuery('');
+            setPendingBranch(null);
             void actions.loadBranches();
           }}
           trigger={(open, toggle) => (
@@ -366,7 +382,44 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
             />
           )}
         >
-          {(close) => (
+          {(close) => pendingBranch ? (
+            <div className="p-3 flex flex-col gap-2.5">
+              <p className={`text-[12px] leading-relaxed text-white/80 ${FONT}`}>
+                You have {changedFiles.length} uncommitted change{changedFiles.length === 1 ? '' : 's'} on{' '}
+                <span className="font-semibold text-white">{lane?.branch}</span>. What should happen to {changedFiles.length === 1 ? 'it' : 'them'} when switching to{' '}
+                <span className="font-semibold text-white">{pendingBranch}</span>?
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  void actions.checkout(pendingBranch, 'leave');
+                  setPendingBranch(null);
+                  close();
+                }}
+                className={`h-[30px] rounded-[8px] bg-white/[0.08] hover:bg-white/[0.14] text-[12px] font-medium text-white transition-colors cursor-pointer ${FONT}`}
+              >
+                Leave them on {lane?.branch}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void actions.checkout(pendingBranch, 'bring');
+                  setPendingBranch(null);
+                  close();
+                }}
+                className={`h-[30px] rounded-[8px] bg-[#3b82f6] hover:bg-[#4f8ff7] text-[12px] font-semibold text-white transition-colors cursor-pointer ${FONT}`}
+              >
+                Bring them to {pendingBranch}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingBranch(null)}
+                className={`h-[26px] text-[11.5px] text-white/50 hover:text-white transition-colors cursor-pointer ${FONT}`}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
             <div className="flex flex-col">
               <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.07]">
                 <Search size={13} className="text-white/35 shrink-0" />
@@ -397,7 +450,16 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
                     key={`${b.remote ? 'r' : 'l'}-${b.name}`}
                     active={b.current}
                     onClick={() => {
-                      if (!b.current) void actions.checkout(b.remote ? b.name.slice(b.name.indexOf('/') + 1) : b.name);
+                      if (b.current) {
+                        close();
+                        return;
+                      }
+                      const target = b.remote ? b.name.slice(b.name.indexOf('/') + 1) : b.name;
+                      if (changedFiles.length > 0) {
+                        setPendingBranch(target);
+                        return;
+                      }
+                      void actions.checkout(target);
                       close();
                     }}
                   >
@@ -442,24 +504,6 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
             </span>
           </button>
 
-          {lane && (
-            <button
-              type="button"
-              title="Reveal in File Explorer"
-              onClick={() => void git.reveal(lane.path)}
-              className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white/55 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] active:scale-95 transition-all cursor-pointer"
-            >
-              <FolderOpen size={14} />
-            </button>
-          )}
-          <button
-            type="button"
-            title="Copy diff"
-            onClick={() => void copyDiff()}
-            className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-white/55 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] active:scale-95 transition-all cursor-pointer"
-          >
-            {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-          </button>
           <button
             type="button"
             title="Refresh"
@@ -590,36 +634,50 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
           </div>
 
           {leftTab === 'changes' && (
-            <div className="shrink-0 p-2 flex flex-col gap-1.5 border-t border-white/[0.07] bg-white/[0.02]">
+            <div className="shrink-0 p-2 flex flex-col gap-1.5 border-t border-white/[0.07]">
               <input
                 value={summary}
                 onChange={(event) => setSummary(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !commitDisabled) void submitCommit();
+                  if (event.key === 'Enter' && !commitDisabled) void submitCommit();
                 }}
-                placeholder="Summary (required)"
+                placeholder="Commit message"
                 className={`h-[30px] px-2.5 rounded-[8px] bg-white/[0.06] focus:bg-white/[0.09] outline-none text-[12px] text-white placeholder:text-white/30 transition-colors select-text ${FONT}`}
               />
-              <textarea
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                placeholder="Description"
-                rows={3}
-                className={`px-2.5 py-1.5 rounded-[8px] bg-white/[0.06] focus:bg-white/[0.09] outline-none text-[12px] text-white placeholder:text-white/30 resize-none transition-colors select-text custom-scrollbar ${FONT}`}
-              />
-              <button
-                type="button"
-                disabled={commitDisabled}
-                onClick={() => void submitCommit()}
-                className={`h-[32px] rounded-[9px] text-[12px] font-semibold text-white bg-[#3b82f6] hover:bg-[#4f8ff7] active:scale-[0.98] disabled:bg-white/[0.08] disabled:text-white/35 flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:cursor-default ${FONT}`}
-              >
-                {actions.busy === 'commit' && <Loader2 size={13} className="animate-spin" />}
-                <span className="truncate px-2">
-                  {staged.length > 0
-                    ? `Commit ${staged.length} file${staged.length === 1 ? '' : 's'} to ${lane?.branch ?? 'branch'}`
-                    : `Commit all to ${lane?.branch ?? 'branch'}`}
-                </span>
-              </button>
+              {showDescription && (
+                <textarea
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="Description"
+                  rows={2}
+                  className={`px-2.5 py-1.5 rounded-[8px] bg-white/[0.06] focus:bg-white/[0.09] outline-none text-[12px] text-white placeholder:text-white/30 resize-none transition-colors select-text custom-scrollbar ${FONT}`}
+                />
+              )}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  title={showDescription ? 'Hide description' : 'Add description'}
+                  onClick={() => setShowDescription((value) => !value)}
+                  className={`h-[28px] w-[28px] rounded-[8px] flex items-center justify-center shrink-0 transition-colors cursor-pointer ${
+                    showDescription ? 'bg-white/[0.12] text-white' : 'bg-white/[0.05] text-white/50 hover:text-white hover:bg-white/[0.1]'
+                  }`}
+                >
+                  <Plus size={14} />
+                </button>
+                <button
+                  type="button"
+                  disabled={commitDisabled}
+                  onClick={() => void submitCommit()}
+                  className={`flex-1 min-w-0 h-[28px] rounded-[8px] text-[12px] font-semibold text-white bg-[#3b82f6] hover:bg-[#4f8ff7] active:scale-[0.98] disabled:bg-white/[0.07] disabled:text-white/30 flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer disabled:cursor-default ${FONT}`}
+                >
+                  {actions.busy === 'commit' && <Loader2 size={13} className="animate-spin" />}
+                  <span className="truncate px-2">
+                    {staged.length > 0
+                      ? `Commit ${staged.length} to ${lane?.branch ?? 'branch'}`
+                      : `Commit all to ${lane?.branch ?? 'branch'}`}
+                  </span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -667,12 +725,33 @@ export const AgentGitView: React.FC<AgentGitViewProps> = ({ threadId, branch, gi
               </>
             )
           ) : (
-            <DiffView
-              diffs={git.diffs}
-              isLoading={git.isDiffLoading}
-              error={git.diffError}
-              placeholder={changedFiles.length === 0 ? 'No modified files to display.' : 'Select a file to inspect its diff.'}
-            />
+            <>
+              {git.diffs.length > 0 && (
+                <div className="flex items-center gap-2 px-3 h-[32px] border-b border-white/[0.07] shrink-0">
+                  <span className={`text-[11.5px] font-medium text-white/80 tracking-tight truncate flex-1 min-w-0 ${FONT}`}>
+                    {git.diffs.length === 1 ? git.diffs[0].path : `${git.diffs.length} files`}
+                  </span>
+                  <span className={`text-[10.5px] tabular-nums shrink-0 ${FONT}`}>
+                    <span className="text-emerald-300/80">+{git.diffs.reduce((n, d) => n + d.insertions, 0)}</span>{' '}
+                    <span className="text-rose-300/80">−{git.diffs.reduce((n, d) => n + d.deletions, 0)}</span>
+                  </span>
+                  <button
+                    type="button"
+                    title="Copy diff"
+                    onClick={() => void copyDiff()}
+                    className="w-[24px] h-[24px] rounded-[7px] flex items-center justify-center text-white/45 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer shrink-0"
+                  >
+                    {copied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                  </button>
+                </div>
+              )}
+              <DiffView
+                diffs={git.diffs}
+                isLoading={git.isDiffLoading}
+                error={git.diffError}
+                placeholder={changedFiles.length === 0 ? 'No modified files to display.' : 'Select a file to inspect its diff.'}
+              />
+            </>
           )}
         </div>
       </div>

@@ -118,8 +118,28 @@ export function GetWorkspaceRecap(arg1) {
   return window['go']['main']['App']['GetWorkspaceRecap'](arg1);
 }
 
+export function GitBranches(arg1) {
+  return window['go']['main']['App']['GitBranches'](arg1);
+}
+
+export function GitCheckout(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GitCheckout'](arg1, arg2, arg3);
+}
+
+export function GitCommit(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GitCommit'](arg1, arg2, arg3);
+}
+
 export function GitCommitDiff(arg1, arg2) {
   return window['go']['main']['App']['GitCommitDiff'](arg1, arg2);
+}
+
+export function GitCreateBranch(arg1, arg2) {
+  return window['go']['main']['App']['GitCreateBranch'](arg1, arg2);
+}
+
+export function GitFetch(arg1) {
+  return window['go']['main']['App']['GitFetch'](arg1);
 }
 
 export function GitFileDiff(arg1, arg2, arg3) {
@@ -128,6 +148,22 @@ export function GitFileDiff(arg1, arg2, arg3) {
 
 export function GitOverview() {
   return window['go']['main']['App']['GitOverview']();
+}
+
+export function GitPull(arg1) {
+  return window['go']['main']['App']['GitPull'](arg1);
+}
+
+export function GitPush(arg1) {
+  return window['go']['main']['App']['GitPush'](arg1);
+}
+
+export function GitStage(arg1, arg2) {
+  return window['go']['main']['App']['GitStage'](arg1, arg2);
+}
+
+export function GitUnstage(arg1, arg2) {
+  return window['go']['main']['App']['GitUnstage'](arg1, arg2);
 }
 
 export function ImportClaudeCodeSession(arg1) {
@@ -440,40 +476,4 @@ export function UsageReport() {
 
 export function WorkspaceTasks(arg1) {
   return window['go']['main']['App']['WorkspaceTasks'](arg1);
-}
-
-export function GitStage(arg1, arg2) {
-  return window['go']['main']['App']['GitStage'](arg1, arg2);
-}
-
-export function GitUnstage(arg1, arg2) {
-  return window['go']['main']['App']['GitUnstage'](arg1, arg2);
-}
-
-export function GitCommit(arg1, arg2, arg3) {
-  return window['go']['main']['App']['GitCommit'](arg1, arg2, arg3);
-}
-
-export function GitBranches(arg1) {
-  return window['go']['main']['App']['GitBranches'](arg1);
-}
-
-export function GitCheckout(arg1, arg2) {
-  return window['go']['main']['App']['GitCheckout'](arg1, arg2);
-}
-
-export function GitCreateBranch(arg1, arg2) {
-  return window['go']['main']['App']['GitCreateBranch'](arg1, arg2);
-}
-
-export function GitFetch(arg1) {
-  return window['go']['main']['App']['GitFetch'](arg1);
-}
-
-export function GitPull(arg1) {
-  return window['go']['main']['App']['GitPull'](arg1);
-}
-
-export function GitPush(arg1) {
-  return window['go']['main']['App']['GitPush'](arg1);
 }

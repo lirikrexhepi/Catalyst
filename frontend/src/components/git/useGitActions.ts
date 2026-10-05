@@ -100,7 +100,8 @@ export function useGitActions(lanePath: string | null, refresh: (silent?: boolea
   }, [lanePath, say]);
 
   const checkout = useCallback(
-    (branch: string) => perform('checkout', () => GitCheckout(lanePath ?? '', branch), `Switched to ${branch}`),
+    (branch: string, mode: 'plain' | 'leave' | 'bring' = 'plain') =>
+      perform('checkout', () => GitCheckout(lanePath ?? '', branch, mode), `Switched to ${branch}`),
     [lanePath, perform],
   );
 

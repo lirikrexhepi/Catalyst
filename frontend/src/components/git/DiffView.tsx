@@ -10,8 +10,8 @@ export interface DiffViewProps {
 }
 
 const ROW_TONES: Record<string, string> = {
-  added: 'bg-emerald-400/[0.09]',
-  removed: 'bg-rose-400/[0.09]',
+  added: 'bg-emerald-400/[0.07] shadow-[inset_2px_0_0_rgba(52,211,153,0.55)]',
+  removed: 'bg-rose-400/[0.07] shadow-[inset_2px_0_0_rgba(251,113,133,0.55)]',
   context: '',
 };
 
@@ -22,9 +22,15 @@ const MARKERS: Record<string, string> = {
 };
 
 const TEXT_TONES: Record<string, string> = {
-  added: 'text-emerald-100/90',
-  removed: 'text-rose-100/90',
-  context: 'text-white/60',
+  added: 'text-white/85',
+  removed: 'text-white/70',
+  context: 'text-white/55',
+};
+
+const MARKER_TONES: Record<string, string> = {
+  added: 'text-emerald-300/80',
+  removed: 'text-rose-300/80',
+  context: 'text-white/20',
 };
 
 const Gutter: React.FC<{ value: number }> = ({ value }) => (
@@ -41,7 +47,7 @@ const Row = React.memo<{ line: domain.DiffLine }>(({ line }) => (
   <div className={`flex ${ROW_TONES[line.kind] ?? ''}`}>
     <Gutter value={line.old ?? 0} />
     <Gutter value={line.new ?? 0} />
-    <span className={`w-[14px] shrink-0 select-none ${TEXT_TONES[line.kind] ?? ''}`}>
+    <span className={`w-[14px] shrink-0 select-none ${MARKER_TONES[line.kind] ?? ''}`}>
       {MARKERS[line.kind] ?? ' '}
     </span>
     {/* Tabs and runs of spaces carry meaning in code, so the row preserves

@@ -73,11 +73,29 @@ export function GetUserPreference(arg1:string):Promise<string>;
 
 export function GetWorkspaceRecap(arg1:string):Promise<string>;
 
+export function GitBranches(arg1:string):Promise<Array<domain.BranchInfo>>;
+
+export function GitCheckout(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function GitCommit(arg1:string,arg2:string,arg3:string):Promise<void>;
+
 export function GitCommitDiff(arg1:string,arg2:string):Promise<Array<domain.DiffFile>>;
+
+export function GitCreateBranch(arg1:string,arg2:string):Promise<void>;
+
+export function GitFetch(arg1:string):Promise<void>;
 
 export function GitFileDiff(arg1:string,arg2:string,arg3:boolean):Promise<domain.DiffFile>;
 
 export function GitOverview():Promise<Array<domain.WorktreeChanges>>;
+
+export function GitPull(arg1:string):Promise<void>;
+
+export function GitPush(arg1:string):Promise<void>;
+
+export function GitStage(arg1:string,arg2:Array<string>):Promise<void>;
+
+export function GitUnstage(arg1:string,arg2:Array<string>):Promise<void>;
 
 export function ImportClaudeCodeSession(arg1:string):Promise<string>;
 
@@ -234,21 +252,3 @@ export function UpdateTaskModel(arg1:string,arg2:string,arg3:string,arg4:domain.
 export function UsageReport():Promise<session.UsageReport>;
 
 export function WorkspaceTasks(arg1:string):Promise<Array<domain.Task>>;
-
-export function GitStage(arg1:string,arg2:Array<string>):Promise<void>;
-
-export function GitUnstage(arg1:string,arg2:Array<string>):Promise<void>;
-
-export function GitCommit(arg1:string,arg2:string,arg3:string):Promise<void>;
-
-export function GitBranches(arg1:string):Promise<Array<domain.BranchInfo>>;
-
-export function GitCheckout(arg1:string,arg2:string):Promise<void>;
-
-export function GitCreateBranch(arg1:string,arg2:string):Promise<void>;
-
-export function GitFetch(arg1:string):Promise<void>;
-
-export function GitPull(arg1:string):Promise<void>;
-
-export function GitPush(arg1:string):Promise<void>;

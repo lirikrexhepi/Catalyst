@@ -62,3 +62,38 @@ func TestStageCommitAndBranches(t *testing.T) {
 		t.Fatalf("a local-only branch has no upstream, got %q", upstream)
 	}
 }
+
+func TestCheckoutWithLocalChanges(t *testing.T) {
+	t.Setenv("GIT_AUTHOR_NAME", "test")
+	t.Setenv("GIT_AUTHOR_EMAIL", "test@example.com")
+	t.Setenv("GIT_COMMITTER_NAME", "test")
+	t.Setenv("GIT_COMMITTER_EMAIL", "test@example.com")
+
+	root := newRepo(t)
+	repo := &Repo{Root: root}
+	ctx := context.Background()
+
+	mustRun(t, root, "branch", "other")
+	writeFile(t, filepath.Join(root, "shared.txt"), "edited\n")
+
+	if err := repo.Checkout(ctx, "other", "leave"); err != nil {
+		t.Fatal(err)
+	}
+	files, _ := repo.Status(ctx)
+	if len(files) != 0 {
+		t.Fatalf("leaving changes should clean the new branch, got %+v", files)
+	}
+
+	if err := repo.Checkout(ctx, "main", "plain"); err != nil {
+		t.Fatal(err)
+	}
+	mustRun(t, root, "stash", "pop")
+	writeFile(t, filepath.Join(root, "shared.txt"), "edited again\n")
+	if err := repo.Checkout(ctx, "other", "bring"); err != nil {
+		t.Fatal(err)
+	}
+	files, _ = repo.Status(ctx)
+	if len(files) != 1 {
+		t.Fatalf("bringing changes should carry them over, got %+v", files)
+	}
+}

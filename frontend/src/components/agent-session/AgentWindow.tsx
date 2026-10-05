@@ -366,7 +366,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   };
 
   const insetForDock = (base: React.CSSProperties): React.CSSProperties =>
-    isFullscreen ? { ...base, bottom: 'var(--input-dock-h, 140px)' } : base;
+    isFullscreen ? { ...base, bottom: 'var(--input-dock-h, 140px)', left: 68 } : base;
 
   const getTabStyle = (modeKey: AgentCardMode): React.CSSProperties => {
     const diff = MODE_INDEX[modeKey] - MODE_INDEX[activeMode];

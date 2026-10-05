@@ -114,13 +114,40 @@ func (r *Repo) Branches(ctx context.Context) ([]domain.BranchInfo, error) {
 	return out, nil
 }
 
-func (r *Repo) Checkout(ctx context.Context, branch string) error {
+func (r *Repo) Checkout(ctx context.Context, branch, mode string) error {
 	branch = strings.TrimSpace(branch)
 	if branch == "" {
 		return errors.New("no branch given")
 	}
-	_, err := runNetwork(ctx, r.Root, "checkout", branch)
-	return err
+	if mode != "leave" && mode != "bring" {
+		_, err := runNetwork(ctx, r.Root, "checkout", branch)
+		return err
+	}
+
+	current, _ := r.CurrentBranch(ctx)
+	dirty, err := run(ctx, r.Root, "status", "--porcelain")
+	if err != nil {
+		return err
+	}
+	stashed := false
+	if dirty != "" {
+		if _, err := runNetwork(ctx, r.Root, "stash", "push", "--include-untracked", "-m", "orchestrator: changes on "+current); err != nil {
+			return err
+		}
+		stashed = true
+	}
+	if _, err := runNetwork(ctx, r.Root, "checkout", branch); err != nil {
+		if stashed {
+			_, _ = runNetwork(ctx, r.Root, "stash", "pop")
+		}
+		return err
+	}
+	if stashed && mode == "bring" {
+		if _, err := runNetwork(ctx, r.Root, "stash", "pop"); err != nil {
+			return errors.New("switched to " + branch + ", but the changes could not be applied cleanly and remain in the stash: " + err.Error())
+		}
+	}
+	return nil
 }
 
 func (r *Repo) CreateBranch(ctx context.Context, name string) error {
