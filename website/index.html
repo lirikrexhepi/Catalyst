@@ -1,0 +1,229 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orchestrator</title>
+<meta name="description" content="Run Claude Code, Codex, OpenCode and Antigravity side by side on your desktop, and steer them from your phone.">
+<meta name="theme-color" content="#000000">
+<meta property="og:title" content="Orchestrator">
+<meta property="og:description" content="Many agents. One deck.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="assets/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preload" href="fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<script>document.documentElement.classList.add('js')</script>
+<link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+
+<header class="island" id="island">
+  <a class="brand" href="#top" aria-label="Orchestrator">
+    <img src="assets/icon-256.png" alt="" width="28" height="28">
+    <span>Orchestrator</span>
+  </a>
+  <nav aria-label="Sections">
+    <a href="#desktop">Desktop</a>
+    <a href="#phone">Phone</a>
+  </nav>
+  <a class="btn accent small" href="#download" data-download>Download</a>
+</header>
+
+<main>
+
+<section class="hero" id="top">
+  <div class="hero-copy">
+    <h1 class="display" data-reveal>Many agents.<br>One deck.</h1>
+    <p class="lead" data-reveal style="--d:80ms">Claude Code, Codex, OpenCode and Antigravity, side by side. Steered from your phone.</p>
+    <div class="actions" data-reveal style="--d:160ms">
+      <a class="btn accent" href="#download" data-download>Download</a>
+      <a class="link" href="#phone">See the phone app</a>
+    </div>
+  </div>
+  <div class="hero-art">
+    <figure class="frame hero-desk" data-shape="34" data-reveal style="--d:240ms">
+      <img src="assets/shots/desktop-deck-hero-2000.webp" srcset="assets/shots/desktop-deck-hero-1000.webp 1000w, assets/shots/desktop-deck-hero-2000.webp 2000w" sizes="(min-width: 1300px) 1180px, 92vw" width="2000" height="1250" alt="Orchestrator on the desktop, one agent open in the deck with the next one peeking in" fetchpriority="high">
+      <span class="rim" aria-hidden="true"></span>
+    </figure>
+    <figure class="phone hero-phone" data-reveal style="--d:420ms">
+      <div class="screen"><img src="assets/shots/mobile-chat-live-780.webp" srcset="assets/shots/mobile-chat-live-390.webp 390w, assets/shots/mobile-chat-live-780.webp 780w" sizes="260px" width="780" height="1688" alt="The phone app following an agent as it works"></div>
+    </figure>
+  </div>
+</section>
+
+<section class="feature" id="desktop">
+  <div class="copy" data-reveal>
+    <h2>One prompt becomes a team.</h2>
+    <p class="lead">Pick a model for each task and start them in separate worktrees.</p>
+  </div>
+  <figure class="frame wide" data-shape="32" data-lift>
+    <img src="assets/shots/desktop-plan-2000.webp" srcset="assets/shots/desktop-plan-1000.webp 1000w, assets/shots/desktop-plan-2000.webp 2000w" sizes="(min-width: 1300px) 1240px, 92vw" width="2000" height="1250" loading="lazy" decoding="async" alt="The orchestrator splitting a request into three tasks, each with its own model">
+    <span class="rim" aria-hidden="true"></span>
+  </figure>
+</section>
+
+<section class="feature split">
+  <div class="copy" data-reveal>
+    <h2>Every agent in reach.</h2>
+    <p class="lead">Flip through chats with Ctrl and the arrow keys.</p>
+  </div>
+  <figure class="frame" data-shape="30" data-lift>
+    <img src="assets/shots/desktop-question-2000.webp" srcset="assets/shots/desktop-question-1000.webp 1000w, assets/shots/desktop-question-2000.webp 2000w" sizes="(min-width: 1300px) 840px, 92vw" width="2000" height="1250" loading="lazy" decoding="async" alt="An agent card asking which rows an export should include">
+    <span class="rim" aria-hidden="true"></span>
+  </figure>
+</section>
+
+<section class="feature">
+  <div class="copy" data-reveal>
+    <h2>See them all at once.</h2>
+    <p class="lead">Ctrl and Space lay every agent out in a grid.</p>
+  </div>
+  <figure class="frame wide" data-shape="32" data-lift>
+    <img src="assets/shots/desktop-grid-2000.webp" srcset="assets/shots/desktop-grid-1000.webp 1000w, assets/shots/desktop-grid-2000.webp 2000w" sizes="(min-width: 1300px) 1240px, 92vw" width="2000" height="1250" loading="lazy" decoding="async" alt="Five agents from four providers laid out in a grid">
+    <span class="rim" aria-hidden="true"></span>
+  </figure>
+</section>
+
+<section class="feature split flip">
+  <div class="copy" data-reveal>
+    <h2>Review before it lands.</h2>
+    <p class="lead">Stage, commit and publish from the agent's own worktree.</p>
+  </div>
+  <figure class="frame" data-shape="30" data-lift>
+    <img src="assets/shots/desktop-git-2000.webp" srcset="assets/shots/desktop-git-1000.webp 1000w, assets/shots/desktop-git-2000.webp 2000w" sizes="(min-width: 1300px) 840px, 92vw" width="2000" height="1250" loading="lazy" decoding="async" alt="Staged and unstaged changes with a diff of the file an agent edited">
+    <span class="rim" aria-hidden="true"></span>
+  </figure>
+</section>
+
+<section class="feature">
+  <div class="copy" data-reveal>
+    <h2>Watch it run.</h2>
+    <p class="lead">Dev servers open right inside the card.</p>
+  </div>
+  <figure class="frame wide" data-shape="32" data-lift>
+    <img src="assets/shots/desktop-preview-2000.webp" srcset="assets/shots/desktop-preview-1000.webp 1000w, assets/shots/desktop-preview-2000.webp 2000w" sizes="(min-width: 1300px) 1240px, 92vw" width="2000" height="1250" loading="lazy" decoding="async" alt="A running web app previewed inside an agent card">
+    <span class="rim" aria-hidden="true"></span>
+  </figure>
+</section>
+
+<section class="feature split">
+  <div class="copy" data-reveal>
+    <h2>Any model. Any account.</h2>
+    <p class="lead">Switch providers mid-chat and keep an eye on every quota.</p>
+  </div>
+  <figure class="frame" data-shape="30" data-lift>
+    <img src="assets/shots/desktop-models-2000.webp" srcset="assets/shots/desktop-models-1000.webp 1000w, assets/shots/desktop-models-2000.webp 2000w" sizes="(min-width: 1300px) 840px, 92vw" width="2000" height="1250" loading="lazy" decoding="async" alt="The model picker open with Claude models and account choices">
+    <span class="rim" aria-hidden="true"></span>
+  </figure>
+</section>
+
+<section class="feature look">
+  <div class="copy" data-reveal>
+    <h2>Dark, light or glass.</h2>
+    <p class="lead">Pick a wallpaper and make it yours.</p>
+  </div>
+  <div class="fan">
+    <figure class="frame side l" data-shape="28" data-reveal>
+      <img src="assets/shots/desktop-deck-light-2000.webp" srcset="assets/shots/desktop-deck-light-1000.webp 1000w, assets/shots/desktop-deck-light-2000.webp 2000w" sizes="(min-width: 1300px) 640px, 60vw" width="2000" height="1250" loading="lazy" decoding="async" alt="The light theme over a pink mountain wallpaper">
+      <span class="rim" aria-hidden="true"></span>
+    </figure>
+    <figure class="frame side r" data-shape="28" data-reveal style="--d:120ms">
+      <img src="assets/shots/desktop-deck-glass-2000.webp" srcset="assets/shots/desktop-deck-glass-1000.webp 1000w, assets/shots/desktop-deck-glass-2000.webp 2000w" sizes="(min-width: 1300px) 640px, 60vw" width="2000" height="1250" loading="lazy" decoding="async" alt="The glass theme over a night desert wallpaper">
+      <span class="rim" aria-hidden="true"></span>
+    </figure>
+    <figure class="frame mid" data-shape="32" data-reveal style="--d:60ms">
+      <img src="assets/shots/desktop-wall-pink-2000.webp" srcset="assets/shots/desktop-wall-pink-1000.webp 1000w, assets/shots/desktop-wall-pink-2000.webp 2000w" sizes="(min-width: 1300px) 900px, 80vw" width="2000" height="1250" loading="lazy" decoding="async" alt="The dark theme over a pink mountain wallpaper">
+      <span class="rim" aria-hidden="true"></span>
+    </figure>
+  </div>
+</section>
+
+<section class="dusk" aria-label="Phone">
+  <div class="dusk-bg" aria-hidden="true"></div>
+  <h2 class="display" data-reveal>Now take it<br>with you.</h2>
+</section>
+
+<section class="phones" id="phone" data-count="9">
+  <div class="stage">
+    <div class="caption" aria-live="polite">
+      <h2 data-title></h2>
+      <p class="lead" data-line></p>
+    </div>
+    <div class="track">
+      <figure class="phone" data-title="Watch it work." data-line="Every step streams to your phone as it happens.">
+        <div class="screen"><img src="assets/shots/mobile-chat-live-780.webp" srcset="assets/shots/mobile-chat-live-390.webp 390w, assets/shots/mobile-chat-live-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="An agent working, streaming its steps to the phone"></div>
+      </figure>
+      <figure class="phone" data-title="Approve with a tap." data-line="Permission requests wait for you, wherever you are.">
+        <div class="screen"><img src="assets/shots/mobile-approval-780.webp" srcset="assets/shots/mobile-approval-390.webp 390w, assets/shots/mobile-approval-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="A permission request with Allow and Deny"></div>
+      </figure>
+      <figure class="phone" data-title="Answer from anywhere." data-line="Agents ask. You choose.">
+        <div class="screen"><img src="assets/shots/mobile-question-780.webp" srcset="assets/shots/mobile-question-390.webp 390w, assets/shots/mobile-question-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="An agent asking a multiple choice question"></div>
+      </figure>
+      <figure class="phone" data-title="Every change, line by line." data-line="Read the diff before you commit.">
+        <div class="screen"><img src="assets/shots/mobile-diff-780.webp" srcset="assets/shots/mobile-diff-390.webp 390w, assets/shots/mobile-diff-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="A diff of the edited file"></div>
+      </figure>
+      <figure class="phone" data-title="Browse the project." data-line="Files, changes and history, without opening a laptop.">
+        <div class="screen"><img src="assets/shots/mobile-files-780.webp" srcset="assets/shots/mobile-files-390.webp 390w, assets/shots/mobile-files-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="The project file tree with changed files marked"></div>
+      </figure>
+      <figure class="phone" data-title="Preview it live." data-line="Open the running app right on your phone.">
+        <div class="screen"><img src="assets/shots/mobile-preview-780.webp" srcset="assets/shots/mobile-preview-390.webp 390w, assets/shots/mobile-preview-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="A dev server previewed on the phone"></div>
+      </figure>
+      <figure class="phone" data-title="Switch the model." data-line="Any provider, account or reasoning level.">
+        <div class="screen"><img src="assets/shots/mobile-models-780.webp" srcset="assets/shots/mobile-models-390.webp 390w, assets/shots/mobile-models-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="The model picker sheet"></div>
+      </figure>
+      <figure class="phone" data-title="Every chat, one swipe." data-line="Pull in from the edge to jump between agents.">
+        <div class="screen"><img src="assets/shots/mobile-drawer-780.webp" srcset="assets/shots/mobile-drawer-390.webp 390w, assets/shots/mobile-drawer-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="The drawer listing projects and chats"></div>
+      </figure>
+      <figure class="phone" data-title="Control the PC." data-line="Turn the monitors off. Check how it is doing.">
+        <div class="screen"><img src="assets/shots/mobile-settings-780.webp" srcset="assets/shots/mobile-settings-390.webp 390w, assets/shots/mobile-settings-780.webp 780w" sizes="320px" width="780" height="1688" loading="lazy" decoding="async" alt="Settings with theme, notifications and monitor controls"></div>
+      </figure>
+    </div>
+    <div class="ticks" aria-hidden="true"></div>
+  </div>
+</section>
+
+<section class="pair">
+  <div class="copy" data-reveal>
+    <h2>Scan once. You're in.</h2>
+    <p class="lead">Open Settings, then Phone access, and scan the code.</p>
+  </div>
+  <div class="pair-art">
+    <figure class="frame" data-shape="30" data-reveal>
+      <img src="assets/shots/desktop-settings-phone-2000.webp" srcset="assets/shots/desktop-settings-phone-1000.webp 1000w, assets/shots/desktop-settings-phone-2000.webp 2000w" sizes="(min-width: 1300px) 820px, 92vw" width="2000" height="1250" loading="lazy" decoding="async" alt="Phone access settings with a pairing code on the desktop">
+      <span class="rim" aria-hidden="true"></span>
+    </figure>
+    <figure class="phone" data-reveal style="--d:140ms">
+      <div class="screen"><img src="assets/shots/mobile-auth-780.webp" srcset="assets/shots/mobile-auth-390.webp 390w, assets/shots/mobile-auth-780.webp 780w" sizes="280px" width="780" height="1688" loading="lazy" decoding="async" alt="The phone app asking to scan the code"></div>
+    </figure>
+  </div>
+</section>
+
+</main>
+
+<div class="finale">
+<section class="end" id="download">
+  <div class="end-copy">
+    <h2 class="display" data-reveal>Start with<br>one agent.</h2>
+    <div class="actions" data-reveal style="--d:120ms">
+      <a class="btn accent big" href="#download" data-download>Download for Windows</a>
+      <a class="link" href="#phone">Phone app</a>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <span class="mono">Orchestrator</span>
+  <nav class="mono" aria-label="Footer">
+    <a href="#desktop">Desktop</a>
+    <a href="#phone">Phone</a>
+    <a href="#top">Top</a>
+  </nav>
+</footer>
+</div>
+
+<script type="module" src="js/site.js"></script>
+</body>
+</html>
+

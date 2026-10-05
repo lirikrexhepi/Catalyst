@@ -1,0 +1,26 @@
+import { launch, openDesktop } from './desktop.mjs'
+
+const browser = await launch()
+const { page } = await openDesktop(browser, { width: 1440, height: 900, scale: 1, storage: { 'composer:wallpaper': 'builtin-4' } })
+await page.waitForTimeout(5800)
+await page.keyboard.press('Escape')
+await page.waitForTimeout(400)
+for (let i = 0; i < 4; i++) {
+  await page.keyboard.press('Control+ArrowLeft')
+  await page.waitForTimeout(120)
+}
+await page.waitForTimeout(900)
+await page.getByText('Worked for 52s').first().click()
+await page.waitForTimeout(900)
+await page.screenshot({ path: '../scratch/d7-expanded.png' })
+await page.mouse.click(829, 30)
+await page.waitForTimeout(1200)
+await page.screenshot({ path: '../scratch/d7-usage.png' })
+await page.mouse.click(1000, 500)
+await page.waitForTimeout(500)
+await page.mouse.click(46, 450)
+await page.waitForTimeout(900)
+await page.mouse.click(275, 655)
+await page.waitForTimeout(1500)
+await page.screenshot({ path: '../scratch/d7-allsettings.png' })
+await browser.close()

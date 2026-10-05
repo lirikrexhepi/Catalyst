@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="mark"></span>Atlas</div>
+    <nav>
+      <a href="/">Overview</a>
+      <a href="/">Reports</a>
+      <a href="/">Customers</a>
+      <a href="/">Billing</a>
+      <a class="on" href="/settings.html">Settings</a>
+    </nav>
+    <div class="me"><span class="avatar">M</span><div><b>Mara Lindqvist</b><small>Owner</small></div></div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <h1>Settings</h1>
+    </header>
+    <div class="tabs"><a>General</a><a class="on">Appearance</a><a>Notifications</a><a>Members</a></div>
+    <section class="panel">
+      <div class="row">
+        <div><b>Dark mode</b><small>Use the dark palette across the dashboard</small></div>
+        <span class="switch on"><i></i></span>
+      </div>
+      <div class="row">
+        <div><b>Density</b><small>Tighter rows in tables and lists</small></div>
+        <div class="seg"><span>Comfortable</span><span class="on">Compact</span></div>
+      </div>
+      <div class="row">
+        <div><b>Accent color</b><small>Used for charts and primary actions</small></div>
+        <div class="dots"><i style="--c:#4f46e5" class="on"></i><i style="--c:#0ea5e9"></i><i style="--c:#10b981"></i><i style="--c:#f59e0b"></i><i style="--c:#ef4444"></i></div>
+      </div>
+      <div class="row">
+        <div><b>Reduce motion</b><small>Skip chart and page transitions</small></div>
+        <span class="switch"><i></i></span>
+      </div>
+    </section>
+    <section class="panel preview">
+      <div class="p-head"><b>Preview</b><small>How charts look with your choices</small></div>
+      <svg viewBox="0 0 640 150" preserveAspectRatio="none" class="spark">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f46e5" stop-opacity=".28"/><stop offset="1" stop-color="#4f46e5" stop-opacity="0"/></linearGradient></defs>
+        <path d="M0 110 C60 100 90 70 140 78 S230 120 290 92 S390 30 450 52 S560 96 640 40 L640 150 L0 150Z" fill="url(#g)"/>
+        <path d="M0 110 C60 100 90 70 140 78 S230 120 290 92 S390 30 450 52 S560 96 640 40" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+    </section>
+  </main>
+</div>
+</body>
+</html>

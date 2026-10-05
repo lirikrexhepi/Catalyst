@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atlas</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand"><span class="mark"></span>Atlas</div>
+    <nav>
+      <a class="on" href="/">Overview</a>
+      <a href="/">Reports</a>
+      <a href="/">Customers</a>
+      <a href="/">Billing</a>
+      <a href="/settings.html">Settings</a>
+    </nav>
+    <div class="me"><span class="avatar">M</span><div><b>Mara Lindqvist</b><small>Owner</small></div></div>
+  </aside>
+  <main class="main">
+    <header class="top">
+      <h1>Overview</h1>
+      <div class="range"><span>7d</span><span class="on">30d</span><span>90d</span></div>
+    </header>
+    <div class="kpis">
+      <div class="kpi"><small>Revenue</small><b>$48,210</b><em class="up">+12.4%</em></div>
+      <div class="kpi"><small>Signups</small><b>3,482</b><em class="up">+8.1%</em></div>
+      <div class="kpi"><small>Churn</small><b>1.9%</b><em class="down">-0.3%</em></div>
+      <div class="kpi"><small>Active</small><b>12.6k</b><em class="up">+4.7%</em></div>
+    </div>
+    <section class="panel chart">
+      <div class="p-head"><b>Revenue</b><small>Last 30 days</small></div>
+      <svg viewBox="0 0 760 240" preserveAspectRatio="none" class="big">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f46e5" stop-opacity=".3"/><stop offset="1" stop-color="#4f46e5" stop-opacity="0"/></linearGradient></defs>
+        <g stroke="#e8e8ee" stroke-width="1"><path d="M0 40H760M0 100H760M0 160H760M0 220H760"/></g>
+        <path d="M0 180 C50 170 80 130 130 140 S210 190 270 150 S350 60 410 92 S500 150 560 110 S680 40 760 52 L760 240 L0 240Z" fill="url(#g)"/>
+        <path d="M0 180 C50 170 80 130 130 140 S210 190 270 150 S350 60 410 92 S500 150 560 110 S680 40 760 52" fill="none" stroke="#4f46e5" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="560" cy="110" r="6" fill="#fff" stroke="#4f46e5" stroke-width="3"/>
+      </svg>
+    </section>
+    <section class="panel table">
+      <div class="p-head"><b>Top reports</b><small>By views</small></div>
+      <div class="tr"><span>Weekly revenue</span><span>2,410</span><span class="up">+9%</span></div>
+      <div class="tr"><span>Signup funnel</span><span>1,982</span><span class="up">+14%</span></div>
+      <div class="tr"><span>Churn by plan</span><span>1,204</span><span class="down">-3%</span></div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

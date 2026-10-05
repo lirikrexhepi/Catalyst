@@ -1,0 +1,21 @@
+:root {
+  --ink: 255, 255, 255;
+  --rim: #ffffff;
+  --glass-control: #414141;
+  --glass-surface: linear-gradient(160deg, #181818 0%, #1f1f1f 50%, #262626 100%);
+  --glass-field: linear-gradient(to bottom left, #3c3c3c, #474747);
+  --glass-frosted: rgba(65, 65, 65, 0.82);
+  --accent: #21629f;
+  --accent-deep: #00417f;
+  --surface-2: #2a2a2a;
+}
+
+:root[data-theme='light'] {
+  --ink: 0, 0, 0;
+  --rim: #a9a9b0;
+  --glass-control: #e6e6ea;
+  --glass-surface: linear-gradient(160deg, #ffffff 0%, #f8f8fa 50%, #f0f0f3 100%);
+  --glass-field: linear-gradient(to bottom left, #ffffff, #f3f3f6);
+  --glass-frosted: rgba(255, 255, 255, 0.86);
+  --surface-2: #ececf0;
+}
