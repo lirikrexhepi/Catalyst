@@ -36,7 +36,7 @@ export interface GitState {
   selectLane: (path: string) => void;
   selectView: (view: GitView) => void;
   selectFile: (file: FileKey) => void;
-  refresh: () => Promise<void>;
+  refresh: (silent?: boolean) => Promise<void>;
   removeWorktree: (path: string, force: boolean) => Promise<string | null>;
   reveal: (path: string) => Promise<void>;
 }
@@ -74,16 +74,23 @@ export function useGit(isOpen: boolean): GitState {
   const diffToken = useRef(0);
   const dirty = useRef(false);
 
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
+  const lanesKey = useRef('');
+  const diffKey = useRef('');
+
+  const refresh = useCallback(async (silent = false) => {
+    if (!silent) setIsLoading(true);
     try {
       const next = await GitOverview();
-      setLanes(next);
-      setError(null);
+      const key = JSON.stringify(next);
+      if (key !== lanesKey.current) {
+        lanesKey.current = key;
+        setLanes(next);
+      }
+      setError((prev) => (prev === null ? prev : null));
     } catch (cause) {
       setError(message(cause));
     } finally {
-      setIsLoading(false);
+      if (!silent) setIsLoading(false);
     }
   }, []);
 
@@ -101,11 +108,13 @@ export function useGit(isOpen: boolean): GitState {
       dirty.current = true;
     });
     const settle = window.setInterval(() => {
-      if (!dirty.current) return;
+      if (!dirty.current || document.hidden) return;
       dirty.current = false;
-      void refresh();
+      void refresh(true);
     }, SETTLE_MS);
-    const idle = window.setInterval(() => void refresh(), IDLE_REFRESH_MS);
+    const idle = window.setInterval(() => {
+      if (!document.hidden) void refresh(true);
+    }, IDLE_REFRESH_MS);
 
     return () => {
       off();
@@ -157,8 +166,15 @@ export function useGit(isOpen: boolean): GitState {
       setIsDiffLoading(false);
     };
 
+    const selectionKey =
+      view.kind === 'commit'
+        ? `commit:${activeLane.path}:${view.sha}`
+        : `file:${activeLane.path}:${selectedFile?.path}:${selectedFile?.staged}`;
+    const sameSelection = diffKey.current === selectionKey;
+    diffKey.current = selectionKey;
+
     if (view.kind === 'commit') {
-      setIsDiffLoading(true);
+      if (!sameSelection) setIsDiffLoading(true);
       GitCommitDiff(activeLane.path, view.sha)
         .then((next) => apply(next ?? [], null))
         .catch((cause) => apply([], message(cause)));
@@ -170,7 +186,7 @@ export function useGit(isOpen: boolean): GitState {
       return;
     }
 
-    setIsDiffLoading(true);
+    if (!sameSelection) setIsDiffLoading(true);
     GitFileDiff(activeLane.path, selectedFile.path, selectedFile.staged)
       .then((next) => apply(next ? [next] : [], null))
       .catch((cause) => apply([], message(cause)));

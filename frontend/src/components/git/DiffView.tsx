@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { domain } from '../../../wailsjs/go/models';
 
 export interface DiffViewProps {
@@ -33,7 +33,11 @@ const Gutter: React.FC<{ value: number }> = ({ value }) => (
   </span>
 );
 
-const Row: React.FC<{ line: domain.DiffLine }> = ({ line }) => (
+const MAX_LINE_CHARS = 1200;
+const INITIAL_ROWS = 800;
+const ROW_HEIGHT = 18;
+
+const Row = React.memo<{ line: domain.DiffLine }>(({ line }) => (
   <div className={`flex ${ROW_TONES[line.kind] ?? ''}`}>
     <Gutter value={line.old ?? 0} />
     <Gutter value={line.new ?? 0} />
@@ -43,15 +47,40 @@ const Row: React.FC<{ line: domain.DiffLine }> = ({ line }) => (
     {/* Tabs and runs of spaces carry meaning in code, so the row preserves
         whitespace and scrolls sideways rather than wrapping mid-token. */}
     <span className={`whitespace-pre flex-1 ${TEXT_TONES[line.kind] ?? ''}`}>
-      {line.content || ' '}
+      {line.content ? (line.content.length > MAX_LINE_CHARS ? `${line.content.slice(0, MAX_LINE_CHARS)}…` : line.content) : ' '}
     </span>
   </div>
-);
+));
+Row.displayName = 'DiffRow';
+
+const Hunk = React.memo<{ hunk: domain.DiffHunk; budget: number }>(({ hunk, budget }) => {
+  const lines = hunk.lines ?? [];
+  const shown = lines.length > budget ? lines.slice(0, budget) : lines;
+  return (
+    <div
+      className="flex flex-col"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: `auto ${(shown.length + 1) * ROW_HEIGHT}px` }}
+    >
+      <div className="px-3 py-1 bg-white/[0.04] text-[10.5px] font-mono text-white/35 whitespace-pre truncate">
+        {hunk.header}
+      </div>
+      {shown.map((line, row) => (
+        <Row key={row} line={line} />
+      ))}
+    </div>
+  );
+});
+Hunk.displayName = 'DiffHunk';
 
 const FileDiff: React.FC<{ diff: domain.DiffFile; showHeader: boolean }> = ({
   diff,
   showHeader,
-}) => (
+}) => {
+  const [limit, setLimit] = useState(INITIAL_ROWS);
+  const hunks = diff.hunks ?? [];
+  const total = hunks.reduce((sum, hunk) => sum + (hunk.lines?.length ?? 0), 0);
+  let remaining = limit;
+  return (
   <div className="flex flex-col">
     {showHeader && (
       <div className="sticky top-0 z-10 flex items-baseline gap-2 px-3 py-1.5 bg-[#15171c]/95 border-b border-white/[0.07] backdrop-blur-sm">
@@ -68,16 +97,22 @@ const FileDiff: React.FC<{ diff: domain.DiffFile; showHeader: boolean }> = ({
     {diff.binary ? (
       <p className="px-3 py-3 text-[12px] font-(family-name:--app-font) text-white/40">Binary file — no preview.</p>
     ) : (
-      (diff.hunks ?? []).map((hunk, index) => (
-        <div key={`${diff.path}-${index}`} className="flex flex-col">
-          <div className="px-3 py-1 bg-white/[0.04] text-[10.5px] font-mono text-white/35 whitespace-pre truncate">
-            {hunk.header}
-          </div>
-          {(hunk.lines ?? []).map((line, row) => (
-            <Row key={row} line={line} />
-          ))}
-        </div>
-      ))
+      hunks.map((hunk, index) => {
+        const budget = Math.max(0, remaining);
+        remaining -= hunk.lines?.length ?? 0;
+        if (budget <= 0 && index > 0) return null;
+        return <Hunk key={`${diff.path}-${index}`} hunk={hunk} budget={budget} />;
+      })
+    )}
+
+    {!diff.binary && total > limit && (
+      <button
+        type="button"
+        onClick={() => setLimit((value) => value + 2000)}
+        className="px-3 py-2 text-left text-[11px] font-(family-name:--app-font) text-sky-300/80 hover:text-sky-200 cursor-pointer"
+      >
+        Show {Math.min(2000, total - limit)} more lines ({total - limit} hidden)
+      </button>
     )}
 
     {diff.truncated && (
@@ -92,7 +127,8 @@ const FileDiff: React.FC<{ diff: domain.DiffFile; showHeader: boolean }> = ({
       </p>
     )}
   </div>
-);
+  );
+};
 
 /** The right-hand pane: one file's diff, or every file a commit touched. */
 export const DiffView: React.FC<DiffViewProps> = ({ diffs, isLoading, error, placeholder }) => {
