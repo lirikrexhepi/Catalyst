@@ -46,6 +46,8 @@ import {
   File02Icon,
   FlashIcon,
   Folder01Icon,
+  MinimizeScreenIcon,
+  FullScreenIcon,
   FolderAddIcon,
   FolderGitIcon,
   FolderOpenIcon,
@@ -165,6 +167,8 @@ export const MessageCirclePlus = make(MessageAdd01Icon);
 export const MessageCircleQuestion = make(MessageQuestionIcon);
 export const MessageSquarePlus = make(MessageAdd02Icon);
 export const Mic = make(Mic01Icon);
+export const Minimize = make(MinimizeScreenIcon);
+export const Maximize = make(FullScreenIcon);
 export const Minus = make(MinusSignIcon);
 export const Monitor = make(ComputerIcon);
 export const MonitorOff = make(ComputerRemoveIcon);

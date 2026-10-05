@@ -267,6 +267,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     return {};
   });
   const [isResizingCard, setIsResizingCard] = useState(false);
+  const [fullscreenId, setFullscreenId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -573,6 +574,11 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         return;
       }
 
+      if (e.key === 'Escape' && fullscreenId) {
+        setFullscreenId(null);
+        return;
+      }
+
       if (e.key === 'Escape' && !isInputFocused) {
         if (activePanel) {
           setActivePanel(null);
@@ -588,7 +594,11 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTasks.length, viewMode, activePanel]);
+  }, [activeTasks.length, viewMode, activePanel, fullscreenId]);
+
+  useEffect(() => {
+    if (viewMode !== 'deck') setFullscreenId(null);
+  }, [viewMode]);
 
   const { currentTheme } = useTheme();
   const isLight = currentTheme.id === 'light' || currentTheme.id === 'white';
@@ -995,6 +1005,15 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                 }
               }
 
+              const isFullscreen = viewMode === 'deck' && isCenter && fullscreenId === task.threadId;
+              if (isFullscreen) {
+                transform = `translate3d(0, ${-33 - Math.round(pushUpOffset / 2)}px, 0) scale(1)`;
+                zIndex = 35;
+              } else if (fullscreenId && viewMode === 'deck') {
+                opacity = 0;
+                isInteractive = false;
+              }
+
               // Card physical dimensions stay strictly consistent based on cardMode whether in Deck or Exposé Grid.
               // This guarantees moving between Deck and Grid or sliding cards is handled 100% via GPU compositor affine transforms
               // (translate3d + scale) with zero DOM layout reflows and zero canvas/iframe resizing!
@@ -1059,10 +1078,12 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                         : ''
                   }`}
                   style={{
-                    width: cardWidth,
-                    maxWidth: 'calc(100vw - 120px)',
-                    height: cardHeight,
-                    maxHeight: `min(${cardMaxHeight}, calc(100vh - 260px))`,
+                    width: isFullscreen ? 'calc(100vw - 32px)' : cardWidth,
+                    maxWidth: isFullscreen ? 'calc(100vw - 32px)' : 'calc(100vw - 120px)',
+                    height: isFullscreen ? `calc(100vh - ${174 + pushUpOffset}px)` : cardHeight,
+                    maxHeight: isFullscreen
+                      ? `calc(100vh - ${174 + pushUpOffset}px)`
+                      : `min(${cardMaxHeight}, calc(100vh - 190px))`,
                     minHeight: '440px',
                     transform,
                     opacity,
@@ -1141,6 +1162,10 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                         [task.threadId]: { width: w, height: h },
                       }))
                     }
+                    projectName={task.projectName}
+                    isFullscreen={isFullscreen}
+                    onEnterFullscreen={() => setFullscreenId(task.threadId)}
+                    onExitFullscreen={() => setFullscreenId(null)}
                     onResizeStart={() => setIsResizingCard(true)}
                     onResizeEnd={() => setIsResizingCard(false)}
                     cardWidth={thisCardSize.width}

@@ -7,7 +7,7 @@ import { AgentGitView } from './AgentGitView';
 import { AgentServersView } from './AgentServersView';
 import { domain, servers } from '../../../wailsjs/go/models';
 import { GitState } from '../git';
-import { X, Square } from '../common/icons';
+import { X, Square, Folder, Minimize } from '../common/icons';
 import { OrbitLoader } from './OrbitLoader';
 import { TextShimmer } from './TextShimmer';
 import { AgentStreamBlock, TodoToolBlockData } from './types';
@@ -62,6 +62,10 @@ export interface AgentWindowProps {
   onResize?: (width: number, height: number) => void;
   onResizeStart?: () => void;
   onResizeEnd?: () => void;
+  projectName?: string;
+  isFullscreen?: boolean;
+  onEnterFullscreen?: () => void;
+  onExitFullscreen?: () => void;
   cardWidth?: number;
   cardHeight?: number;
   className?: string;
@@ -123,6 +127,10 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   onResize,
   onResizeStart,
   onResizeEnd,
+  projectName,
+  isFullscreen = false,
+  onEnterFullscreen,
+  onExitFullscreen,
   cardWidth,
   cardHeight,
   className = '',
@@ -192,6 +200,8 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
     setVisited((prev) => (prev.has(activeMode) ? prev : new Set([...prev, activeMode])));
   }, [activeMode]);
 
+  const OVERSHOOT_PX = 40;
+  const OVERSHOOT_HOLD_MS = 650;
   const [isDraggingResize, setIsDraggingResize] = useState(false);
 
   const [liveSize, setLiveSize] = useState({
@@ -209,7 +219,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   }, [cardWidth, cardHeight, isDraggingResize]);
 
   const handleGrabPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (mode === 'grid' || !onResize) return;
+    if (mode === 'grid' || !onResize || isFullscreen) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -221,6 +231,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
 
     let lastW = startW;
     let lastH = startH;
+    let overshootTimer = 0;
 
     setIsDraggingResize(true);
     onResizeStart?.();
@@ -240,10 +251,21 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
       const minW = 650;
       const maxW = Math.min(1350, Math.floor((window.innerWidth - 60) / STEP) * STEP);
       const minH = 450;
-      const maxH = Math.min(880, Math.floor((window.innerHeight - 260) / STEP) * STEP);
+      const maxH = Math.min(880, Math.floor((window.innerHeight - 190) / STEP) * STEP);
 
       const clampedW = Math.max(minW, Math.min(maxW, snappedW));
       const clampedH = Math.max(minH, Math.min(maxH, snappedH));
+
+      const overshoot = rawH - maxH > OVERSHOOT_PX || rawW - maxW > OVERSHOOT_PX * 2;
+      if (overshoot && !overshootTimer && onEnterFullscreen) {
+        overshootTimer = window.setTimeout(() => {
+          stopDrag();
+          onEnterFullscreen();
+        }, OVERSHOOT_HOLD_MS);
+      } else if (!overshoot && overshootTimer) {
+        window.clearTimeout(overshootTimer);
+        overshootTimer = 0;
+      }
 
       if (clampedW !== lastW || clampedH !== lastH) {
         lastW = clampedW;
@@ -253,17 +275,19 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
       }
     };
 
-    const handlePointerUp = () => {
+    const stopDrag = () => {
+      window.clearTimeout(overshootTimer);
+      overshootTimer = 0;
       setIsDraggingResize(false);
       onResizeEnd?.();
       window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
-      window.removeEventListener('pointercancel', handlePointerUp);
+      window.removeEventListener('pointerup', stopDrag);
+      window.removeEventListener('pointercancel', stopDrag);
     };
 
     window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerUp);
-    window.addEventListener('pointercancel', handlePointerUp);
+    window.addEventListener('pointerup', stopDrag);
+    window.addEventListener('pointercancel', stopDrag);
   };
 
   const setMode = (m: AgentCardMode) => {
@@ -448,6 +472,12 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
                 <span className={`text-[13px] font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
                   {title}
                 </span>
+                {projectName && (
+                  <span className={'inline-flex items-center gap-1 shrink-0 text-[11px] font-medium font-(family-name:--app-font) tracking-tight ' + (isLight ? 'text-black/55' : 'text-white/50')} title={'Project: ' + projectName}>
+                    <Folder size={12} strokeWidth={1.75} />
+                    {projectName}
+                  </span>
+                )}
                 {subtitle && (
                   <span className={`text-[11px] font-medium font-(family-name:--app-font) tracking-tight truncate hidden sm:inline ${isLight ? 'text-black/45' : 'text-white/40'}`}>
                     · {subtitle}
@@ -510,6 +540,21 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
                 changes={changesCount}
                 isLight={isLight}
               />
+
+              {isFullscreen && onExitFullscreen && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExitFullscreen();
+                  }}
+                  title="Exit full screen (Esc)"
+                  aria-label="Exit full screen"
+                  className={'w-[28px] h-[28px] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-90 pointer-events-auto ' + (isLight ? 'bg-black/[0.06] text-black/60 hover:bg-black/[0.12] hover:text-black' : 'bg-white/10 text-white/60 hover:bg-white/20 hover:text-white')}
+                >
+                  <Minimize size={14} strokeWidth={2} />
+                </button>
+              )}
 
               {/* Minimalist Borderless Close Button */}
               {onClose && (
