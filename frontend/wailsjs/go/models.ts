@@ -2034,6 +2034,29 @@ export namespace session {
 
 }
 
+export namespace skills {
+	
+	export class Info {
+	    name: string;
+	    description: string;
+	    source: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.source = source["source"];
+	        this.path = source["path"];
+	    }
+	}
+
+}
+
 export namespace slashcmd {
 	
 	export class Command {
@@ -2054,29 +2077,6 @@ export namespace slashcmd {
 	        this.source = source["source"];
 	        this.kind = source["kind"];
 	        this.prompt = source["prompt"];
-	    }
-	}
-
-}
-
-export namespace skills {
-	
-	export class Info {
-	    name: string;
-	    description: string;
-	    source: string;
-	    path: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Info(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.source = source["source"];
-	        this.path = source["path"];
 	    }
 	}
 

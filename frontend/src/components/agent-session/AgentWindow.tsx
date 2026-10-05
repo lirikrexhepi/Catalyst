@@ -200,8 +200,9 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
     setVisited((prev) => (prev.has(activeMode) ? prev : new Set([...prev, activeMode])));
   }, [activeMode]);
 
-  const OVERSHOOT_PX = 40;
-  const OVERSHOOT_HOLD_MS = 650;
+  const OVERSHOOT_PX = 16;
+  const OVERSHOOT_HOLD_MS = 460;
+  const [isPulsing, setIsPulsing] = useState(false);
   const [isDraggingResize, setIsDraggingResize] = useState(false);
 
   const [liveSize, setLiveSize] = useState({
@@ -258,13 +259,16 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
 
       const overshoot = rawH - maxH > OVERSHOOT_PX || rawW - maxW > OVERSHOOT_PX * 2;
       if (overshoot && !overshootTimer && onEnterFullscreen) {
+        setIsPulsing(true);
         overshootTimer = window.setTimeout(() => {
+          setIsPulsing(false);
           stopDrag();
           onEnterFullscreen();
         }, OVERSHOOT_HOLD_MS);
       } else if (!overshoot && overshootTimer) {
         window.clearTimeout(overshootTimer);
         overshootTimer = 0;
+        setIsPulsing(false);
       }
 
       if (clampedW !== lastW || clampedH !== lastH) {
@@ -278,6 +282,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
     const stopDrag = () => {
       window.clearTimeout(overshootTimer);
       overshootTimer = 0;
+      setIsPulsing(false);
       setIsDraggingResize(false);
       onResizeEnd?.();
       window.removeEventListener('pointermove', handlePointerMove);
@@ -389,7 +394,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
     <div
       ref={cardContainerRef}
       onClick={onFocus}
-      className={`select-none transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+      className={`select-none transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${isPulsing ? 'animate-size-pulse' : ''} ${
         isGrid
           ? 'cursor-pointer group/card active:scale-[0.985] transition-transform duration-150 ease-out'
           : 'pointer-events-auto'
@@ -460,18 +465,32 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
           {/* Card Header (Reinvented: seamless, borderless, organic glass) */}
           <div className="flex items-center justify-between shrink-0 pt-0.5 pb-2 px-1">
             <div className="flex items-center gap-2 min-w-0 pr-2" style={isFullscreen ? { maxWidth: 'calc(100% - 140px)' } : undefined}>
-              {/* Active Driver Icon with live working indicator */}
               <div
-                className="relative flex items-center justify-center shrink-0"
-                title={`Active CLI: ${activeDriver}${activeModel ? ` (${formatModelBadge(activeModel, activeDriver)})` : ''}`}
+                className="relative flex items-center gap-1.5 shrink-0"
+                title={
+                  driverProgression.length > 1
+                    ? 'CLI transition: ' + driverProgression.map((step) => step.driver + (step.model ? ' (' + formatModelBadge(step.model, step.driver) + ')' : '')).join(' → ')
+                    : 'Active CLI: ' + activeDriver + (activeModel ? ' (' + formatModelBadge(activeModel, activeDriver) + ')' : '')
+                }
               >
-                {renderChatIcon(activeDriver, activeModel, isLight, 'w-[15px] h-[15px]')}
+                {driverProgression.length > 1
+                  ? driverProgression.map((step, idx) => (
+                      <React.Fragment key={idx}>
+                        {idx > 0 && (
+                          <span className={'text-[10px] leading-none ' + (isLight ? 'text-black/35' : 'text-white/35')}>→</span>
+                        )}
+                        <span className="inline-flex items-center justify-center shrink-0">
+                          {renderChatIcon(step.driver, step.model, isLight, 'w-[15px] h-[15px]')}
+                        </span>
+                      </React.Fragment>
+                    ))
+                  : renderChatIcon(activeDriver, activeModel, isLight, 'w-[15px] h-[15px]')}
                 {isWorking && (
                   <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black/40 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse" />
                 )}
               </div>
 
-              <div className="flex items-baseline gap-1.5 min-w-0 truncate">
+              <div className="flex items-center gap-2 min-w-0">
                 <span className={`text-[13px] font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
                   {title}
                 </span>
@@ -487,34 +506,6 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
                   </span>
                 )}
               </div>
-
-              {/* CLI Transition Story Pill (e.g. [Antigravity] → [Codex]) */}
-              {driverProgression.length > 1 && (
-                <div
-                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-mono font-medium tracking-tight border backdrop-blur-md shrink-0 select-none shadow-xs transition-all ${
-                    isLight
-                      ? 'bg-black/[0.05] text-black/75 border-black/10 hover:bg-black/[0.08]'
-                      : 'bg-white/[0.08] text-white/85 border-white/10 hover:bg-white/[0.12]'
-                  }`}
-                  title={`CLI transition: ${driverProgression.map((s) => `${s.driver}${s.model ? ` (${formatModelBadge(s.model, s.driver)})` : ''}`).join(' → ')}`}
-                >
-                  {driverProgression.map((step, idx) => (
-                    <React.Fragment key={idx}>
-                      {idx > 0 && (
-                        <span className={`text-[10px] leading-none ${isLight ? 'text-black/40' : 'text-white/40'}`}>
-                          →
-                        </span>
-                      )}
-                      <span
-                        className="inline-flex items-center justify-center shrink-0"
-                        title={step.model ? `${step.driver}: ${formatModelBadge(step.model, step.driver)}` : step.driver}
-                      >
-                        {renderChatIcon(step.driver, step.model, isLight, 'w-[13px] h-[13px]')}
-                      </span>
-                    </React.Fragment>
-                  ))}
-                </div>
-              )}
 
               <ContextRing usage={contextUsage} isLight={isLight} />
             </div>

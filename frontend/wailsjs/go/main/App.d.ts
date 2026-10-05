@@ -3,7 +3,6 @@
 import {provider} from '../models';
 import {projects} from '../models';
 import {main} from '../models';
-import {slashcmd} from '../models';
 import {attachments} from '../models';
 import {domain} from '../models';
 import {session} from '../models';
@@ -13,6 +12,7 @@ import {history} from '../models';
 import {devserver} from '../models';
 import {servers} from '../models';
 import {skills} from '../models';
+import {slashcmd} from '../models';
 import {files} from '../models';
 
 export function AccountStatus(arg1:string,arg2:string):Promise<provider.AccountStatus>;

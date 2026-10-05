@@ -182,12 +182,12 @@ export function ListSessionsMeta(arg1) {
   return window['go']['main']['App']['ListSessionsMeta'](arg1);
 }
 
-export function ListSlashCommands(arg1, arg2) {
-  return window['go']['main']['App']['ListSlashCommands'](arg1, arg2);
-}
-
 export function ListSkills(arg1) {
   return window['go']['main']['App']['ListSkills'](arg1);
+}
+
+export function ListSlashCommands(arg1, arg2) {
+  return window['go']['main']['App']['ListSlashCommands'](arg1, arg2);
 }
 
 export function ListWorkspaces() {
