@@ -390,6 +390,22 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   const { currentTheme } = useTheme();
   const isLight = currentTheme.id === 'light' || currentTheme.id === 'white';
 
+  const projectMeta = (
+    <>
+      {projectName && (
+        <span className={'inline-flex items-center gap-1 shrink-0 font-medium font-(family-name:--app-font) tracking-tight ' + (isFullscreen ? 'text-[13px] gap-1.5 ' : 'text-[11px] ') + (isLight ? 'text-black/55' : 'text-white/50')} title={'Project: ' + projectName}>
+          <Folder size={isFullscreen ? 15 : 12} strokeWidth={1.75} />
+          {projectName}
+        </span>
+      )}
+      {subtitle && (
+        <span className={`font-medium font-(family-name:--app-font) tracking-tight truncate hidden sm:inline ${isFullscreen ? 'text-[13px]' : 'text-[11px]'} ${isLight ? 'text-black/45' : 'text-white/40'}`}>
+          · {subtitle}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div
       ref={cardContainerRef}
@@ -464,59 +480,54 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
 
           {/* Card Header (Reinvented: seamless, borderless, organic glass) */}
           <div className="flex items-center justify-between shrink-0 pt-0.5 pb-2 px-1">
-            <div className={'flex gap-2 min-w-0 pr-2 ' + (isFullscreen ? 'items-start flex-1' : 'items-center')}>
-              <div
-                className={'relative flex items-center gap-1.5 shrink-0 ' + (isFullscreen ? 'h-[22px]' : '')}
-                title={
-                  driverProgression.length > 1
-                    ? 'CLI transition: ' + driverProgression.map((step) => step.driver + (step.model ? ' (' + formatModelBadge(step.model, step.driver) + ')' : '')).join(' → ')
-                    : 'Active CLI: ' + activeDriver + (activeModel ? ' (' + formatModelBadge(activeModel, activeDriver) + ')' : '')
-                }
-              >
-                {driverProgression.length > 1
-                  ? (
-                      <>
-                        {driverProgression.length > 3 && (
-                          <span className={'inline-flex items-center justify-center h-[16px] min-w-[16px] px-1 rounded-full text-[9.5px] font-semibold leading-none ' + (isLight ? 'bg-black/[0.07] text-black/55' : 'bg-white/10 text-white/55')}>
-                            +{driverProgression.length - 3}
-                          </span>
-                        )}
-                        {driverProgression.slice(-3).map((step, idx) => (
-                          <React.Fragment key={driverProgression.length + idx}>
-                            {(idx > 0 || driverProgression.length > 3) && (
-                              <span className={'text-[10px] leading-none ' + (isLight ? 'text-black/35' : 'text-white/35')}>→</span>
-                            )}
-                            <span className="inline-flex items-center justify-center shrink-0">
-                              {renderChatIcon(step.driver, step.model, isLight, 'w-[15px] h-[15px]')}
+            <div className={isFullscreen ? 'flex flex-col items-start gap-1.5 min-w-0 pr-2 flex-1' : 'flex items-center gap-2 min-w-0 pr-2'}>
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className={'relative flex items-center gap-1.5 shrink-0 '}
+                  title={
+                    driverProgression.length > 1
+                      ? 'CLI transition: ' + driverProgression.map((step) => step.driver + (step.model ? ' (' + formatModelBadge(step.model, step.driver) + ')' : '')).join(' → ')
+                      : 'Active CLI: ' + activeDriver + (activeModel ? ' (' + formatModelBadge(activeModel, activeDriver) + ')' : '')
+                  }
+                >
+                  {driverProgression.length > 1
+                    ? (
+                        <>
+                          {driverProgression.length > 3 && (
+                            <span className={'inline-flex items-center justify-center h-[16px] min-w-[16px] px-1 rounded-full text-[9.5px] font-semibold leading-none ' + (isLight ? 'bg-black/[0.07] text-black/55' : 'bg-white/10 text-white/55')}>
+                              +{driverProgression.length - 3}
                             </span>
-                          </React.Fragment>
-                        ))}
-                      </>
-                    )
-                  :renderChatIcon(activeDriver, activeModel, isLight, 'w-[15px] h-[15px]')}
-                {isWorking && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black/40 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse" />
+                          )}
+                          {driverProgression.slice(-3).map((step, idx) => (
+                            <React.Fragment key={driverProgression.length + idx}>
+                              {(idx > 0 || driverProgression.length > 3) && (
+                                <span className={'text-[10px] leading-none ' + (isLight ? 'text-black/35' : 'text-white/35')}>→</span>
+                              )}
+                              <span className="inline-flex items-center justify-center shrink-0">
+                                {renderChatIcon(step.driver, step.model, isLight, 'w-[15px] h-[15px]')}
+                              </span>
+                            </React.Fragment>
+                          ))}
+                        </>
+                      )
+                    :renderChatIcon(activeDriver, activeModel, isLight, 'w-[15px] h-[15px]')}
+                  {isWorking && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 ring-1 ring-black/40 shadow-[0_0_6px_rgba(52,211,153,0.9)] animate-pulse" />
+                  )}
+                </div>
+                {isFullscreen && (
+                  <>
+                    {projectMeta}
+                    <ContextRing usage={contextUsage} isLight={isLight} large />
+                  </>
                 )}
               </div>
 
-              <div className={isFullscreen ? 'flex flex-col min-w-0 gap-0.5' : 'flex items-center gap-2 min-w-0'}>
-                <span className={`${isFullscreen ? 'text-[15px] leading-[22px]' : 'text-[13px]'} font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
+              <div className="flex items-center gap-2 min-w-0 max-w-full">
+                <span className={`${isFullscreen ? 'text-[20px] leading-[26px]' : 'text-[13px]'} font-semibold font-(family-name:--app-font) tracking-tight truncate ${isLight ? 'text-[#030303]' : 'text-white'}`}>
                   {title}
                 </span>
-                <div className="flex items-center gap-2 min-w-0">
-                  {projectName && (
-                    <span className={'inline-flex items-center gap-1 shrink-0 text-[11px] font-medium font-(family-name:--app-font) tracking-tight ' + (isLight ? 'text-black/55' : 'text-white/50')} title={'Project: ' + projectName}>
-                      <Folder size={12} strokeWidth={1.75} />
-                      {projectName}
-                    </span>
-                  )}
-                  {subtitle && (
-                    <span className={`text-[11px] font-medium font-(family-name:--app-font) tracking-tight truncate hidden sm:inline ${isLight ? 'text-black/45' : 'text-white/40'}`}>
-                      · {subtitle}
-                    </span>
-                  )}
-                  {isFullscreen && <ContextRing usage={contextUsage} isLight={isLight} />}
-                </div>
+                {!isFullscreen && projectMeta}
               </div>
 
               {!isFullscreen && <ContextRing usage={contextUsage} isLight={isLight} />}
