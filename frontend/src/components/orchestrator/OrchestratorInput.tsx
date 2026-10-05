@@ -439,10 +439,10 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 12, scale: 0.97, transition: { duration: 0.14, ease: 'easeIn' } }}
             transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.8 }}
-            style={{ transformOrigin: 'bottom right', right: 'calc(50% + 370px)' }}
-            className="absolute bottom-0 max-h-[320px] overflow-y-auto overflow-x-hidden custom-scrollbar pointer-events-auto z-10"
+            style={{ transformOrigin: 'bottom right', right: 'calc(50% + 370px)', maxHeight: capsuleHeight }}
+            className="absolute bottom-0 overflow-y-auto overflow-x-hidden custom-scrollbar pointer-events-auto z-10"
           >
-            <AttachmentStrip items={railItems} onRemove={attachments.remove} compact vertical />
+            <AttachmentStrip items={railItems} onRemove={attachments.remove} vertical />
           </motion.div>
         )}
       </AnimatePresence>

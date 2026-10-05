@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestSaveWritesDecodedBytes(t *testing.T) {
@@ -135,19 +136,24 @@ func TestAdoptRejectsDirectory(t *testing.T) {
 	}
 }
 
-func TestCleanupRemovesEveryStagedFile(t *testing.T) {
+func TestCleanupKeepsRecentFilesAndRemovesStaleOnes(t *testing.T) {
 	store := New(t.TempDir())
 	payload := base64.StdEncoding.EncodeToString([]byte("data"))
 
-	first, _ := store.Save("a.txt", "text/plain", payload)
-	second, _ := store.Save("b.txt", "text/plain", payload)
+	fresh, _ := store.Save("a.txt", "text/plain", payload)
+	stale, _ := store.Save("b.txt", "text/plain", payload)
+	old := time.Now().Add(-2 * retention)
+	if err := os.Chtimes(stale.Path, old, old); err != nil {
+		t.Fatalf("Chtimes: %v", err)
+	}
 
 	store.Cleanup()
 
-	for _, path := range []string{first.Path, second.Path} {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Fatalf("%q survived cleanup", path)
-		}
+	if _, err := os.Stat(fresh.Path); err != nil {
+		t.Fatalf("recent file removed: %v", err)
+	}
+	if _, err := os.Stat(stale.Path); !os.IsNotExist(err) {
+		t.Fatalf("stale file survived cleanup")
 	}
 }
 

@@ -371,8 +371,6 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.recorder != nil {
 		_ = a.recorder.Close()
 	}
-	// Pasted screenshots are scratch data; without this they accumulate in the
-	// config directory for the life of the install.
 	a.attachments.Cleanup()
 	if a.db != nil {
 		_ = a.db.Close()

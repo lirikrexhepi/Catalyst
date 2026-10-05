@@ -13,28 +13,35 @@ export const useInTimeline = () => useContext(TimelineContext);
 
 type DotTone = 'text' | 'row' | 'error' | 'running';
 
-const DOT_SIZE: Record<DotTone, number> = { text: 7, row: 5, error: 5, running: 5 };
+const ELBOW_HEIGHT = 9;
+const ELBOW_RADIUS = 6;
 
-const DOT_COLOR: Record<DotTone, string> = {
-  text: 'bg-current/70',
-  row: 'bg-current/30',
-  error: 'bg-rose-400/90',
-  running: 'bg-emerald-400/90 animate-pulse',
+const ELBOW_COLOR: Record<DotTone, string> = {
+  text: 'text-current/[0.3]',
+  row: 'text-current/[0.16]',
+  error: 'text-rose-400/70',
+  running: 'text-emerald-400/70',
 };
 
 export function TimelineDot({ y, tone = 'row' }: { y: number; tone?: DotTone }) {
-  const size = DOT_SIZE[tone];
+  const width = GUTTER - RAIL_X - 3;
   return (
-    <span
+    <svg
       aria-hidden
-      className={`absolute rounded-full pointer-events-none ${DOT_COLOR[tone]}`}
-      style={{
-        width: size,
-        height: size,
-        top: y - size / 2,
-        left: -(GUTTER - RAIL_X + size / 2),
-      }}
-    />
+      width={width}
+      height={ELBOW_HEIGHT}
+      viewBox={`0 0 ${width} ${ELBOW_HEIGHT}`}
+      fill="none"
+      className={`absolute pointer-events-none overflow-visible ${ELBOW_COLOR[tone]}`}
+      style={{ top: y - ELBOW_HEIGHT, left: -(GUTTER - RAIL_X) }}
+    >
+      <path
+        d={`M0.5 ${ELBOW_HEIGHT - ELBOW_RADIUS} Q0.5 ${ELBOW_HEIGHT - 0.5} ${ELBOW_RADIUS + 0.5} ${ELBOW_HEIGHT - 0.5} H${width}`}
+        stroke="currentColor"
+        strokeWidth="1"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }
 
@@ -76,8 +83,8 @@ export function TimelineSegment({
         className="absolute w-px bg-current/[0.14] pointer-events-none"
         style={{
           left: RAIL_X - 0.5,
-          top: connectUp ? 0 : anchor,
-          bottom: connectDown ? 0 : `calc(100% - ${anchor}px)`,
+          top: connectUp ? 0 : anchor - ELBOW_RADIUS,
+          bottom: connectDown ? 0 : `calc(100% - ${anchor - ELBOW_RADIUS}px)`,
         }}
       />
       <TimelineContext.Provider value>{children}</TimelineContext.Provider>

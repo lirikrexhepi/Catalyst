@@ -203,19 +203,26 @@ func (s *Store) Discard(id string) {
 	}
 }
 
-// Cleanup removes every file this run staged. Called at shutdown so pasted
-// screenshots do not accumulate in the config directory forever.
-func (s *Store) Cleanup() {
-	s.mu.Lock()
-	paths := make([]string, 0, len(s.owned))
-	for _, path := range s.owned {
-		paths = append(paths, path)
-	}
-	s.owned = make(map[string]string)
-	s.mu.Unlock()
+const retention = 30 * 24 * time.Hour
 
-	for _, path := range paths {
-		_ = os.Remove(path)
+func (s *Store) Cleanup() {
+	s.sweep(time.Now().Add(-retention))
+}
+
+func (s *Store) sweep(cutoff time.Time) {
+	entries, err := os.ReadDir(s.root)
+	if err != nil {
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil || info.ModTime().After(cutoff) {
+			continue
+		}
+		_ = os.Remove(filepath.Join(s.root, entry.Name()))
 	}
 }
 
