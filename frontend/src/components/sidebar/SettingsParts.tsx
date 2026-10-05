@@ -195,8 +195,8 @@ export function GeneralSettings({ isLight }: { isLight: boolean }) {
       <SettingsGroup title="Startup and system" isLight={isLight}>
         <BackgroundRows isLight={isLight} />
         <SettingsRow
-          title="Launch in full screen"
-          hint="Applies the next time Orchestrator starts"
+          title="Launch maximized"
+          hint="Fills the screen without hiding the taskbar. Applies on next start"
           isLight={isLight}
           control={
             <Switch
@@ -207,7 +207,7 @@ export function GeneralSettings({ isLight }: { isLight: boolean }) {
                 void SetUserPreference('launch_fullscreen', next ? 'true' : 'false');
               }}
               isLight={isLight}
-              label="Launch in full screen"
+              label="Launch maximized"
             />
           }
         />

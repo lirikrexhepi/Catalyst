@@ -74,7 +74,7 @@ func main() {
 
 	startState := options.Normal
 	if pref, _ := app.GetUserPreference("launch_fullscreen"); pref == "true" {
-		startState = options.Fullscreen
+		startState = options.Maximised
 	}
 
 	// Create application with options
