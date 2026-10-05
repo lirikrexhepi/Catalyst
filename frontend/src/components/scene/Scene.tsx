@@ -609,6 +609,15 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     viewMode === 'orchestrator' ? coordinator.isBusy : Boolean(activeTask?.isBusy);
 
 
+  const [fullscreenSettled, setFullscreenSettled] = useState(false);
+  const inFullscreen = Boolean(fullscreenId);
+  useEffect(() => {
+    setFullscreenSettled(false);
+    if (!inFullscreen) return;
+    const timer = window.setTimeout(() => setFullscreenSettled(true), 480);
+    return () => window.clearTimeout(timer);
+  }, [inFullscreen]);
+
   useEffect(() => {
     if (!fullscreenId || viewMode !== 'deck') return;
     const current = activeTasks[activeCardIndex];
@@ -1026,11 +1035,14 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                 }
               }
 
-              const isFullscreen = viewMode === 'deck' && isCenter && fullscreenId === task.threadId;
+              const fullscreenDeck = viewMode === 'deck' && Boolean(fullscreenId);
+              const isFullscreen = fullscreenDeck && Math.abs(offset) <= 1;
               if (isFullscreen) {
-                transform = 'translate3d(0, 0, 0) scale(1)';
-                zIndex = 35;
-              } else if (fullscreenId && viewMode === 'deck') {
+                transform = `translate3d(calc(${offset} * 100vw), 0, 0) scale(1)`;
+                zIndex = isCenter ? 35 : 34;
+                opacity = isCenter || fullscreenSettled ? 1 : 0;
+                isInteractive = isCenter;
+              } else if (fullscreenDeck) {
                 opacity = 0;
                 isInteractive = false;
               }
@@ -1212,12 +1224,15 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                 type="button"
                 onClick={() => setActiveCardIndex(activeCardIndex + dir)}
                 title={neighbor.title}
-                className={`absolute bottom-3 z-40 pointer-events-auto flex items-center gap-1.5 max-w-[220px] px-2.5 py-1 rounded-full text-[11px] font-medium font-(family-name:--app-font) tracking-tight cursor-pointer transition-all duration-150 active:scale-95 ${
-                  dir < 0 ? 'left-3' : 'right-3 flex-row-reverse'
-                } ${isLight ? 'text-black/35 hover:text-black/70 hover:bg-black/[0.06]' : 'text-white/30 hover:text-white/70 hover:bg-white/[0.08]'}`}
+                className={`absolute top-1/2 -translate-y-1/2 z-40 pointer-events-auto flex items-center gap-2.5 max-w-[240px] px-3 py-2 rounded-2xl font-(family-name:--app-font) tracking-tight cursor-pointer transition-all duration-150 active:scale-95 ${
+                  dir < 0 ? 'left-8' : 'right-12 flex-row-reverse text-right'
+                } ${isLight ? 'text-black/40 hover:text-black/80 hover:bg-black/[0.06]' : 'text-white/35 hover:text-white/80 hover:bg-white/[0.08]'}`}
               >
-                <span className="text-[12px] leading-none">{dir < 0 ? '←' : '→'}</span>
-                <span className="truncate">{neighbor.title || 'Agent'}</span>
+                <span className="text-[20px] leading-none">{dir < 0 ? '←' : '→'}</span>
+                <span className="flex flex-col min-w-0 gap-0.5">
+                  <span className="truncate text-[13px] font-medium leading-tight">{neighbor.title || 'Agent'}</span>
+                  <span className="text-[10.5px] opacity-70 leading-tight">{dir < 0 ? 'Ctrl + ←' : 'Ctrl + →'}</span>
+                </span>
               </button>
             );
           })}
@@ -1269,7 +1284,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-2.5 w-full max-w-[760px] px-4 pointer-events-none">
 
         {/* Deck Navigation Pill (Arrows + Grid Switcher) */}
-        <DeckNavigationPill
+        {!fullscreenId && (<DeckNavigationPill
           currentIndex={activeCardIndex}
           totalCount={activeTasks.length}
           viewMode={viewMode}
@@ -1280,7 +1295,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
           onDescend={() => setViewMode((prev) => (prev === 'orchestrator' ? 'grid' : 'deck'))}
           canPrev={activeCardIndex > 0}
           canNext={activeCardIndex < activeTasks.length - 1}
-        />
+        />)}
 
         {/* Unified Omnibar Input Bar */}
         <div ref={inputWrapperRef} className="pointer-events-auto w-full flex justify-center">
