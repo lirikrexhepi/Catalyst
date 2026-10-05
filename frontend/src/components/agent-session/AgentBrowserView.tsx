@@ -197,122 +197,97 @@ export const AgentBrowserView: React.FC<AgentBrowserViewProps> = ({
 
   return (
     <div className={`flex flex-col h-full w-full min-h-0 select-none ${className}`}>
-      {/* Top Browser Toolbar (macOS / Safari style) */}
-      <div className="flex items-center justify-between gap-2 pb-2.5 pt-0.5 px-0.5 border-b border-white/10 shrink-0">
-        {/* Nav actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            title="Back"
-            disabled={historyIndex <= 0}
-            onClick={handleBack}
-            className={`w-6 h-6 rounded-[6px] flex items-center justify-center transition-all ${
-              historyIndex > 0
-                ? 'text-white/80 hover:bg-white/10 active:scale-95 cursor-pointer'
-                : 'text-white/20 cursor-default'
-            }`}
-          >
-            <MaterialIcon name="arrow_back" className="text-[15px]"/>
-          </button>
-          <button
-            type="button"
-            title="Forward"
-            disabled={historyIndex >= historyStack.length - 1}
-            onClick={handleForward}
-            className={`w-6 h-6 rounded-[6px] flex items-center justify-center transition-all ${
-              historyIndex < historyStack.length - 1
-                ? 'text-white/80 hover:bg-white/10 active:scale-95 cursor-pointer'
-                : 'text-white/20 cursor-default'
-            }`}
-          >
-            <MaterialIcon name="arrow_forward" className="text-[15px]"/>
-          </button>
-          <button
-            type="button"
-            title="Reload"
-            onClick={handleReload}
-            className="w-6 h-6 rounded-[6px] flex items-center justify-center text-white/80 hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
-          >
-            <MaterialIcon name="refresh" className={`text-[15px] ${isLoading ? 'animate-spin' : ''}`}/>
-          </button>
+      <div className="flex items-center gap-3 pb-3 pt-0.5 px-0.5 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
+          {[
+            { title: 'Back', icon: 'arrow_back', enabled: historyIndex > 0, run: handleBack, spin: false },
+            { title: 'Forward', icon: 'arrow_forward', enabled: historyIndex < historyStack.length - 1, run: handleForward, spin: false },
+            { title: 'Reload', icon: 'refresh', enabled: true, run: handleReload, spin: isLoading },
+          ].map((action) => (
+            <button
+              key={action.title}
+              type="button"
+              title={action.title}
+              aria-label={action.title}
+              disabled={!action.enabled}
+              onClick={action.run}
+              className={`w-[28px] h-[28px] rounded-full flex items-center justify-center transition-all duration-150 ${
+                action.enabled
+                  ? 'text-white/70 hover:text-white hover:bg-white/[0.08] active:scale-90 cursor-pointer'
+                  : 'text-white/20 cursor-default'
+              }`}
+            >
+              <MaterialIcon name={action.icon} className={`text-[16px] ${action.spin ? 'animate-spin' : ''}`} />
+            </button>
+          ))}
         </div>
 
-        {/* Smart Address Bar */}
-        <div className="flex-1 min-w-[200px] max-w-[620px] mx-auto relative flex items-center">
-          <div className="w-full h-[28px] px-2.5 rounded-[6px] bg-white/[0.07] border border-white/[0.12] hover:border-white/20 focus-within:border-[#007AFF]/60 focus-within:bg-black/40 flex items-center gap-2 transition-all">
-            <MaterialIcon name={isLocalhost ? 'computer' : currentUrl.startsWith('https') ? 'lock' : 'search'} className="text-[13px] text-white/45 shrink-0"/>
+        <div className="flex-1 min-w-[160px] flex justify-center">
+          <div className="w-full max-w-[560px] h-[30px] px-3 rounded-full bg-white/[0.06] hover:bg-white/[0.085] focus-within:bg-white/[0.1] focus-within:shadow-[0_0_0_1.5px_rgba(10,132,255,0.65)] flex items-center gap-2 transition-all duration-200">
+            <MaterialIcon name={isLocalhost ? 'computer' : currentUrl.startsWith('https') ? 'lock' : 'search'} className="text-[13px] text-white/40 shrink-0" />
             <input
               type="text"
               value={inputUrl}
-              placeholder={
-                primaryServer
-                  ? `localhost:${primaryServer.port} or search Google…`
-                  : 'Enter address or search Google…'
-              }
+              placeholder={primaryServer ? `localhost:${primaryServer.port} or search Google…` : 'Enter address or search Google…'}
               onChange={(e) => setInputUrl(e.target.value)}
               onKeyDown={handleInputKeyDown}
               onFocus={(e) => e.target.select()}
-              className="w-full bg-transparent text-[12px] font-medium font-(family-name:--app-font) text-white placeholder:text-white/40 focus:outline-none tracking-tight select-text"
+              className="w-full bg-transparent text-[12.5px] font-medium font-(family-name:--app-font) text-white/90 placeholder:text-white/35 focus:outline-none tracking-tight select-text text-center focus:text-left"
             />
-            {isLoading && (
-              <span className="w-2 h-2 rounded-full border border-white/60 border-t-transparent animate-spin shrink-0" />
-            )}
+            {isLoading && <span className="w-2.5 h-2.5 rounded-full border border-white/60 border-t-transparent animate-spin shrink-0" />}
           </div>
         </div>
 
-        {/* Right quick actions: Detected server ports & Open in browser */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {webServers.map((s) => (
-            <button
-              key={s.port}
-              type="button"
-              title={`Switch to dev server on port ${s.port}`}
-              onClick={() => navigateTo(`http://localhost:${s.port}`)}
-              className={`h-[24px] px-2 rounded-[6px] flex items-center gap-1 text-[11px] font-medium font-mono transition-all cursor-pointer border ${
-                currentUrl.includes(`:${s.port}`)
-                  ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300 shadow-sm'
-                  : 'bg-white/[0.05] border-white/10 text-white/70 hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>:{s.port}</span>
-            </button>
-          ))}
+          {webServers.length > 0 && (
+            <div className="h-[28px] p-[3px] rounded-full bg-white/[0.06] flex items-center gap-[2px]">
+              {webServers.map((s) => {
+                const active = currentUrl.includes(`:${s.port}`);
+                return (
+                  <button
+                    key={s.port}
+                    type="button"
+                    title={`Switch to dev server on port ${s.port}`}
+                    onClick={() => navigateTo(`http://localhost:${s.port}`)}
+                    className={`h-[22px] px-2.5 rounded-full flex items-center gap-1.5 text-[11px] font-medium font-(family-name:--app-font) tabular-nums transition-all duration-150 cursor-pointer ${
+                      active ? 'bg-white/[0.16] text-white shadow-sm' : 'text-white/55 hover:text-white'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-white/30'}`} />
+                    {s.port}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Power Save / Live Always Toggle */}
           <button
             type="button"
-            title={
-              autoPauseBackground
-                ? 'Power Save: WebGL auto-pauses when unfocused to preserve 120 FPS performance (Click to keep live)'
-                : 'Live Always: WebGL renders continuously in background (Click to enable Power Save)'
-            }
+            title={autoPauseBackground ? 'Power Save on: the preview pauses while this card is in the background (click to keep it live)' : 'Live Always: the preview keeps rendering in the background (click to enable Power Save)'}
+            aria-pressed={autoPauseBackground}
             onClick={() => setAutoPauseBackground((prev) => !prev)}
-            className={`h-[24px] px-2 rounded-[6px] flex items-center gap-1 text-[11px] font-medium font-(family-name:--app-font) transition-all cursor-pointer border ${
-              autoPauseBackground
-                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25'
-                : 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25'
+            className={`w-[28px] h-[28px] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer active:scale-90 ${
+              autoPauseBackground ? 'bg-emerald-400/15 text-emerald-300 hover:bg-emerald-400/25' : 'bg-amber-400/15 text-amber-300 hover:bg-amber-400/25'
             }`}
           >
-            <MaterialIcon name={autoPauseBackground ? 'energy_savings_leaf' : 'bolt'} className="text-[13px]"/>
-            <span>{autoPauseBackground ? 'Power Save' : 'Live Always'}</span>
+            <MaterialIcon name={autoPauseBackground ? 'energy_savings_leaf' : 'bolt'} className="text-[15px]" />
           </button>
 
           <button
             type="button"
-            title="Open in external browser (Chrome/Edge)"
+            title="Open in external browser"
+            aria-label="Open in external browser"
             onClick={handleOpenExternal}
-            className="h-[24px] px-2 rounded-[6px] bg-white/[0.07] hover:bg-white/15 border border-white/10 active:scale-95 text-white/75 hover:text-white text-[11px] font-medium font-(family-name:--app-font) flex items-center gap-1 transition-all cursor-pointer"
+            className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.12] active:scale-90 transition-all duration-150 cursor-pointer"
           >
-            <span>Open</span>
-            <MaterialIcon name="open_in_new" className="text-[13px]"/>
+            <MaterialIcon name="open_in_new" className="text-[14px]" />
           </button>
         </div>
       </div>
 
       {/* Browser Viewport */}
       <div
-        className="flex-1 min-h-0 relative mt-2.5 rounded-[10px] overflow-hidden border border-white/10 bg-[#121316]"
+        className="flex-1 min-h-0 relative rounded-[14px] overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.08),0_12px_32px_-12px_rgba(0,0,0,0.6)] bg-[#121316]"
         style={{
           contain: 'strict',
           transform: 'translate3d(0, 0, 0)',

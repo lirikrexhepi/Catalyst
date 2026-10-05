@@ -616,6 +616,21 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   }, [activeCardIndex, activeTask?.model, viewMode]);
 
   // Queued messages per agent thread ID
+  useEffect(() => {
+    const keep = viewMode === 'deck' ? activeTasks[activeCardIndex]?.threadId : undefined;
+    setCardModes((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const id of Object.keys(prev)) {
+        if (id !== keep && prev[id] !== 'chat') {
+          next[id] = 'chat';
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [viewMode, activeCardIndex, activeTasks]);
+
   const [queuedMessagesByThread, setQueuedMessagesByThread] = useState<Record<string, QueuedMessage[]>>({});
   const currentQueuedMessages = activeTask ? queuedMessagesByThread[activeTask.threadId] || [] : [];
 
