@@ -1,6 +1,8 @@
 import { MaterialIcon } from '../common/icons';
 import React, { useEffect, useRef, useState } from 'react';
 import { WorkRow, formatElapsed } from './WorkRow';
+import { ROW_DOT_Y, TimelineDot, useInTimeline } from './Timeline';
+import { TextShimmer } from './TextShimmer';
 
 export interface ThinkingBlockProps {
   isThinking?: boolean;
@@ -34,6 +36,37 @@ const ThinkingBlockImpl: React.FC<ThinkingBlockProps> = ({
   const seconds = durationSeconds > 0 ? durationSeconds : settled;
   const label = isThinking ? 'Thinking' : seconds && seconds >= 1 ? `Thought for ${formatElapsed(seconds)}` : 'Thought';
   const text = thoughtText.trim();
+  const inTimeline = useInTimeline();
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const long = text.length > 220 || text.split(/\n/).length > 3;
+
+  if (text) {
+    return (
+      <div className="relative flex flex-col min-w-0 font-(family-name:--app-font) py-[3px]">
+        {inTimeline && <TimelineDot y={ROW_DOT_Y} tone="row" />}
+        <div className="text-[11px] font-medium tracking-tight text-current/40 leading-[18px]">
+          {isThinking ? <TextShimmer duration={1.6}>{label}</TextShimmer> : label}
+        </div>
+        <div
+          onClick={() => long && setExpanded((value) => !value)}
+          className={`text-[12.5px] leading-[1.6] tracking-tight text-current/55 whitespace-pre-wrap select-text ${
+            expanded || isThinking ? '' : 'line-clamp-3'
+          } ${long && !isThinking ? 'cursor-pointer hover:text-current/70' : ''} transition-colors duration-150`}
+        >
+          {text}
+        </div>
+        {long && !isThinking && (
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            className="self-start mt-0.5 text-[11px] text-current/35 hover:text-current/70 transition-colors cursor-pointer"
+          >
+            {expanded ? 'Show less' : 'Show more'}
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <WorkRow
