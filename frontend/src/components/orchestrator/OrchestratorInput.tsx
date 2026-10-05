@@ -14,7 +14,7 @@ import { AttachmentsState, filesFromTransfer } from '../common/useAttachments';
 import { readChatDrag } from '../common/chatDrag';
 import { providerIcon } from './providerIcons';
 import { SkillTestPicker } from './SkillTestPicker';
-import { ArrowUp, ChevronDown, Loader2, Paperclip, Plus, Square, X, MaterialIcon } from '../common/icons';
+import { ArrowUp, ChevronDown, Loader2, Paperclip, Plus, X, MaterialIcon } from '../common/icons';
 
 export interface OrchestratorInputProps {
   onSubmit?: (message: string, modelId: string) => void;
@@ -342,7 +342,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 e.stopPropagation();
                 onNewAgent?.();
               }}
-              className={`h-[30px] w-[30px] flex items-center justify-center rounded-full transition-all duration-150 active:scale-90 cursor-pointer shrink-0 group select-none ${
+              className={`h-[32px] w-[32px] flex items-center justify-center rounded-[11px] transition-all duration-150 active:scale-90 cursor-pointer shrink-0 group select-none ${
                 isLight
                   ? 'text-black/45 hover:text-[#030303] hover:bg-black/[0.05]'
                   : 'text-white/45 hover:text-white hover:bg-white/[0.08]'
@@ -368,7 +368,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 e.stopPropagation();
                 void attachments.browse();
               }}
-              className={`w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all duration-150 shrink-0 group ${
+              className={`w-[32px] h-[32px] rounded-[11px] flex items-center justify-center transition-all duration-150 shrink-0 group ${
                 attachments.isBusy
                   ? (isLight ? 'text-black/25 cursor-default' : 'text-white/25 cursor-default')
                   : (isLight
@@ -380,42 +380,69 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
             </button>
           )}
 
-          {/* Stop button while a turn runs */}
-          {isBusy && (
-            <button
-              type="button"
-              title="Stop agent"
-              onClick={(e) => {
-                e.stopPropagation();
-                onInterrupt?.();
-              }}
-              className="w-[30px] h-[30px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 bg-rose-500/25 border border-rose-400/35 hover:bg-rose-500/40 text-rose-300 hover:text-white shadow-[0_2px_12px_rgba(244,63,94,0.3)] active:scale-95 cursor-pointer group"
-            >
-              <Square size={15} strokeWidth={1.75} fill="currentColor" className="transition-transform duration-150 group-hover:scale-105" />
-            </button>
-          )}
+          <AnimatePresence initial={false} mode="popLayout">
+            {isBusy && (
+              <motion.button
+                key="stop"
+                type="button"
+                title="Stop agent (Esc)"
+                aria-label="Stop agent"
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.7 }}
+                whileTap={{ scale: 0.92 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onInterrupt?.();
+                }}
+                className={`relative w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0 cursor-pointer group transition-colors duration-200 ${
+                  isLight
+                    ? 'bg-black/[0.06] hover:bg-black/[0.1] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]'
+                    : 'bg-white/[0.07] hover:bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                }`}
+              >
+                <svg className="absolute inset-0 w-full h-full animate-spin [animation-duration:1.6s]" viewBox="0 0 34 34" fill="none" aria-hidden>
+                  <rect x="1.5" y="1.5" width="31" height="31" rx="10.5" stroke="url(#stopArc)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="22 90" />
+                  <defs>
+                    <linearGradient id="stopArc" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#fb7185" stopOpacity="0" />
+                      <stop offset="1" stopColor="#fb7185" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <span className="w-[11px] h-[11px] rounded-[3.5px] bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.55)] transition-transform duration-150 group-hover:scale-90" />
+              </motion.button>
+            )}
 
-          {/* Send / Queue button */}
-          {(!isBusy || canSubmit) && (
-            <button
-              type="button"
-              title={skillTest ? 'Run skill test' : isBusy ? 'Queue message' : 'Send'}
-              disabled={!canSubmit}
-              onClick={(e) => {
-                e.stopPropagation();
-                submitMessage();
-              }}
-              className={`w-[32px] h-[32px] rounded-full flex items-center justify-center transition-all duration-200 shrink-0 group ${
-                canSubmit
-                  ? 'bg-[#007AFF] hover:bg-[#0A84FF] text-white shadow-[0_2px_12px_rgba(0,122,255,0.45)] active:scale-95 cursor-pointer'
-                  : (isLight
-                      ? 'text-black/25 cursor-default'
-                      : 'text-white/25 cursor-default')
-              }`}
-            >
-              <ArrowUp size={17} strokeWidth={2} className="transition-transform duration-150 group-hover:scale-105" />
-            </button>
-          )}
+            {(!isBusy || canSubmit) && (
+              <motion.button
+                key="send"
+                type="button"
+                title={skillTest ? 'Run skill test' : isBusy ? 'Queue message' : 'Send (Enter)'}
+                aria-label={skillTest ? 'Run skill test' : isBusy ? 'Queue message' : 'Send'}
+                disabled={!canSubmit}
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.7 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.7 }}
+                whileTap={canSubmit ? { scale: 0.92 } : undefined}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  submitMessage();
+                }}
+                className={`relative w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0 group transition-all duration-200 ${
+                  canSubmit
+                    ? 'bg-gradient-to-b from-[#4aa3ff] to-[#0a6cff] text-white cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_0_0_1px_rgba(255,255,255,0.12),0_6px_18px_-4px_rgba(10,108,255,0.65)] hover:brightness-110'
+                    : isLight
+                      ? 'bg-black/[0.05] text-black/25 cursor-default shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]'
+                      : 'bg-white/[0.05] text-white/25 cursor-default shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]'
+                }`}
+              >
+                <ArrowUp size={17} strokeWidth={2.25} className="transition-transform duration-200 group-enabled:group-hover:-translate-y-px" />
+              </motion.button>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>

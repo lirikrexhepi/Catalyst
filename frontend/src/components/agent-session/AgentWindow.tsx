@@ -361,6 +361,9 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
     changes: 4,
   };
 
+  const insetForDock = (base: React.CSSProperties): React.CSSProperties =>
+    isFullscreen ? { ...base, bottom: 140 } : base;
+
   const getTabStyle = (modeKey: AgentCardMode): React.CSSProperties => {
     const diff = MODE_INDEX[modeKey] - MODE_INDEX[activeMode];
     const isActive = diff === 0;
@@ -396,23 +399,23 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
       <LiquidGlass
         variant="panel"
         surface="squircle"
-        radius={24}
+        radius={isFullscreen ? 0 : 24}
         bezelWidth={18}
         glassThickness={24}
         refractionScale={0.8}
         blur={0.55}
-        disableRefraction={isGrid || currentTheme.glass.mode === 'stealth'}
+        disableRefraction={isGrid || isFullscreen || currentTheme.glass.mode === 'stealth'}
         specularOpacity={isLight ? 0.3 : 0.65}
         specularSaturation={6}
         lightAngle={-45}
-        tint="var(--theme-panel-bg)"
+        tint={isFullscreen ? (isLight ? '#f7f7f9' : '#0b0b0d') : 'var(--theme-panel-bg)'}
         shadow={isLight ? 'subtle' : 'apple'}
         border={
           isLight
-            ? '1px solid var(--theme-panel-border, rgba(0, 0, 0, 0.08))'
-            : '1px solid var(--theme-panel-border, rgba(255, 255, 255, 0.12))'
+            ? (isFullscreen ? 'none' : '1px solid var(--theme-panel-border, rgba(0, 0, 0, 0.08))')
+            : (isFullscreen ? 'none' : '1px solid var(--theme-panel-border, rgba(255, 255, 255, 0.12))')
         }
-        className={`w-full h-full p-4 ${isLight ? 'text-[#030303]' : 'text-white'} shadow-2xl relative box-border transition-all duration-200 ease-out ${
+        className={`w-full h-full ${isFullscreen ? 'p-4 pt-[60px]' : 'p-4'} ${isLight ? 'text-[#030303]' : 'text-white'} shadow-2xl relative box-border transition-all duration-200 ease-out ${
           isGrid
             ? (isLight
                 ? 'group-hover/card:border-black/25 group-hover/card:shadow-[0_20px_48px_-12px_rgba(0,0,0,0.2),0_0_0_1px_rgba(0,0,0,0.1)]'
@@ -428,7 +431,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
           <div
             onPointerDown={handleGrabPointerDown}
             title={mode !== 'grid' ? "Drag to resize card (25px steps)" : undefined}
-            className={`relative -mt-1 mb-1.5 py-1 px-8 mx-auto shrink-0 flex items-center justify-center select-none group/handle z-30 ${
+            className={`relative -mt-1 mb-1.5 py-1 px-8 mx-auto shrink-0 flex items-center justify-center select-none group/handle z-30 ${isFullscreen ? 'hidden' : ''} ${
               mode !== 'grid' ? 'cursor-ns-resize' : ''
             }`}
           >
@@ -456,7 +459,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
 
           {/* Card Header (Reinvented: seamless, borderless, organic glass) */}
           <div className="flex items-center justify-between shrink-0 pt-0.5 pb-2 px-1">
-            <div className="flex items-center gap-2 min-w-0 pr-2">
+            <div className="flex items-center gap-2 min-w-0 pr-2" style={isFullscreen ? { maxWidth: 'calc(100% - 140px)' } : undefined}>
               {/* Active Driver Icon with live working indicator */}
               <div
                 className="relative flex items-center justify-center shrink-0"
@@ -583,12 +586,12 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
             {/* 1. Chat Feed View */}
             <div
               ref={feedScrollRef}
-              className={`absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-2.5 pr-2 ${
+              className={`absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-2.5 ${isFullscreen ? 'pb-[150px] px-4' : 'pr-2'} ${
                 isGrid ? 'pointer-events-none select-none' : ''
               }`}
               style={{ ...FEED_SCROLL_STYLE, ...getTabStyle('chat') }}
             >
-              <div className="w-full min-w-0 flex flex-col">
+              <div className={`w-full min-w-0 flex flex-col ${isFullscreen ? 'max-w-[880px] mx-auto' : ''}`}>
                 <AgentSessionFeed
                   blocks={streamBlocks}
                   threadId={id}
@@ -619,7 +622,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
               className={`absolute inset-0 flex flex-col pt-1 ${
                 isGrid ? 'pointer-events-none select-none' : ''
               }`}
-              style={getTabStyle('tasklist')}
+              style={insetForDock(getTabStyle('tasklist'))}
             >
               {visited.has('tasklist') && (
                 <AgentTasklistView
@@ -635,7 +638,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
               className={`absolute inset-0 flex flex-col pt-1 ${
                 isGrid ? 'pointer-events-none select-none' : ''
               }`}
-              style={getTabStyle('browser')}
+              style={insetForDock(getTabStyle('browser'))}
             >
               {visited.has('browser') && (
                 <AgentBrowserView
@@ -653,7 +656,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
               className={`absolute inset-0 flex flex-col pt-1 ${
                 isGrid ? 'pointer-events-none select-none' : ''
               }`}
-              style={getTabStyle('servers')}
+              style={insetForDock(getTabStyle('servers'))}
             >
               {visited.has('servers') && (
                 <AgentServersView
@@ -670,7 +673,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
               className={`absolute inset-0 flex flex-col pt-1 ${
                 isGrid ? 'pointer-events-none select-none' : ''
               }`}
-              style={getTabStyle('changes')}
+              style={insetForDock(getTabStyle('changes'))}
             >
               {visited.has('changes') && (
                 <AgentGitView

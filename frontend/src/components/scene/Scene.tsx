@@ -1007,7 +1007,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
 
               const isFullscreen = viewMode === 'deck' && isCenter && fullscreenId === task.threadId;
               if (isFullscreen) {
-                transform = `translate3d(0, ${-33 - Math.round(pushUpOffset / 2)}px, 0) scale(1)`;
+                transform = 'translate3d(0, 0, 0) scale(1)';
                 zIndex = 35;
               } else if (fullscreenId && viewMode === 'deck') {
                 opacity = 0;
@@ -1078,13 +1078,13 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                         : ''
                   }`}
                   style={{
-                    width: isFullscreen ? 'calc(100vw - 32px)' : cardWidth,
-                    maxWidth: isFullscreen ? 'calc(100vw - 32px)' : 'calc(100vw - 120px)',
-                    height: isFullscreen ? `calc(100vh - ${174 + pushUpOffset}px)` : cardHeight,
+                    width: isFullscreen ? '100vw' : cardWidth,
+                    maxWidth: isFullscreen ? '100vw' : 'calc(100vw - 120px)',
+                    height: isFullscreen ? '100vh' : cardHeight,
                     maxHeight: isFullscreen
-                      ? `calc(100vh - ${174 + pushUpOffset}px)`
+                      ? '100vh'
                       : `min(${cardMaxHeight}, calc(100vh - 190px))`,
-                    minHeight: '440px',
+                    minHeight: isFullscreen ? 0 : '440px',
                     transform,
                     opacity,
                     zIndex,
