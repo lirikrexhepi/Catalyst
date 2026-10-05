@@ -366,7 +366,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
   };
 
   const insetForDock = (base: React.CSSProperties): React.CSSProperties =>
-    isFullscreen ? { ...base, bottom: 140 } : base;
+    isFullscreen ? { ...base, bottom: 'var(--input-dock-h, 140px)' } : base;
 
   const getTabStyle = (modeKey: AgentCardMode): React.CSSProperties => {
     const diff = MODE_INDEX[modeKey] - MODE_INDEX[activeMode];
@@ -599,7 +599,7 @@ const AgentWindowImpl: React.FC<AgentWindowProps> = ({
             {/* 1. Chat Feed View */}
             <div
               ref={feedScrollRef}
-              className={`absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-2.5 ${isFullscreen ? 'pb-[150px] px-4' : 'pr-2'} ${
+              className={`absolute inset-0 overflow-y-auto overflow-x-hidden custom-scrollbar py-2.5 ${isFullscreen ? 'pb-[var(--input-dock-h,150px)] px-4' : 'pr-2'} ${
                 isGrid ? 'pointer-events-none select-none' : ''
               }`}
               style={{ ...FEED_SCROLL_STYLE, ...getTabStyle('chat') }}

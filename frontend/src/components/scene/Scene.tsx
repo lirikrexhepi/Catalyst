@@ -460,6 +460,10 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    document.documentElement.style.setProperty('--input-dock-h', `${inputHeight + 52}px`);
+  }, [inputHeight]);
+
   // Compute natural bottom of the active center card
   const activeCenterTask = activeTasks[activeCardIndex];
   const activeCenterCardMode =
@@ -1227,7 +1231,11 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
                 <span className="text-[20px] leading-none">{dir < 0 ? '←' : '→'}</span>
                 <span className="flex flex-col min-w-0 gap-0.5">
                   <span className="truncate text-[13px] font-medium leading-tight">{neighbor.title || 'Agent'}</span>
-                  <span className="text-[10.5px] opacity-70 leading-tight">{dir < 0 ? 'Ctrl + ←' : 'Ctrl + →'}</span>
+                  <span className={`flex items-center gap-1.5 text-[10.5px] leading-tight ${dir > 0 ? 'flex-row-reverse' : ''}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${neighbor.isBusy ? 'bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]' : isLight ? 'bg-black/25' : 'bg-white/30'}`} />
+                    <span className="opacity-70">{neighbor.isBusy ? 'Working' : 'Finished'}</span>
+                    <span className="opacity-50">· {dir < 0 ? 'Ctrl + ←' : 'Ctrl + →'}</span>
+                  </span>
                 </span>
               </button>
             );
