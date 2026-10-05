@@ -253,6 +253,22 @@ export namespace domain {
 		    return a;
 		}
 	}
+	export class BranchInfo {
+	    name: string;
+	    current: boolean;
+	    remote: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new BranchInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.current = source["current"];
+	        this.remote = source["remote"];
+	    }
+	}
 	export class Commit {
 	    sha: string;
 	    short: string;
@@ -1199,6 +1215,9 @@ export namespace domain {
 	    files: FileChange[];
 	    commits: Commit[];
 	    ahead: number;
+	    upstream?: string;
+	    unpushed: number;
+	    unpulled: number;
 	    error?: string;
 	
 	    static createFrom(source: any = {}) {
@@ -1217,6 +1236,9 @@ export namespace domain {
 	        this.files = this.convertValues(source["files"], FileChange);
 	        this.commits = this.convertValues(source["commits"], Commit);
 	        this.ahead = source["ahead"];
+	        this.upstream = source["upstream"];
+	        this.unpushed = source["unpushed"];
+	        this.unpulled = source["unpulled"];
 	        this.error = source["error"];
 	    }
 	

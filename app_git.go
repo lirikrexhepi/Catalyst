@@ -105,6 +105,8 @@ func (a *App) laneFor(ctx context.Context, checkout git.Checkout, owners map[str
 
 	working := &git.Repo{Root: checkout.Path}
 
+	lane.Upstream, lane.Unpushed, lane.Unpulled = working.Sync(ctx)
+
 	files, err := working.Status(ctx)
 	if err != nil {
 		lane.Error = err.Error()

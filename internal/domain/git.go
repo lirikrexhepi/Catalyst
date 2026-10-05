@@ -93,5 +93,14 @@ type WorktreeChanges struct {
 	Files    []FileChange `json:"files"`
 	Commits  []Commit     `json:"commits"`
 	Ahead    int          `json:"ahead"`
+	Upstream string       `json:"upstream,omitempty"`
+	Unpushed int          `json:"unpushed"`
+	Unpulled int          `json:"unpulled"`
 	Error    string       `json:"error,omitempty"`
+}
+
+type BranchInfo struct {
+	Name    string `json:"name"`
+	Current bool   `json:"current"`
+	Remote  bool   `json:"remote"`
 }
