@@ -20,6 +20,7 @@ interface OrchestratorStore {
   autoApprovePermissions: boolean;
   interfaceSounds: boolean;
   showProjectFavicons: boolean;
+  chatsFullscreen: boolean;
   accountProject: string;
   chosenAccounts: Record<string, string>;
   projectAccounts: Record<string, string>;
@@ -33,6 +34,7 @@ interface OrchestratorStore {
   setAutoApprovePermissions: (enabled: boolean) => void;
   setInterfaceSounds: (enabled: boolean) => void;
   setShowProjectFavicons: (enabled: boolean) => void;
+  setChatsFullscreen: (enabled: boolean) => void;
   loadProviders: (force?: boolean) => Promise<void>;
   setProviders: (providers: CLIProvider[]) => void;
   setModels: (models: AIModel[]) => void;
@@ -95,6 +97,10 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
     typeof window !== 'undefined'
       ? localStorage.getItem('orchestrator_show_project_favicons') === 'true'
       : false,
+  chatsFullscreen:
+    typeof window !== 'undefined'
+      ? localStorage.getItem('orchestrator_chats_fullscreen') === 'true'
+      : false,
   accountProject: '',
   chosenAccounts: {},
   projectAccounts: {},
@@ -143,6 +149,13 @@ export const useOrchestratorStore = create<OrchestratorStore>((set, get) => ({
       localStorage.setItem('orchestrator_interface_sounds', interfaceSounds ? 'true' : 'false');
     }
     set({ interfaceSounds });
+  },
+
+  setChatsFullscreen: (chatsFullscreen: boolean) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('orchestrator_chats_fullscreen', chatsFullscreen ? 'true' : 'false');
+    }
+    set({ chatsFullscreen });
   },
 
   setShowProjectFavicons: (showProjectFavicons: boolean) => {

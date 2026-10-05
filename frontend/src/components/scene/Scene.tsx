@@ -613,6 +613,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     viewMode === 'orchestrator' ? coordinator.isBusy : Boolean(activeTask?.isBusy);
 
 
+  const chatsFullscreen = useOrchestratorStore((state) => state.chatsFullscreen);
   const [fullscreenSettled, setFullscreenSettled] = useState(false);
   const inFullscreen = Boolean(fullscreenId);
   useEffect(() => {
@@ -621,6 +622,12 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
     const timer = window.setTimeout(() => setFullscreenSettled(true), 480);
     return () => window.clearTimeout(timer);
   }, [inFullscreen]);
+
+  useEffect(() => {
+    if (!chatsFullscreen || viewMode !== 'deck') return;
+    const current = activeTasks[activeCardIndex];
+    if (current) setFullscreenId(current.threadId);
+  }, [chatsFullscreen, viewMode, activeCardIndex, activeTasks.length]);
 
   useEffect(() => {
     if (!fullscreenId || viewMode !== 'deck') return;

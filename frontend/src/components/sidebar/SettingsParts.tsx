@@ -85,11 +85,14 @@ export function useGeneralToggles() {
   const setInterfaceSounds = store((s) => s.setInterfaceSounds);
   const showProjectFavicons = store((s) => s.showProjectFavicons);
   const setShowProjectFavicons = store((s) => s.setShowProjectFavicons);
+  const chatsFullscreen = store((s) => s.chatsFullscreen);
+  const setChatsFullscreen = store((s) => s.setChatsFullscreen);
   return {
     autoStart: { on: autoStartAgents, toggle: () => setAutoStartAgents(!autoStartAgents) },
     autoApprove: { on: autoApprovePermissions, toggle: () => setAutoApprovePermissions(!autoApprovePermissions) },
     sounds: { on: interfaceSounds, toggle: () => setInterfaceSounds(!interfaceSounds) },
     favicons: { on: showProjectFavicons, toggle: () => setShowProjectFavicons(!showProjectFavicons) },
+    chatsFullscreen: { on: chatsFullscreen, toggle: () => setChatsFullscreen(!chatsFullscreen) },
   };
 }
 
@@ -141,10 +144,14 @@ export function GeneralSettings({ isLight }: { isLight: boolean }) {
   const toggles = useGeneralToggles();
   const [gpu, setGpu] = useState(true);
   const [gpuChanged, setGpuChanged] = useState(false);
+  const [launchFullscreen, setLaunchFullscreen] = useState(false);
 
   useEffect(() => {
     GetUserPreference('disable_gpu_acceleration')
       .then((val) => setGpu(val !== 'true'))
+      .catch(() => undefined);
+    GetUserPreference('launch_fullscreen')
+      .then((val) => setLaunchFullscreen(val === 'true'))
       .catch(() => undefined);
   }, []);
 
@@ -177,10 +184,33 @@ export function GeneralSettings({ isLight }: { isLight: boolean }) {
           isLight={isLight}
           control={<Switch on={toggles.favicons.on} onChange={toggles.favicons.toggle} isLight={isLight} label="Project favicons" />}
         />
+        <SettingsRow
+          title="Open chats in full screen"
+          hint="Chats fill the window instead of floating over the wallpaper"
+          isLight={isLight}
+          control={<Switch on={toggles.chatsFullscreen.on} onChange={toggles.chatsFullscreen.toggle} isLight={isLight} label="Open chats in full screen" />}
+        />
       </SettingsGroup>
 
       <SettingsGroup title="Startup and system" isLight={isLight}>
         <BackgroundRows isLight={isLight} />
+        <SettingsRow
+          title="Launch in full screen"
+          hint="Applies the next time Orchestrator starts"
+          isLight={isLight}
+          control={
+            <Switch
+              on={launchFullscreen}
+              onChange={() => {
+                const next = !launchFullscreen;
+                setLaunchFullscreen(next);
+                void SetUserPreference('launch_fullscreen', next ? 'true' : 'false');
+              }}
+              isLight={isLight}
+              label="Launch in full screen"
+            />
+          }
+        />
         <SettingsRow
           title="GPU acceleration"
           hint={gpuChanged ? 'Restart Orchestrator to apply' : 'Turn off if the window crashes or flickers'}

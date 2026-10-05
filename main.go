@@ -72,10 +72,15 @@ func main() {
 		logger.Infof("Main", "WebView2 GPU Hardware Acceleration: ENABLED (default)")
 	}
 
+	startState := options.Normal
+	if pref, _ := app.GetUserPreference("launch_fullscreen"); pref == "true" {
+		startState = options.Fullscreen
+	}
+
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:            "Orchestrator",
-		WindowStartState: options.Normal,
+		WindowStartState: startState,
 		Width:            1440,
 		Height:           900,
 		MinWidth:         900,
