@@ -17,8 +17,8 @@ const ELBOW_HEIGHT = 9;
 const ELBOW_RADIUS = 6;
 
 const ELBOW_COLOR: Record<DotTone, string> = {
-  text: 'text-current/[0.3]',
-  row: 'text-current/[0.16]',
+  text: 'text-current/[0.4]',
+  row: 'text-current/[0.24]',
   error: 'text-rose-400/70',
   running: 'text-emerald-400/70',
 };
@@ -68,8 +68,10 @@ export function TimelineSegment({
   connectUp,
   connectDown,
   dotY,
+  className = '',
   children,
 }: {
+  className?: string;
   connectUp: boolean;
   connectDown: boolean;
   dotY: number;
@@ -77,7 +79,7 @@ export function TimelineSegment({
 }) {
   const anchor = SEGMENT_PAD + dotY;
   return (
-    <div className="relative" style={{ paddingLeft: GUTTER, paddingTop: SEGMENT_PAD, paddingBottom: SEGMENT_PAD }}>
+    <div className={`relative ${className}`} style={{ paddingLeft: GUTTER, paddingTop: SEGMENT_PAD, paddingBottom: SEGMENT_PAD }}>
       <span
         aria-hidden
         className="absolute w-px bg-current/[0.14] pointer-events-none"
@@ -92,6 +94,10 @@ export function TimelineSegment({
   );
 }
 
-export function PlainSegment({ children }: { children: React.ReactNode }) {
-  return <div style={{ paddingTop: SEGMENT_PAD, paddingBottom: SEGMENT_PAD }}>{children}</div>;
+export function PlainSegment({ className = '', children }: { className?: string; children: React.ReactNode }) {
+  return (
+    <div className={className} style={{ paddingTop: SEGMENT_PAD, paddingBottom: SEGMENT_PAD }}>
+      {children}
+    </div>
+  );
 }

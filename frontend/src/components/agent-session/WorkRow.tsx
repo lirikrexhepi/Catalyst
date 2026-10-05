@@ -23,7 +23,7 @@ export function Collapse({ open, children }: { open: boolean; children: React.Re
         pointerEvents: open ? 'auto' : 'none',
       }}
     >
-      <div className="overflow-hidden min-w-0">{show ? children : null}</div>
+      <div className="overflow-hidden min-w-0 -ml-[20px] pl-[20px]">{show ? children : null}</div>
     </div>
   );
 }

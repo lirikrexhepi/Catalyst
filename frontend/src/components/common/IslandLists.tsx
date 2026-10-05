@@ -275,6 +275,9 @@ export function ProjectsView({
   projects,
   chatCounts,
   claudeCount,
+  recentClaude = [],
+  relativeTime,
+  onOpenClaudeSession,
   onClose,
   onPicked,
   onOpenProjectChats,
@@ -284,6 +287,9 @@ export function ProjectsView({
   projects?: ProjectsState;
   chatCounts: Record<string, number>;
   claudeCount: number;
+  recentClaude?: claudeimport.ExternalSession[];
+  relativeTime?: (timestamp: number) => string;
+  onOpenClaudeSession?: (session: claudeimport.ExternalSession) => void;
   onClose: () => void;
   onPicked: () => void;
   onOpenProjectChats: (project: Project) => void;
@@ -376,6 +382,23 @@ export function ProjectsView({
             <ChevronRight size={14} strokeWidth={2} />
           </span>
         </button>
+        {recentClaude.length > 0 && (
+          <div className="flex flex-col pl-[22px] pr-1.5 pb-1">
+            {recentClaude.map((chat) => (
+              <button
+                key={chat.filePath}
+                type="button"
+                onClick={() => onOpenClaudeSession?.(chat)}
+                className={`w-full flex items-center gap-2.5 h-[32px] pl-[28px] pr-2 rounded-[11px] text-left ${tone.hover} transition-colors duration-150 cursor-pointer`}
+              >
+                <span className={`flex-1 min-w-0 truncate text-[12px] tracking-tight ${tone.fg}`}>{chat.title || 'Untitled chat'}</span>
+                {relativeTime && (
+                  <span className={`text-[10.5px] tabular-nums shrink-0 ${tone.sub}`}>{relativeTime(chat.updatedAt)}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
       </ScrollArea>
     </div>
   );

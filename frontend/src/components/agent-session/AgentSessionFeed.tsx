@@ -423,11 +423,16 @@ const AgentSessionFeedImpl: React.FC<AgentSessionFeedProps> = ({
   return (
     <div className={`flex flex-col ${className}`}>
       {segments.map((segment, index) => {
-        const body = <div className="feed-segment w-full flex flex-col">{renderSegment(segment)}</div>;
-        if (!isTimelineSegment(segment)) return <PlainSegment key={segment.key}>{body}</PlainSegment>;
+        const body = <div className="w-full flex flex-col">{renderSegment(segment)}</div>;
+        if (!isTimelineSegment(segment)) return (
+            <PlainSegment key={segment.key} className="feed-segment w-full">
+              {body}
+            </PlainSegment>
+          );
         return (
           <TimelineSegment
             key={segment.key}
+            className="feed-segment w-full"
             connectUp={index > 0 && isTimelineSegment(segments[index - 1])}
             connectDown={index < segments.length - 1 && isTimelineSegment(segments[index + 1])}
             dotY={segmentDotY(segment)}

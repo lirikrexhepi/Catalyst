@@ -543,18 +543,9 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 className={`relative w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0 cursor-pointer group transition-colors duration-200 ${
                   isLight
                     ? 'bg-black/[0.06] hover:bg-black/[0.1] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]'
-                    : 'bg-white/[0.07] hover:bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                    : 'bg-white/[0.07] hover:bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]'
                 }`}
               >
-                <svg className="absolute inset-0 w-full h-full animate-spin [animation-duration:1.6s]" viewBox="0 0 34 34" fill="none" aria-hidden>
-                  <rect x="1.5" y="1.5" width="31" height="31" rx="10.5" stroke="url(#stopArc)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="22 90" />
-                  <defs>
-                    <linearGradient id="stopArc" x1="0" y1="0" x2="34" y2="34" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#fb7185" stopOpacity="0" />
-                      <stop offset="1" stopColor="#fb7185" />
-                    </linearGradient>
-                  </defs>
-                </svg>
                 <span className="w-[11px] h-[11px] rounded-[3.5px] bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.55)] transition-transform duration-150 group-hover:scale-90" />
               </motion.button>
             )}
@@ -577,7 +568,7 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 }}
                 className={`relative w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0 group transition-all duration-200 ${
                   canSubmit
-                    ? 'bg-gradient-to-b from-[#4aa3ff] to-[#0a6cff] text-white cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.4),inset_0_0_0_1px_rgba(255,255,255,0.12),0_6px_18px_-4px_rgba(10,108,255,0.65)] hover:brightness-110'
+                    ? 'bg-gradient-to-b from-[#4aa3ff] to-[#0a6cff] text-white cursor-pointer shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_6px_18px_-4px_rgba(10,108,255,0.65)] hover:brightness-110'
                     : isLight
                       ? 'bg-black/[0.05] text-black/25 cursor-default shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]'
                       : 'bg-white/[0.05] text-white/25 cursor-default shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]'

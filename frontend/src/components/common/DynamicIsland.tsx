@@ -510,6 +510,11 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   // tasks never appear here.
   const handClaudeChats = useMemo(() => (claudeSessions ?? []).filter((s) => !s.agentRun), [claudeSessions]);
 
+  const recentClaudeChats = useMemo(
+    () => [...handClaudeChats].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 3),
+    [handClaudeChats],
+  );
+
   const chatCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const project of projects?.projects ?? []) {
@@ -916,6 +921,12 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               projects={projects}
               chatCounts={chatCounts}
               claudeCount={handClaudeChats.length}
+              recentClaude={recentClaudeChats}
+              relativeTime={relativeTime}
+              onOpenClaudeSession={(chat) => {
+                onImportClaudeSession?.(chat.filePath);
+                setMode('idle');
+              }}
               onClose={() => setMode('idle')}
               onPicked={() => setMode('idle')}
               onOpenProjectChats={(project) => {
