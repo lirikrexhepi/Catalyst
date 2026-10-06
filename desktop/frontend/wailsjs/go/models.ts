@@ -731,6 +731,7 @@ export namespace domain {
 	    account?: string;
 	    seq: number;
 	    itemId?: string;
+	    parentToolId?: string;
 	    at: number;
 	    text?: string;
 	    delta?: boolean;
@@ -760,6 +761,7 @@ export namespace domain {
 	        this.account = source["account"];
 	        this.seq = source["seq"];
 	        this.itemId = source["itemId"];
+	        this.parentToolId = source["parentToolId"];
 	        this.at = source["at"];
 	        this.text = source["text"];
 	        this.delta = source["delta"];

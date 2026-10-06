@@ -2,6 +2,7 @@ import { domain } from '../../../wailsjs/go/models';
 import { AgentStreamBlock, UserMessageFile } from './types';
 import { ToolGroupItem } from './ToolGroup';
 import { DiffLine } from './EditTool';
+import { isSubagentEvent, trackSubagents } from './subagents';
 import { chatRefTitle, isChatRefPath } from '../common/chatDrag';
 
 export type RuntimeEvent = domain.RuntimeEvent;
@@ -139,6 +140,11 @@ function determineAction(name: string, cmd?: string): { type: ToolGroupItem['typ
  * the list short and lets React reconcile a single node per message.
  */
 export function reduceEvent(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStreamBlock[] {
+  const tracked = trackSubagents(blocks, event);
+  return isSubagentEvent(event) ? tracked : reduceMain(tracked, event);
+}
+
+function reduceMain(blocks: AgentStreamBlock[], event: RuntimeEvent): AgentStreamBlock[] {
   switch (event.kind) {
     case 'user.message':
       return appendUserMessage(blocks, event);

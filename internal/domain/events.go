@@ -12,6 +12,9 @@ const (
 	EventAgentThought     EventKind = "agent.thought"
 	EventToolCall         EventKind = "tool.call"
 	EventToolResult       EventKind = "tool.result"
+	EventSubagentMessage  EventKind = "subagent.message"
+	EventSubagentToolCall EventKind = "subagent.tool.call"
+	EventSubagentToolDone EventKind = "subagent.tool.result"
 	EventPlan             EventKind = "plan"
 	EventApprovalRequest  EventKind = "approval.request"
 	EventApprovalResolved EventKind = "approval.resolved"
@@ -47,8 +50,9 @@ type RuntimeEvent struct {
 	// ItemID identifies the content item (text block, reasoning part, tool) an
 	// event belongs to, so consumers merge streamed deltas into the right block
 	// and start a new one when the item changes. Empty for legacy events.
-	ItemID string `json:"itemId,omitempty"`
-	At     int64  `json:"at"`
+	ItemID       string `json:"itemId,omitempty"`
+	ParentToolID string `json:"parentToolId,omitempty"`
+	At           int64  `json:"at"`
 
 	Text       string           `json:"text,omitempty"`
 	Delta      bool             `json:"delta,omitempty"`

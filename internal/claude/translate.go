@@ -16,10 +16,8 @@ func (a *Adapter) handleEnvelope(s *session, envelope *Envelope) {
 		s.mu.Unlock()
 	}
 
-	// Frames produced inside a subagent (Task tool) are not the main agent's
-	// work. They are skipped so the feed shows the Task call and its result
-	// rather than the subagent's internals flattened into the conversation.
 	if envelope.ParentToolUseID != "" {
+		a.handleSubagentFrame(s, envelope)
 		return
 	}
 
@@ -463,4 +461,53 @@ func formatClaudeOptions(opts []any) []string {
 		}
 	}
 	return out
+}
+
+func (a *Adapter) handleSubagentFrame(s *session, envelope *Envelope) {
+	if envelope.Message == nil {
+		return
+	}
+	parent := envelope.ParentToolUseID
+	switch envelope.Type {
+	case "assistant":
+		msgID := envelope.Message.ID
+		for i, block := range envelope.Message.Content {
+			switch block.Type {
+			case "text":
+				if block.Text == "" {
+					continue
+				}
+				event := a.event(s, domain.EventSubagentMessage)
+				event.ParentToolID = parent
+				event.Text = block.Text
+				event.ItemID = firstNonEmpty(envelope.UUID, msgID+":full:"+strconv.Itoa(i))
+				a.emit.Emit(event)
+			case "tool_use":
+				tool := &domain.ToolCall{ID: block.ID, Name: block.Name, Status: domain.ToolInProgress}
+				if len(block.Input) > 0 {
+					_ = json.Unmarshal(block.Input, &tool.Input)
+				}
+				event := a.event(s, domain.EventSubagentToolCall)
+				event.ParentToolID = parent
+				event.Tool = tool
+				event.ItemID = block.ID
+				a.emit.Emit(event)
+			}
+		}
+	case "user":
+		for _, block := range envelope.Message.Content {
+			if block.Type != "tool_result" {
+				continue
+			}
+			status := domain.ToolCompleted
+			if block.IsError {
+				status = domain.ToolFailed
+			}
+			event := a.event(s, domain.EventSubagentToolDone)
+			event.ParentToolID = parent
+			event.ItemID = block.ToolUseID
+			event.Tool = &domain.ToolCall{ID: block.ToolUseID, Status: status, Output: flattenContent(block.Content)}
+			a.emit.Emit(event)
+		}
+	}
 }

@@ -149,8 +149,33 @@ export interface ApprovalBlockData {
   decision?: string;
 }
 
-export type AgentStreamBlock =
-  | UserMessageBlock
+export type SubagentEntry =
+  | { id: string; kind: 'text'; text: string; at?: number }
+  | {
+      id: string;
+      kind: 'tool';
+      name: string;
+      target: string;
+      status: 'running' | 'completed' | 'error';
+      output?: string;
+      at?: number;
+    };
+
+export interface SubagentBlockData {
+  type: 'subagent';
+  id: string;
+  toolId: string;
+  title: string;
+  agentType?: string;
+  prompt?: string;
+  status: 'running' | 'completed' | 'error' | 'stopped';
+  startedAt?: number;
+  endedAt?: number;
+  result?: string;
+  entries: SubagentEntry[];
+}
+
+export type AgentStreamBlock =  | UserMessageBlock
   | NoticeBlock
   | AssistantTextBlock
   | ThinkingBlockData
@@ -161,5 +186,6 @@ export type AgentStreamBlock =
   | TodoToolBlockData
   | PlanToolBlockData
   | QuestionToolBlockData
-  | ApprovalBlockData;
+  | ApprovalBlockData
+  | SubagentBlockData;
 

@@ -34,6 +34,8 @@ import { MutateAgentTask, RespondToQuestion } from '../../../wailsjs/go/main/App
 import { EventsOn } from '../../../wailsjs/runtime/runtime';
 import { session } from '../../../wailsjs/go/models';
 import { playTaskComplete } from '../../sound';
+import { SubagentDock } from '../agent-session/SubagentDock';
+import { SubagentBlockData } from '../agent-session/types';
 
 export interface SceneProps {
   children?: React.ReactNode;
@@ -609,6 +611,10 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
   const isGlass = currentTheme.id === 'glass' || currentTheme.id === 'refractive-glass';
 
   const activeTask = activeTasks[activeCardIndex];
+  const activeSubagents = React.useMemo(
+    () => (activeTask?.blocks ?? []).filter((block): block is SubagentBlockData => block.type === 'subagent'),
+    [activeTask?.blocks],
+  );
   const isCurrentBusy =
     viewMode === 'orchestrator' ? coordinator.isBusy : Boolean(activeTask?.isBusy);
 
@@ -1309,7 +1315,11 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
         />)}
 
         {/* Unified Omnibar Input Bar */}
-        <div ref={inputWrapperRef} className="pointer-events-auto w-full flex justify-center">
+        <div ref={inputWrapperRef} className="pointer-events-none w-full flex flex-col items-center gap-2">
+          {viewMode === 'deck' && activeSubagents.length > 0 && (
+            <SubagentDock key={activeTask?.threadId} agents={activeSubagents} />
+          )}
+          <div className="pointer-events-auto w-full flex justify-center">
           <OrchestratorInput
             queue={
               currentQueuedMessages.length > 0
@@ -1355,6 +1365,7 @@ export const Scene: React.FC<SceneProps> = ({ children }) => {
             projects={projects}
             attachments={composerFiles}
           />
+          </div>
         </div>
       </div>
 

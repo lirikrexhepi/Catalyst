@@ -92,6 +92,7 @@ export function buildFeedSegments(
 ): FeedSegment[] {
   const turns: { user?: AgentStreamBlock; body: AgentStreamBlock[] }[] = [];
   for (const block of blocks) {
+    if (block.type === 'subagent') continue;
     if (block.type === 'user') {
       turns.push({ user: block, body: [] });
     } else if (turns.length === 0) {
