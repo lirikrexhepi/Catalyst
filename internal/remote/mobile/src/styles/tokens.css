@@ -16,7 +16,7 @@
   --usage-mid: #a04b26;
   --usage-high: #ff0909;
 
-  --dock-gap: max(var(--safe-bottom), 8px);
+  --dock-gap: max(calc(var(--safe-bottom) - 22px), 10px);
 }
 
 .kb-open {
