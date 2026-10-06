@@ -21,7 +21,7 @@ cd tools
 npm install
 
 node serve-demo.mjs 5317
-npm run dev --prefix ../../frontend
+npm run dev --prefix ../../desktop/frontend
 npm run dev --prefix ../../internal/remote/mobile -- --port 5199 --strictPort
 
 node shoot-desktop.mjs

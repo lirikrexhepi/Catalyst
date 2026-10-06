@@ -28,12 +28,22 @@ Run and supervise AI coding agents from your desktop and your phone. A native Wi
   <img src="website/assets/shots/mobile-chat-light-780.webp" width="180">
 </p>
 
+## Layout
+
+- `desktop/`: the Wails app (Go entry point, React frontend in `desktop/frontend`, build assets)
+- `internal/`: Go packages shared by the desktop app and the phone server
+- `internal/remote/mobile/`: the phone app (React + Vite), embedded into the desktop binary at build time
+- `cmd/`: developer tools
+- `scripts/`: Windows install and update scripts
+- `tools/`: Vite plugins shared by both UIs
+- `website/`: landing page
+
 ## Development
 
-Live development: `wails dev` in the project directory, or `dev.bat` on Windows.
+Run from `desktop/`:
 
-Production build: `wails build`.
+- Live development: `wails dev`
+- Production build: `wails build` (also builds the phone app, which is not committed)
+- Update the installed exe: `scripts/update-exe.ps1`
 
-Phone app: `cd internal/remote/mobile && npm run build`.
-
-The landing page lives in `website/`.
+Phone app on its own: `cd internal/remote/mobile && npm install && npm run dev`.

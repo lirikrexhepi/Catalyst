@@ -7,7 +7,7 @@ const raw = '../shots/raw'
 const out = '../assets/shots'
 fs.mkdirSync(out, { recursive: true })
 
-const esbuild = path.resolve('../../frontend/node_modules/.bin/esbuild.cmd')
+const esbuild = path.resolve('../../desktop/frontend/node_modules/.bin/esbuild.cmd')
 execFileSync(esbuild, ['kit.ts', '--bundle', '--minify', '--format=esm', '--outfile=../js/kit.js', '--target=es2020'], { stdio: 'inherit', shell: true })
 
 const jobs = []

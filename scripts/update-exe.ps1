@@ -5,7 +5,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$Built = Join-Path $Repo 'build\bin\orchestrator.exe'
+$Desktop = Join-Path $Repo 'desktop'
+$Built = Join-Path $Desktop 'build\bin\orchestrator.exe'
 $TaskName = 'Orchestrator Headless'
 
 function Invoke-Step([string]$Name, [scriptblock]$Body) {
@@ -30,27 +31,17 @@ $backgroundWasRunning = [bool](Get-CimInstance Win32_Process | Where-Object {
 $headlessWasRunning = $taskWasRunning -or $backgroundWasRunning
 $desktopWasRunning = [bool](Get-OrchestratorProcesses | Where-Object { $_.MainWindowHandle -ne 0 })
 
-Invoke-Step 'Building phone UI' {
-    Push-Location (Join-Path $Repo 'internal\remote\mobile')
-    try {
-        npm install --no-audit --no-fund
-        if ($LASTEXITCODE -ne 0) { throw 'npm install failed' }
-        npm run build
-    } finally { Pop-Location }
-}
-
-
 Invoke-Step 'Syncing picked icon into build' {
     $StagedIco = Join-Path $env:APPDATA 'composer\icons\app.ico'
     $StagedPng = Join-Path $env:APPDATA 'composer\icons\app-512.png'
     if ((Test-Path $StagedIco) -and (Test-Path $StagedPng)) {
-        Copy-Item $StagedIco (Join-Path $Repo 'build\windows\icon.ico') -Force
-        Copy-Item $StagedPng (Join-Path $Repo 'build\appicon.png') -Force
+        Copy-Item $StagedIco (Join-Path $Desktop 'build\windows\icon.ico') -Force
+        Copy-Item $StagedPng (Join-Path $Desktop 'build\appicon.png') -Force
     }
 }
 
 Invoke-Step 'Building desktop app (wails build)' {
-    Push-Location $Repo
+    Push-Location $Desktop
     try { wails build } finally { Pop-Location }
 }
 

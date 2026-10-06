@@ -1,8 +1,8 @@
 import sharp from 'sharp'
 
 const root = '../../'
-await sharp(`${root}frontend/src/assets/wallpapers/wallpaper2.jpg`).resize({ width: 2400 }).webp({ quality: 78 }).toFile('../assets/bg-dusk.webp')
-await sharp(`${root}frontend/src/assets/wallpapers/wallpaper4.jpg`).resize({ width: 2400 }).webp({ quality: 78 }).toFile('../assets/bg-dunes.webp')
+await sharp(`${root}desktop/frontend/src/assets/wallpapers/wallpaper2.jpg`).resize({ width: 2400 }).webp({ quality: 78 }).toFile('../assets/bg-dusk.webp')
+await sharp(`${root}desktop/frontend/src/assets/wallpapers/wallpaper4.jpg`).resize({ width: 2400 }).webp({ quality: 78 }).toFile('../assets/bg-dunes.webp')
 await sharp(`${root}assets/logo/app-icon-blue-base.png`).resize(256).png().toFile('../assets/icon-256.png')
 await sharp(`${root}assets/logo/app-icon-blue-base.png`).resize(180).png().toFile('../assets/apple-touch-icon.png')
 await sharp(`${root}assets/logo/app-icon-blue-base.png`).resize(48).png().toFile('../assets/favicon.png')

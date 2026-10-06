@@ -29,7 +29,7 @@ export default defineConfig({
     react(),
     // Falls back to the desktop app's copy until this package is installed here.
     fileIcons({
-      packageDirs: [here + 'node_modules/material-icon-theme', here + '../../../frontend/node_modules/material-icon-theme'],
+      packageDirs: [here + 'node_modules/material-icon-theme', here + '../../../desktop/frontend/node_modules/material-icon-theme'],
     }),
   ],
   base: '/',
