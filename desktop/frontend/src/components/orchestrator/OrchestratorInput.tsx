@@ -540,13 +540,9 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                   e.stopPropagation();
                   onInterrupt?.();
                 }}
-                className={`relative w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0 cursor-pointer group transition-colors duration-200 ${
-                  isLight
-                    ? 'bg-black/[0.06] hover:bg-black/[0.1] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]'
-                    : 'bg-white/[0.07] hover:bg-white/[0.12] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]'
-                }`}
+                className="glass-orb glass-orb-stop relative w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0 cursor-pointer group"
               >
-                <span className="w-[11px] h-[11px] rounded-[3.5px] bg-rose-400 shadow-[0_0_10px_rgba(251,113,133,0.55)] transition-transform duration-150 group-hover:scale-90" />
+                <span className="w-[10px] h-[10px] rounded-[3px] bg-white shadow-[0_1px_2px_rgba(150,40,60,0.45)] transition-transform duration-150 group-hover:scale-90" />
               </motion.button>
             )}
 
@@ -568,13 +564,13 @@ export const OrchestratorInput: React.FC<OrchestratorInputProps> = ({
                 }}
                 className={`relative w-[34px] h-[34px] rounded-[12px] flex items-center justify-center shrink-0 group transition-all duration-200 ${
                   canSubmit
-                    ? 'bg-gradient-to-b from-[#4aa3ff] to-[#0a6cff] text-white cursor-pointer shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14),0_6px_18px_-4px_rgba(10,108,255,0.65)] hover:brightness-110'
+                    ? 'glass-orb !rounded-full text-white cursor-pointer'
                     : isLight
                       ? 'bg-black/[0.05] text-black/25 cursor-default shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]'
                       : 'bg-white/[0.05] text-white/25 cursor-default shadow-[inset_0_0_0_1px_rgba(255,255,255,0.07)]'
                 }`}
               >
-                <ArrowUp size={17} strokeWidth={2.25} className="transition-transform duration-200 group-enabled:group-hover:-translate-y-px" />
+                <ArrowUp size={16} strokeWidth={2.5} className="drop-shadow-[0_1px_1px_rgba(40,120,180,0.45)] transition-transform duration-200 group-enabled:group-hover:-translate-y-px" />
               </motion.button>
             )}
           </AnimatePresence>
